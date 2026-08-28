@@ -16,8 +16,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   BadgeCheck,
+  BarChart3,
   Briefcase,
   CircleDollarSign,
+  ExternalLink,
   GraduationCap,
   History,
   Home as HomeIcon,
@@ -783,6 +785,28 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
             >
               <Plus className="mr-2 h-4 w-4" /> Adicionar Produto
             </Button>
+            <Button
+              onClick={() => router.push('/dashboard/vendedor')}
+              className="h-11 bg-slate-900 text-white hover:bg-slate-800"
+            >
+              <BarChart3 className="mr-2 h-4 w-4" /> Painel de vendas
+            </Button>
+            <Button
+              onClick={() => router.push('/dashboard/vendedor/portfolio')}
+              variant="outline"
+              className="h-11 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+            >
+              <Pencil className="mr-2 h-4 w-4" /> Editar portfólio
+            </Button>
+            {user.username && (
+              <Button
+                onClick={() => router.push(`/portfolio/${user.username}`)}
+                variant="outline"
+                className="h-11 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" /> Ver portfólio público
+              </Button>
+            )}
             <Button
               onClick={handleLogout}
               variant="outline"

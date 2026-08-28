@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  BarChart3,
   Facebook,
   Instagram,
   Mail,
@@ -96,6 +97,23 @@ export default function HamburgerMenu({
                 </li>
               );
             })}
+            {/* Painel de vendas — apenas vendedores autenticados */}
+            {user && isSeller && (
+              <li>
+                <Link
+                  href="/dashboard/vendedor"
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                    pathname.startsWith('/dashboard')
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Painel de vendas
+                </Link>
+              </li>
+            )}
             {/* Publicar — visível apenas para vendedores autenticados */}
             {user && isSeller && (
               <li>

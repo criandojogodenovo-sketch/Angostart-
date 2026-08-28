@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { publicUser, signToken, type UserRow } from '@/lib/auth';
+import { clientKey, rateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,10 +33,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!rateLimit(clientKey(request, 'login'), 10, 5 * 60_000)) {
+    return NextResponse.json(
+      { error: 'Demasiadas tentativas de entrada. Espera 5 minutos.' },
+      { status: 429 }
+    );
+  }
+
   try {
     const rows = (await sql`
-      SELECT id, name, email, role, telefone, bio, area_atuacao, cidade,
-             especialidade, portfolio_url, password_hash
+      SELECT id, name, email, role, username, telefone, bio, area_atuacao, cidade,
+             especialidade, portfolio_url, blocked::boolean, password_hash
       FROM users
       WHERE email = ${email}
       LIMIT 1
@@ -46,6 +54,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Email ou palavra-passe incorretos.' },
         { status: 401 }
+      );
+    }
+
+    if (row.blocked) {
+      return NextResponse.json(
+        { error: 'A tua conta foi bloqueada. Contacta o suporte via WhatsApp.' },
+        { status: 403 }
       );
     }
 

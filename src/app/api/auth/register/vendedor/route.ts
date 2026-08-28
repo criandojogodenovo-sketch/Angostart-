@@ -5,9 +5,11 @@ import {
   isSellerRole,
   publicUser,
   signToken,
+  generateUniqueUsername,
   type SellerRole,
   type UserRow,
 } from '@/lib/auth';
+import { clientKey, rateLimit, sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,11 +45,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const name = body.name?.trim() ?? '';
+  const name = sanitizeText(body.name, 80);
   const email = body.email?.trim().toLowerCase() ?? '';
   const password = body.password ?? '';
   const telefone = body.telefone?.trim() ?? '';
   const role = body.role?.trim() ?? '';
+
+  if (!rateLimit(clientKey(request, 'register'), 10, 60_000)) {
+    return NextResponse.json(
+      { error: 'Demasiadas tentativas de registo. Aguarda um minuto.' },
+      { status: 429 }
+    );
+  }
 
   if (name.length < 3) {
     return NextResponse.json(
@@ -80,11 +89,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const bio = body.bio?.trim() ?? null;
-  const areaAtuacao = body.area_atuacao?.trim() ?? null;
-  const cidade = body.cidade?.trim() ?? null;
-  const especialidade = body.especialidade?.trim() ?? null;
-  const portfolioUrl = body.portfolio_url?.trim() || null;
+  const bio = sanitizeMultiline(body.bio, 500) || null;
+  const areaAtuacao = sanitizeText(body.area_atuacao, 80) || null;
+  const cidade = sanitizeText(body.cidade, 60) || null;
+  const especialidade = sanitizeText(body.especialidade, 80) || null;
+  const portfolioUrl =
+    body.portfolio_url?.trim() && isSafeHttpUrl(body.portfolio_url.trim())
+      ? body.portfolio_url.trim()
+      : null;
+
+  if (body.portfolio_url?.trim() && !portfolioUrl) {
+    return NextResponse.json(
+      { error: 'O link do portfólio deve começar por https:// e ser um endereço válido.' },
+      { status: 400 }
+    );
+  }
 
   // Validação condicional por perfil
   if (role === 'criador' && (!bio || bio.length < 10)) {
@@ -128,14 +147,15 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const username = await generateUniqueUsername(name);
 
     const inserted = (await sql`
-      INSERT INTO users (name, email, password_hash, phone, telefone, role, bio, area_atuacao, cidade, especialidade, portfolio_url)
+      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url)
       VALUES (
         ${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone},
-        ${role as SellerRole}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl}
+        ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl}
       )
-      RETURNING id, name, email, role, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url
+      RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
     `) as unknown as UserRow[];
 
     const user = publicUser(inserted[0]);

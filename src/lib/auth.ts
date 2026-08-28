@@ -1,3 +1,4 @@
+import 'server-only';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import type { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
@@ -5,57 +6,68 @@ import { sql } from '@/lib/db';
 /**
  * AngoStart — Autenticação multi-perfil (server-side)
  *
+ * ⚠️ SERVER-ONLY: lê JWT_SECRET e DATABASE_URL — protegido pelo pacote
+ * `server-only`, nunca pode ser importado por um Client Component.
+ * Os tipos/constantes partilhados vivem em `@/lib/roles` (client-safe).
+ *
  * - JWT (HS256, expira em 7 dias) assinado com JWT_SECRET
- * - 4 perfis: cliente | criador | prestador_domicilio | prestador_remoto
+ * - 6 perfis: cliente | criador | prestador_domicilio | prestador_remoto |
+ *             admin | admin_limitado
  * - getAuthUser(request) valida o header `Authorization: Bearer <token>`
- *   e carrega o utilizador atual da base de dados Neon.
+ *   e carrega o utilizador atual da base de dados Neon (rejeitando
+ *   contas bloqueadas).
  */
 
-export const ROLES = [
-  'cliente',
-  'criador',
-  'prestador_domicilio',
-  'prestador_remoto',
-] as const;
-export const SELLER_ROLES = [
-  'criador',
-  'prestador_domicilio',
-  'prestador_remoto',
-] as const;
+import {
+  ROLES,
+  SELLER_ROLES,
+  ROLE_LABELS,
+  isValidRole,
+  isSellerRole,
+  isAdminRole,
+  type Role,
+  type SellerRole,
+} from '@/lib/roles';
 
-export type Role = (typeof ROLES)[number];
-export type SellerRole = (typeof SELLER_ROLES)[number];
+export { ROLES, SELLER_ROLES, ROLE_LABELS, isValidRole, isSellerRole, isAdminRole };
+export type { Role, SellerRole };
 
-export const ROLE_LABELS: Record<Role, string> = {
-  cliente: 'Cliente',
-  criador: 'Criador de Infoprodutos',
-  prestador_domicilio: 'Prestador ao Domicílio',
-  prestador_remoto: 'Freelancer Remoto',
-};
+/** Secret TOTP pendente de verificação (guardado temporariamente no user). */
+const PENDING_2FA_SECRET = '__pending__';
 
-export function isValidRole(role: string): role is Role {
-  return (ROLES as readonly string[]).includes(role);
-}
-
-export function isSellerRole(role: string): boolean {
-  return (SELLER_ROLES as readonly string[]).includes(role);
-}
-
-/** Utilizador exposto pelas APIs (nunca inclui password_hash). */
+/** Utilizador exposto pelas APIs (nunca inclui password_hash nem segredo 2FA). */
 export interface AuthUser {
   id: number;
   name: string;
   email: string;
   role: Role;
+  username: string | null;
   telefone: string | null;
   bio: string | null;
   area_atuacao: string | null;
   cidade: string | null;
   especialidade: string | null;
   portfolio_url: string | null;
+  blocked: boolean;
 }
 
-export type UserRow = AuthUser & { password_hash?: string | null };
+export type UserRow = AuthUser & {
+  blocked?: boolean | null;
+  password_hash?: string | null;
+};
+
+/* ──────────────────────────────── 2FA ─────────────────────────────── */
+
+/** Devolve o segredo TOTP ativo do utilizador (null se não ativado). */
+export async function getTwoFactorSecret(userId: number): Promise<string | null> {
+  const rows = (await sql`
+    SELECT two_factor_secret, two_factor_enabled::boolean
+    FROM users WHERE id = ${userId} LIMIT 1
+  `) as unknown as { two_factor_secret: string | null; two_factor_enabled: boolean }[];
+  const row = rows[0];
+  if (!row?.two_factor_secret || !row.two_factor_enabled) return null;
+  return row.two_factor_secret;
+}
 
 // NOTA: o driver Neon não permite interpolar nomes de colunas como parâmetros —
 // o SELECT tem de ter as colunas escritas literalmente no template.
@@ -119,9 +131,9 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
 
   try {
     const rows = (await sql`
-      SELECT id, name, email, role, telefone, bio, area_atuacao, cidade,
-             especialidade, portfolio_url
-      FROM users WHERE id = ${Number(payload.sub)} LIMIT 1
+      SELECT id, name, email, role, username, telefone, bio, area_atuacao, cidade,
+             especialidade, portfolio_url, blocked::boolean
+      FROM users WHERE id = ${Number(payload.sub)} AND blocked = FALSE LIMIT 1
     `) as unknown as AuthUser[];
     return rows[0] ?? null;
   } catch (error) {
@@ -137,11 +149,42 @@ export function publicUser(row: UserRow): AuthUser {
     name: row.name,
     email: row.email,
     role: row.role,
+    username: row.username ?? null,
     telefone: row.telefone ?? null,
     bio: row.bio ?? null,
     area_atuacao: row.area_atuacao ?? null,
     cidade: row.cidade ?? null,
     especialidade: row.especialidade ?? null,
     portfolio_url: row.portfolio_url ?? null,
+    blocked: Boolean(row.blocked),
   };
+}
+
+/* ─────────────────────────── Username público ─────────────────────── */
+
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$/;
+
+export { USERNAME_RE };
+
+/** Gera um username único a partir do nome (slug portuguesa). */
+export async function generateUniqueUsername(name: string): Promise<string> {
+  const base =
+    name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$|\.{2,}/g, '')
+      .slice(0, 24)
+      .replace(/^\.+|\.+$/g, '') || 'utilizador';
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate =
+      attempt === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
+    const rows = (await sql`
+      SELECT 1 FROM users WHERE username = ${candidate} LIMIT 1
+    `) as unknown as unknown[];
+    if (!rows[0]) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
 }

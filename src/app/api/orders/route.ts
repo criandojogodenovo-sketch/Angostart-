@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import {
+  sanitizeText,
+  sanitizeMultiline,
+  isSafeHttpUrl,
+  clientKey,
+  rateLimit,
+  requireAnyAdmin,
+} from '@/lib/security';
+import { sendOrderNotifications } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
-interface OrderItemPayload {
+interface CartInput {
   id: number;
-  name: string;
-  price_kz: number;
   quantity: number;
+}
+
+interface OrderItemPayload {
+  id?: unknown;
+  quantity?: unknown;
 }
 
 interface OrderPayload {
@@ -18,17 +30,40 @@ interface OrderPayload {
   items?: OrderItemPayload[];
   delivery_type?: string;
   notes?: string;
+  comprovativo_url?: string;
+}
+
+interface DbProduct {
+  id: number;
+  name: string;
+  price_kz: number;
+  user_id: number | null;
+  seller_email: string | null;
 }
 
 /**
  * POST /api/orders — Regista uma encomenda no Neon.
- * Corpo: { customer_name, customer_phone, customer_email?, items[], delivery_type?, notes? }
- * Se o pedido incluir um token válido (Authorization: Bearer), a encomenda
- * fica ligada ao utilizador — assim o cliente vê o histórico de compras.
+ *
+ * 🔒 SEGURANÇA (Fase 3):
+ * - Preços e nomes dos produtos são RECALCULADOS na base de dados — o
+ *   cliente não pode forjar preços no corpo do pedido (anti-manipulação).
+ * - Cada item fica associado ao vendedor (seller_id) para o dashboard de
+ *   vendas e as notificações.
+ * - Textos são sanitizados (anti-XSS armazenado) e o URL do comprovativo
+ *   é validado (só http/https).
+ * - Notificações por email (Resend): cliente + vendedores.
  */
 export async function POST(request: NextRequest) {
   const authUser = await getAuthUser(request);
   const userId = authUser?.id ?? null;
+
+  // 10 encomendas / minuto por IP — trava spam e floods
+  if (!rateLimit(clientKey(request, 'orders-post'), 10, 60_000)) {
+    return NextResponse.json(
+      { error: 'Demasiados pedidos. Aguarda um minuto.' },
+      { status: 429 }
+    );
+  }
 
   let body: OrderPayload;
 
@@ -41,58 +76,128 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { customer_name, customer_phone, customer_email, items, delivery_type, notes } = body;
+  const customerName = sanitizeText(body.customer_name, 80);
+  const customerPhone = sanitizeText(body.customer_phone, 20);
+  const customerEmail = body.customer_email?.trim().toLowerCase() || null;
+  const deliveryType = sanitizeText(body.delivery_type, 30) || 'entrega';
+  const notes = sanitizeMultiline(body.notes, 300) || null;
+  const comprovativoUrl =
+    body.comprovativo_url?.trim() && isSafeHttpUrl(body.comprovativo_url.trim())
+      ? body.comprovativo_url.trim()
+      : null;
 
-  if (!customer_name || customer_name.trim().length < 3) {
+  if (body.comprovativo_url?.trim() && !comprovativoUrl) {
+    return NextResponse.json(
+      { error: 'O link do comprovativo deve começar por https://.' },
+      { status: 400 }
+    );
+  }
+  if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    return NextResponse.json(
+      { error: 'Email inválido — verifica o endereço escrito.' },
+      { status: 400 }
+    );
+  }
+  if (customerName.length < 3) {
     return NextResponse.json(
       { error: 'Indica o teu nome completo (mínimo 3 letras).' },
       { status: 400 }
     );
   }
-  if (!customer_phone || customer_phone.trim().length < 9) {
+  if (customerPhone.replace(/\D/g, '').length < 9) {
     return NextResponse.json(
       { error: 'Indica um número de telefone válido (mínimo 9 dígitos).' },
       { status: 400 }
     );
   }
-  if (!Array.isArray(items) || items.length === 0) {
+
+  /* ── Validação dos artigos contra a base de dados (anti-fraude) ── */
+  const rawItems = Array.isArray(body.items) ? body.items : [];
+  const wanted = new Map<number, number>();
+  for (const item of rawItems as CartInput[]) {
+    const id = Number(item?.id);
+    const qty = Math.round(Number(item?.quantity));
+    if (!Number.isInteger(id) || id <= 0) continue;
+    if (!Number.isInteger(qty) || qty <= 0 || qty > 99) continue;
+    wanted.set(id, Math.min((wanted.get(id) ?? 0) + qty, 99));
+  }
+
+  if (wanted.size === 0) {
     return NextResponse.json(
       { error: 'O carrinho está vazio — adiciona pelo menos um produto.' },
       { status: 400 }
     );
   }
 
-  const totalKz = items.reduce(
-    (acc, item) =>
-      acc + (Number.isFinite(item.price_kz) ? item.price_kz : 0) * (Number.isFinite(item.quantity) ? item.quantity : 0),
-    0
-  );
+  const ids = [...wanted.keys()];
+  // ids já validados como inteiros positivos; enviamos como texto e
+  // convertemos em array de inteiros na BD (o driver neon() não tem .join)
+  const dbProducts = (await sql`
+    SELECT p.id, p.name, p.price_kz, p.user_id, u.email AS seller_email
+    FROM products p
+    LEFT JOIN users u ON u.id = p.user_id
+    WHERE p.id = ANY(string_to_array(${ids.join(',')}, ',')::int[])
+  `) as unknown as DbProduct[];
 
-  if (totalKz <= 0) {
+  if (dbProducts.length !== wanted.size) {
     return NextResponse.json(
-      { error: 'Total da encomenda inválido.' },
-      { status: 400 }
+      { error: 'Alguns artigos já não estão disponíveis. Atualiza o carrinho.' },
+      { status: 409 }
     );
+  }
+
+  const items = dbProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price_kz: p.price_kz,
+    quantity: wanted.get(p.id) ?? 1,
+    seller_id: p.user_id,
+  }));
+  const sellerEmails = [
+    ...new Set(dbProducts.map((p) => p.seller_email).filter(Boolean) as string[]),
+  ];
+
+  const totalKz = items.reduce((acc, i) => acc + i.price_kz * i.quantity, 0);
+  if (totalKz <= 0) {
+    return NextResponse.json({ error: 'Total da encomenda inválido.' }, { status: 400 });
   }
 
   try {
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url)
       VALUES (
-        ${customer_name.trim()},
-        ${customer_phone.trim()},
-        ${customer_email?.trim() || null},
+        ${customerName},
+        ${customerPhone},
+        ${customerEmail},
         ${JSON.stringify(items)}::jsonb,
         ${totalKz},
         'pendente',
-        ${delivery_type || 'retirada'},
-        ${notes?.trim() || null},
-        ${userId}
+        ${deliveryType},
+        ${notes},
+        ${userId},
+        ${comprovativoUrl}
       )
       RETURNING id, created_at, total_kz, status
     `);
 
     const order = inserted[0];
+
+    // Emails (não bloqueiam a encomenda em caso de falha)
+    try {
+      await sendOrderNotifications(
+        {
+          orderId: order.id,
+          customerName,
+          customerEmail,
+          customerPhone,
+          totalKz,
+          items,
+        },
+        sellerEmails
+      );
+    } catch (emailError) {
+      console.error('[API /api/orders] Email falhou (não crítico):', emailError);
+    }
 
     return NextResponse.json(
       {
@@ -117,8 +222,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/orders?mine=1 — histórico de compras do utilizador autenticado.
- * Header: Authorization: Bearer <token>
- * Sem ?mine=1, lista as últimas encomendas (uso interno/admin).
+ * GET /api/orders (sem ?mine=1) — 🔒 apenas admin/admin_limitado.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -144,6 +248,12 @@ export async function GET(request: NextRequest) {
       console.error('[API /api/orders] Erro ao listar (mine):', error);
       return NextResponse.json({ orders: [] }, { status: 200 });
     }
+  }
+
+  // 🔒 Listagem global — antigamente pública, agora só para admins
+  const auth = await requireAnyAdmin(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {

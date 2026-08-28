@@ -1,173 +1,318 @@
-# AngoStart 🚀
+# 🚀 AngoStart — Marketplace Empresarial Angolano
 
-**O marketplace angolano multi-perfil de infoprodutos, produtos físicos e serviços** — construído com Next.js, Tailwind CSS e Neon PostgreSQL.
+**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamentos Multicaixa Express, mapas escuros e duplo painel de administração com 2FA.**
 
-A AngoStart liga **quem vende** a **quem compra** em Luanda e em toda Angola: criadores de cursos e eBooks, prestadores de serviços ao domicílio, freelancers remotos e lojas de produtos físicos — tudo com preços em **Kwanzas (Kz)**, autenticação segura com JWT e confirmação por **WhatsApp**.
+> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **PayPay AO** · **otplib (TOTP 2FA)**
 
 ---
 
-## Perfis de Utilizador (Marketplace Multi-Perfil)
+## 📋 Índice
 
-| Perfil | `role` | Campos próprios | O que pode fazer |
-|---|---|---|---|
-| **Cliente** | `cliente` | nome, email, telefone | Navegar, pesquisar, comprar, ver histórico de compras |
-| **Criador de Infoprodutos** | `criador` | + bio | Publicar cursos, eBooks e templates; ver e gerir as suas vendas |
-| **Prestador ao Domicílio** | `prestador_domicilio` | + área de atuação, cidade | Publicar serviços presenciais; receber pedidos |
-| **Freelancer Remoto** | `prestador_remoto` | + especialidade, portfólio | Publicar serviços online; receber pedidos |
+1. [Funcionalidades](#-funcionalidades)
+2. [Arquitetura de segurança](#-arquitetura-de-segurança)
+3. [Perfis de utilizador](#-perfis-de-utilizador)
+4. [Rotas ocultas de administração](#-rotas-ocultas-de-administração)
+5. [Pagamentos Multicaixa Express](#-pagamentos-multicaixa-express)
+6. [Mapa de serviços ao domicílio](#-mapa-de-serviços-ao-domicílio)
+7. [Notificações por email (Resend)](#-notificações-por-email-resend)
+8. [Referência da API](#-referência-da-api)
+9. [Base de dados (Neon)](#-base-de-dados-neon)
+10. [Variáveis de ambiente](#-variáveis-de-ambiente)
+11. [Testes de segurança](#-testes-de-segurança)
+12. [Desenvolvimento e deploy](#-desenvolvimento-e-deploy)
+13. [Registo de alterações](#-registo-de-alterações)
 
-- **Registo de cliente:** `POST /api/auth/register/cliente` — { name, email, password, telefone }
-- **Registo de vendedor:** `POST /api/auth/register/vendedor` — { name, email, password, telefone, role, …campos condicionais }
-- **Login genérico:** `POST /api/auth/login` — devolve `{ token, user }` com o `role` do utilizador
-- **Sessão:** `GET /api/auth/me` — restaura a sessão a partir do token JWT (expira em 7 dias)
+---
 
-As palavras-passe são guardadas com **bcrypt** (10 rounds) e as sessões usam **JWT HS256** assinado com `JWT_SECRET`.
+## ✨ Funcionalidades
 
-## Stack Tecnológica
+### Marketplace multi-perfil
+- **6 perfis**: cliente, criador de infoprodutos, prestador ao domicílio, freelancer remoto, admin e admin limitado.
+- Publicação de produtos/serviços **apenas por vendedores**; edição/eliminação **apenas pelo dono** (admins podem eliminar qualquer produto).
+- Catálogo com pesquisa, filtros por tipo, vendedores identificados e página pública de portfólio por vendedor.
+- Carrinho persistente, histórico de compras e **validação server-side de preços** (o cliente não consegue forjar valores).
 
-| Camada | Tecnologia |
+### Fase 3 (atual)
+| Módulo | Descrição |
 |---|---|
-| Framework | Next.js 16 (App Router) + TypeScript |
-| Estilos | Tailwind CSS 4 + shadcn/ui |
-| Base de dados | Neon PostgreSQL (serverless) |
-| Driver | `@neondatabase/serverless` (HTTPS:443) |
-| Autenticação | `bcryptjs` + `jsonwebtoken` (JWT, 7 dias) |
-| Ícones | lucide-react |
-| Estado global | React Context (auth + carrinho + pesquisa) |
-| Fonte | Poppins (Google Fonts) |
+| 🛡️ Segurança | `server-only` nos módulos com segredos, validação Zod do ambiente, sanitização anti-XSS, rate limiting, guards de role, headers de segurança |
+| 🗺️ Mapa | Leaflet + tiles **Esri Dark Gray** (tema escuro, sem API key), geolocalização, marcador do prestador e escolha do ponto de serviço |
+| 📊 Painel de vendas | Cartões de métricas, receita por mês (BarChart), produtos mais vendidos (PieChart), encomendas recebidas — **Recharts** |
+| 📧 Emails | Resend — confirmação ao cliente + aviso aos vendedores em cada encomenda; alertas de pagamento |
+| 💳 Pagamentos | **Multicaixa Express** via `paypay-ao-sdk` (webhook com verificação HMAC timing-safe; modo sandbox sem chaves) |
+| ⭐ Avaliações | 1–5 estrelas + comentário, **apenas após compra confirmada** (`pago`/`entregue`), média recalculada no produto |
+| 👤 Portfólio | Página pública `/portfolio/[username]` com bio, galeria de trabalhos, produtos e CTA WhatsApp + editor em `/dashboard/vendedor/portfolio` |
+| 🔐 Admin | Dois painéis ocultos com **login + 2FA TOTP obrigatório**: `/admin` (total) e `/admin-limitado` (só validação de comprovativos) |
 
-## Paleta da Marca
+---
 
-- Azul escuro: `#0F172A` (navbar, hero, rodapé)
-- Verde esmeralda: `#10B981` (botões, destaques, CTA de compra)
-- Âmbar: `#F59E0B` (ações de vendedor — publicar/gestão)
-- WhatsApp: `#25D366` (botão flutuante)
+## 🛡️ Arquitetura de segurança
 
-## Estrutura do Projeto
-
+### Proteção de código-servidor
 ```
-src/
-├── app/
-│   ├── page.tsx                    # Home: hero + categorias + "Quem pode vender?" + destaques
-│   ├── produtos/page.tsx           # Catálogo com filtro por tipo + pesquisa
-│   ├── perfil/page.tsx             # Login duplo (cliente/vendedor) + perfis distintos
-│   ├── adicionar-produto/page.tsx  # Publicar/editar produto (só vendedores)
-│   ├── carrinho/page.tsx           # Carrinho + checkout (pré-preenchido + token)
-│   └── api/
-│       ├── auth/
-│       │   ├── register/cliente/   # POST — cria conta de cliente
-│       │   ├── register/vendedor/  # POST — cria conta de vendedor (role + campos condicionais)
-│       │   ├── login/              # POST — login genérico (devolve token + role)
-│       │   └── me/                 # GET — dados da sessão (Bearer)
-│       ├── products/
-│       │   ├── route.ts            # GET catálogo (join vendedor) + ?meu=1 · POST publicar (só vendedores)
-│       │   └── [id]/route.ts       # GET detalhe · PUT editar (dono) · DELETE eliminar (dono)
-│       └── orders/route.ts         # POST encomenda (liga ao user) · GET ?mine=1 histórico
-├── components/
-│   ├── Navbar.tsx                  # + link "Adicionar Produto" (só vendedores)
-│   ├── HamburgerMenu.tsx           # Menu móvel + link de publicação
-│   ├── ProductCard.tsx             # Card com preço em Kz + nome do vendedor
-│   ├── WhatsAppButton.tsx          # Botão flutuante wa.me/244958176915
-│   └── … (SearchBar, Footer, CatalogClient, FeaturedProducts, ProductIcon)
-├── context/
-│   ├── AuthContext.tsx             # Sessão JWT, registo/login multi-perfil, restauração
-│   └── StoreContext.tsx            # Carrinho (localStorage) + pesquisa globais
-└── lib/
-    ├── auth.ts                     # JWT sign/verify + getAuthUser + roles
-    ├── db.ts                       # Cliente Neon serverless
-    ├── products-data.ts            # Tipos + catálogo de fallback
-    └── format.ts                   # Formatação em Kz
-scripts/
-├── createTables.js                 # Cria tabelas users/products/orders
-├── migrate-multi-profile.js        # Migração multi-perfil (roles, user_id, image_url…)
-└── test-auth-e2e.sh                # 16 testes E2E das APIs (registo→publicar→comprar→apagar)
+src/lib/env.ts        → import 'server-only' + validação Zod das variáveis
+src/lib/db.ts         → import 'server-only' (DATABASE_URL nunca no cliente)
+src/lib/auth.ts       → import 'server-only' (JWT_SECRET, bcrypt, roles BD)
+src/lib/security.ts   → import 'server-only' (sanitização, rate limit, guards)
+src/lib/email.ts      → import 'server-only' (RESEND_API_KEY)
+src/lib/paypay.ts     → import 'server-only' (chaves RSA PayPay)
+src/lib/admin-session.ts → import 'server-only' (assinatura do cookie 2FA)
 ```
+O pacote [`server-only`](https://www.npmjs.com/package/server-only) **quebra o build** se qualquer Client Component tentar importar estes módulos — segredos nunca chegam ao bundle.
 
-## Base de Dados (Neon PostgreSQL)
+**Tipos partilhados client-safe** vivem em `src/lib/roles.ts` e `src/lib/cidades-angola.ts` (sem acesso a `process.env`).
 
-### Esquema
+### Defesas implementadas
+| Camada | Mecanismo |
+|---|---|
+| XSS armazenado | `sanitizeText` / `sanitizeMultiline` em todos os inputs guardados; React escapa na renderização |
+| XSS de URLs | `isSafeHttpUrl` rejeita `javascript:` / `data:` / credenciais no URL |
+| SQL Injection | 100% queries parametrizadas (tagged templates do driver Neon) |
+| Preços falsos | Encomendas recalculam nome/preço/vendedor **na base de dados**; o corpo do cliente só envia `id` + `quantity` |
+| Força-bruta | Rate limiting por IP: login 10/5min, 2FA 8/5min, registo 10/min, pagamentos 6/min, encomendas 10/min |
+| Webhook falso | HMAC-SHA256 timing-safe (`crypto.timingSafeEqual`); sem segredo configurado, apenas transações de SIMULAÇÃO podem ser atualizadas |
+| Contas comprometidas | Bloqueio por admin → `getAuthUser` rejeita contas `blocked` imediatamente |
+| Clickjacking / sniffing | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, CSP `frame-ancestors 'none'`, `Permissions-Policy`, `Referrer-Policy` |
+| Fingerprinting | `poweredByHeader: false` |
+| Sessão admin | Cookie **HttpOnly + SameSite=Lax + Secure (prod)**, assinado HS256 (jose), expira em 8 h |
 
-- **users** — `id, name, email (único), password_hash, phone, telefone, role, bio, area_atuacao, cidade, especialidade, portfolio_url, created_at`
-- **products** — `id, name, description, price_kz, type, icon, gradient, image_url, featured, rating, stock, user_id → users(id), created_at`
-- **orders** — `id, customer_name, customer_phone, customer_email, items (JSONB), total_kz, status, delivery_type, notes, user_id → users(id), created_at`
+---
 
-### Migrações
+## 👥 Perfis de utilizador
 
+| Role | Descrição | Pode |
+|---|---|---|
+| `cliente` | Comprador | comprar, avaliar pós-compra, ver histórico |
+| `criador` | Vendedor de infoprodutos | + publicar infoprodutos, dashboard, portfólio |
+| `prestador_domicilio` | Serviços ao domicílio | + publicar com **ponto de serviço no mapa** |
+| `prestador_remoto` | Freelancer remoto | + publicar serviços remotos |
+| `admin` | Administração total | tudo nos painéis + bloquear utilizadores + eliminar produtos + criar admins limitados |
+| `admin_limitado` | Validador | **apenas** aprovar/rejeitar comprovativos |
+
+O registo condicional recolhe: `bio` (criador), `area_atuacao`+`cidade` (domicílio), `especialidade` (remoto). Todos os utilizadores recebem um **username único** automático (slug do nome/email).
+
+---
+
+## 🔐 Rotas ocultas de administração
+
+> ⚠️ **NÃO estão linkadas em menus, footer, sitemap ou robots.txt.** Acesso apenas por URL direto.
+
+### `/admin` — Administração Total
+1. **Gate**: email + palavra-passe → se for a primeira vez, o QR TOTP é gerado no próprio gate → código de 6 dígitos → cookie de sessão (8 h).
+2. **Proteção dupla**: `src/proxy.ts` (ex-middleware) valida o cookie no edge **e** cada API valida Bearer/cookie + role no servidor.
+3. **Funcionalidades**: validar comprovativos (aprovar/rejeitar com notificação ao cliente), listar/bloquear utilizadores, eliminar produtos, criar admins limitados, reconfigurar 2FA (QR).
+
+### `/admin-limitado` — Administração Limitada
+- Apenas a validação de comprovativos. Sem listas de utilizadores/produtos nem criação de admins.
+- `admin_limitado` é bloqueado em `/admin` (redirect) e recebe **403** nas APIs de utilizadores/produtos.
+
+### Primeiro admin (bootstrap)
 ```bash
-# 1. Configura as variáveis no .env.local
-DATABASE_URL=postgresql://user:password@host/neondb?sslmode=require
-JWT_SECRET=<string aleatória de 64 caracteres hex>
+env -u DATABASE_URL node --env-file=.env.local scripts/create-admin.js \
+  admin@angostart.ao "PalavraPasseForte!2026" admin "Nome do Admin"
+# ou admin_limitado em vez de admin
+```
+Depois: abrir `/admin` → entrar → o gate mostra o QR → ler na app autenticadora (Google Authenticator, Aegis, Authy…) → introduzir o código → 2FA ativada para sempre.
 
-# 2. Cria as tabelas base (projeto novo)
-node scripts/createTables.js
+### 2FA — endpoints
+| Rota | Descrição |
+|---|---|
+| `POST /api/auth/2fa/setup` | gera segredo TOTP pendente + `otpauth://` + QR (data URL) |
+| `POST /api/auth/2fa/verify` | valida o código, **ativa** o 2FA e emite o cookie (8 h) |
+| `GET /api/auth/2fa/session` | estado da sessão privilegiada |
+| `POST /api/auth/2fa/logout` | termina a sessão do painel |
 
-# 3. Migração multi-perfil (roles, products.user_id, orders.user_id)
-DATABASE_URL="<connection string>" node scripts/migrate-multi-profile.js
+---
+
+## 💳 Pagamentos Multicaixa Express
+
+```
+Cliente (carrinho)                Servidor                      PayPay
+──────────────────                ────────                      ──────
+POST /api/orders  ──────────────► encomenda 'pendente'
+POST /api/payments ─────────────► valida telefone (2449XXXXXXXX)
+                                  createMulticaixaPayment() ───► push Multicaixa
+cliente confirma com PIN ◄───────────────────────────────────── pagamento
+POST /api/payments/webhook ◄─────────────────────────────────── callback
+  (HMAC x-paypay-signature)      → payments.status = pago
+                                 → orders.status = pago
+                                 → email vendedor + admin
 ```
 
-> O driver `@neondatabase/serverless` comunica por HTTPS:443 — funciona em qualquer ambiente (incluindo redes que bloqueiam a porta 5432) e é a recomendação oficial para deploys serverless na Vercel.
+- **Produção**: definir `PAYPAY_PARTNER_ID` + `PAYPAY_PRIVATE_KEY` (RSA PEM) → o SDK `paypay-ao-sdk` assina e envia ao gateway real.
+- **Sandbox (sem chaves)**: o pedido é registado localmente com `simulated: true` e referência `ASSIM-<orderId>-<hex>`; o webhook só aceita estados para transações simuladas (`trade_status: "SIMULATED"`). Nenhum dinheiro é movimentado.
 
-## API — Referência Rápida
+---
 
+## 🗺️ Mapa de serviços ao domicílio
+
+- Componente `src/components/ServiceMapInner.tsx` (Leaflet) com wrapper `dynamic(ssr:false)` (`ServiceMap.tsx`).
+- **Tema escuro**: tiles Esri World Dark Gray (sem API key), marcadores `divIcon` personalizados (verde = prestador, âmbar = ponto escolhido, azul = utilizador).
+- **Geolocation API**: botão "Usar a minha localização" centra no cliente.
+- No formulário (`/adicionar-produto`, tipo `servico_domicilio`) o vendedor **marca o ponto de atendimento** (obrigatório, validado nos limites de Angola: lat −18.5…−4.5, lng 11…25).
+- Na página do produto (`/produtos/[id]`) o **cliente clica no mapa** para indicar onde precisa do serviço.
+
+---
+
+## 📧 Notificações por email (Resend)
+
+| Evento | Emails |
+|---|---|
+| Encomenda criada | cliente (confirmação com itens/total) + vendedores envolvidos (novo pedido) |
+| Webhook de pagamento | vendedor(es) + `ADMIN_EMAIL` (pago/falhou) |
+| Validação de comprovativo | cliente (aprovado/rejeitado) |
+
+Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunca falha por causa do email**. Em produção usar um domínio verificado na variável `EMAIL_FROM`.
+
+---
+
+## 📚 Referência da API
+
+### Auth (públicas)
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/auth/register/cliente` | `{name, email, password, telefone}` |
+| POST | `/api/auth/register/vendedor` | + `{role, bio?, area_atuacao?, cidade?, especialidade?, portfolio_url?}` |
+| POST | `/api/auth/login` | devolve `{token, user}` (bloqueia contas bloqueadas) |
+| GET | `/api/auth/me` | restaura sessão (Bearer) |
+
+### Produtos
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| POST | `/api/auth/register/cliente` | — | Cria conta de cliente |
-| POST | `/api/auth/register/vendedor` | — | Cria conta criador / domicílio / remoto |
-| POST | `/api/auth/login` | — | Login genérico → `{ token, user }` |
-| GET | `/api/auth/me` | Bearer | Dados da sessão atual |
-| GET | `/api/products` | — | Catálogo (`?type= &q= &featured=1 &meu=1`) |
-| POST | `/api/products` | Bearer (vendedor) | Publicar produto/serviço |
-| GET | `/api/products/[id]` | — | Detalhe do produto |
-| PUT | `/api/products/[id]` | Bearer (dono) | Editar produto |
-| DELETE | `/api/products/[id]` | Bearer (dono) | Eliminar produto |
-| POST | `/api/orders` | Bearer (opcional) | Registar encomenda (liga ao cliente) |
-| GET | `/api/orders?mine=1` | Bearer | Histórico de compras do cliente |
+| GET | `/api/products?type&q&featured&meu=1` | — | catálogo (Neon + fallback offline vazio) |
+| POST | `/api/products` | vendedor | publica (servico_domicilio exige `service_lat/lng`) |
+| GET | `/api/products/[id]` | — | detalhe + vendedor + coordenadas |
+| PUT | `/api/products/[id]` | dono | edita |
+| DELETE | `/api/products/[id]` | dono **ou admin** | elimina (remove reviews em cascata) |
 
-## Rodar Localmente
+### Encomendas, pagamentos e avaliações
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| POST | `/api/orders` | opcional | cria encomenda (preços validados na BD, itens com `seller_id`, `comprovativo_url` opcional) |
+| GET | `/api/orders?mine=1` | cliente | histórico próprio · **sem `mine` → só admins** |
+| POST | `/api/payments` | sessão | inicia Multicaixa Express `{order_id, phone}` |
+| GET | `/api/payments?order_id` | sessão | estado do pagamento |
+| POST | `/api/payments/webhook` | HMAC | callback PayPay (produção) / SIMULATED (sandbox) |
+| POST | `/api/reviews` | sessão | avaliação (1–5) **só com compra `pago`/`entregue`** |
+| GET | `/api/reviews?product_id` | — | lista + média |
+
+### Dashboard e portfólio
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| GET | `/api/dashboard/vendedor` | vendedor | métricas do painel (só itens do próprio) |
+| GET/PUT | `/api/portfolio` | vendedor | ver/guardar bio, foto, especialidade, cidade, link |
+| GET | `/api/portfolio/[username]` | — | portfólio público (sem email) |
+| POST | `/api/portfolio/items` | vendedor | adiciona trabalho (máx. 24) |
+| DELETE | `/api/portfolio/items/[id]` | dono | remove trabalho |
+
+### Administração
+| Método | Rota | Role | Descrição |
+|---|---|---|---|
+| GET | `/api/admin/users` | admin | lista utilizadores |
+| PATCH | `/api/admin/users/[id]` | admin | `{blocked: true/false}` (não pode bloquear-se) |
+| GET | `/api/admin/orders?status=` | admin, admin_limitado | encomendas (pendente por omissão) |
+| PATCH | `/api/admin/orders/[id]` | admin, admin_limitado | `{status: pago|entregue|rejeitado|falhou}` |
+| POST | `/api/admin/limited` | admin | cria conta `admin_limitado` |
+
+---
+
+## 🗄️ Base de dados (Neon)
+
+```
+users     id, name, email, password_hash, phone, telefone, role※, username※UNIQUE,
+          bio, area_atuacao, cidade, especialidade, portfolio_url,
+          portfolio_bio※, portfolio_image※, blocked※,
+          two_factor_secret※, two_factor_enabled※, created_at
+products  id, name, description, price_kz, type, icon, gradient, image_url,
+          user_id→users, featured, rating, stock, service_lat※, service_lng※, created_at
+orders    id, customer_name, customer_phone, customer_email, items(jsonb: seller_id),
+          total_kz, status(pendente|pago|entregue|rejeitado|falhou), delivery_type,
+          notes, user_id→users, comprovativo_url※, created_at
+reviews※  id, user_id→users, product_id→products, rating 1-5, comment,
+          UNIQUE(user_id, product_id), created_at
+payments※ id, order_id→orders, user_id, amount_kz, phone, method,
+          out_trade_no UNIQUE, paypay_trade_no, status(pendente|pago|falhou|expirado),
+          simulated, raw_response(jsonb), created_at, updated_at
+portfolio_items※ id, user_id→users, title, description, image_url, position, created_at
+```
+※ = adicionado na Fase 3 · `role CHECK (cliente, criador, prestador_domicilio, prestador_remoto, admin, admin_limitado)` · FKs com `ON DELETE CASCADE` nas tabelas novas.
+
+Migração: `env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js`
+
+---
+
+## 🔑 Variáveis de ambiente
+
+Validação **Zod** em `src/lib/env.ts` (server-only). Obrigatórias:
+
+| Variável | Descrição |
+|---|---|
+| `DATABASE_URL` | connection string Neon (`postgresql://…?sslmode=require`) |
+| `JWT_SECRET` | ≥ 32 caracteres (HS256 dos JWT de utilizador e do cookie admin) |
+
+Opcionais (funcionalidades premium degradam graciosamente sem elas):
+
+| Variável | Ativa |
+|---|---|
+| `RESEND_API_KEY` | envio real de emails (sem ela: modo log) |
+| `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
+| `PAYPAY_PARTNER_ID` + `PAYPAY_PRIVATE_KEY` | Multicaixa real (sem elas: sandbox simulado) |
+| `PAYPAY_PUBLIC_KEY` | verificação de respostas do gateway |
+| `PAYPAY_WEBHOOK_SECRET` | assinatura HMAC do webhook |
+| `ADMIN_EMAIL` | alertas de pagamento ao administrador |
+| `NEXT_PUBLIC_APP_URL` | URL público (links em emails) |
+
+> 🔒 **Nunca** commits de `.env.local` (já no `.gitignore`). Na Vercel, definir todas em *Settings → Environment Variables*.
+
+---
+
+## 🧪 Testes de segurança
+
+```bash
+bash scripts/security-tests.sh            # contra localhost:3000
+bash scripts/security-tests.sh https://angostart.vercel.app
+```
+
+**Última execução: 20/20 testes PASSARAM** (detalhes em [SECURITY.md](SECURITY.md)):
+
+| # | Cenário | Resultado |
+|---|---|---|
+| 1 | XSS armazenado (`<script>`, `onerror=`) no produto | ✔ removido ao guardar |
+| 2 | XSS refletido na pesquisa | ✔ resposta JSON sem HTML ativo |
+| 3 | SQL Injection (`' OR 1=1`, `UNION SELECT`, `DROP TABLE`) | ✔ 401/200 sem efeito |
+| 4 | Acesso não autorizado (admin/dashboard/orders sem token; cliente a publicar; avaliar sem compra) | ✔ 401/403 |
+| 5 | Price tampering (preço 1 Kz no corpo) | ✔ recalculado para 5 000 Kz na BD |
+| 6 | Webhook sem assinatura | ✔ 401 |
+| 7 | Força-bruta no login (12 tentativas) | ✔ 429 |
+| 8 | `/admin` e `/admin-limitado` sem 2FA | ✔ redirect ao gate |
+| 9 | `image_url: javascript:` | ✔ 400 |
+
+Auditoria estática: `npx next-secure-check scan .` + `npx next-secret-guard scan` + `npm audit --omit=dev` — metodologia e triagem em [SECURITY.md](SECURITY.md).
+
+---
+
+## 🚀 Desenvolvimento e deploy
 
 ```bash
 npm install
-npm run dev
-# abre http://localhost:3000
+npm run dev          # http://localhost:3000
+npm run lint         # ESLint (0 erros)
+npx tsc --noEmit     # TypeScript (0 erros)
+npm run build        # produção (38 rotas)
 ```
 
-## Testes E2E das APIs
+**Vercel** (repo `criandojogodenovo-sketch/Angostart-`):
+1. Importar o repositório (framework Next.js detetado automaticamente).
+2. Environment Variables: `DATABASE_URL`, `JWT_SECRET` (obrigatórias) + opcionais do topo.
+3. Deploy — as rotas API correm no runtime Node (driver Neon usa HTTPS:443).
+4. Criar o primeiro admin com `scripts/create-admin.js` (local, apontando à BD de produção) e ativar 2FA no painel.
 
-```bash
-bash scripts/test-auth-e2e.sh
-# ✅ 16 testes: registo cliente, registo vendedor (3 perfis), validações,
-# login, permissões (cliente não publica; não-dono não edita/elimina),
-# publicação, compra, histórico, edição e eliminação por dono.
-```
+---
 
-## Deploy na Vercel
+## 📜 Registo de alterações
 
-1. Importa este repositório em [vercel.com](https://vercel.com) (**Add New Project → Import**).
-2. Em **Settings → Environment Variables**, adiciona:
-   - `DATABASE_URL` = connection string do Neon (`?sslmode=require`)
-   - `JWT_SECRET` = a mesma chave usada em desenvolvimento (ou uma nova, também em hex)
-3. Clica em **Deploy**. Pronto — o site e as APIs ficam online.
-
-> ⚠️ **Nunca** faças commit do `.env.local` nem do token do GitHub — ambos estão no `.gitignore`.
-
-## Segurança
-
-- Palavras-passe com bcrypt — nunca guardadas em texto simples
-- JWT assinado (HS256) com expiração de 7 dias; `sub` valida sempre contra a BD
-- Autorização no servidor: publicar exige `role` de vendedor; editar/eliminar exige dono
-- O histórico de encomendas (`?mine=1`) só devolve dados do próprio utilizador
-- Variáveis sensíveis (`DATABASE_URL`, `JWT_SECRET`) apenas em `.env.local` / Vercel
-
-## Funcionalidades
-
-- ✅ Mobile first (testado a 375px, 768px e 1280px+)
-- ✅ Autenticação multi-perfil com dois fluxos de registo distintos (cliente vs vendedor)
-- ✅ Selector "Quero vender como…" (Criador / Domicílio / Freelancer) com campos condicionais
-- ✅ Publicação e edição de produtos/serviços com pré-visualização em tempo real
-- ✅ Catálogo com nome do vendedor em cada card
-- ✅ Histórico de compras no perfil do cliente
-- ✅ Gestão "Os meus produtos" com editar/eliminar (apenas o dono)
-- ✅ Link "Adicionar Produto" na navbar (visível só a vendedores autenticados)
-- ✅ Carrinho persistente com checkout pré-preenchido pela conta
-- ✅ Encomendas ligadas ao utilizador + confirmação no WhatsApp (wa.me/244958176915)
-- ✅ Botão flutuante do WhatsApp em todas as páginas
-- ✅ Fallback offline: se o Neon ficar inacessível, o catálogo continua a funcionar
+| Fase | Commit | Conteúdo |
+|---|---|---|
+| 1 | `76afdbf` | Site completo + Neon + carrinho + WhatsApp |
+| 2 | `ee63d43` | Auth multi-perfil JWT, publicação de produtos, WhatsApp 244958176915 |
+| 3 | *atual* | Security hardening, maps, payments, admin panels |

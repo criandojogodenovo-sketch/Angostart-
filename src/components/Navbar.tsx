@@ -57,7 +57,19 @@ export default function Navbar() {
               </Link>
             );
           })}
-          {/* Publicar — visível apenas para vendedores autenticados */}
+          {/* Publicar + Painel — visíveis apenas para vendedores autenticados */}
+          {user && isSeller && (
+            <Link
+              href="/dashboard/vendedor"
+              className={`hidden md:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                pathname.startsWith('/dashboard')
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-emerald-400 hover:bg-emerald-500/15'
+              }`}
+            >
+              Painel
+            </Link>
+          )}
           {user && isSeller && (
             <Link
               href="/adicionar-produto"

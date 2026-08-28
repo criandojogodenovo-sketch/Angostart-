@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { FALLBACK_PRODUCTS, isProductType, type Product } from '@/lib/products-data';
 import { getAuthUser, isSellerRole } from '@/lib/auth';
+import {
+  sanitizeMultiline,
+  sanitizeText,
+  isSafeHttpUrl,
+  clientKey,
+  rateLimit,
+} from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
+
+/** Angola continental — limites geográficos para validação do mapa. */
+const ANGOLA_LAT = [-18.5, -4.5] as const;
+const ANGOLA_LNG = [11.0, 25.0] as const;
+
+/** Valida coordenada opcional (null quando ausente/inválida). */
+function parseCoord(value: unknown, range: readonly [number, number]): number | null {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < range[0] || num > range[1]) return null;
+  return Math.round(num * 1e6) / 1e6; // 6 casas decimais (~11 cm)
+}
 
 interface ProductInput {
   name?: string;
@@ -12,6 +30,8 @@ interface ProductInput {
   price_kz?: number | string;
   type?: string;
   image_url?: string;
+  service_lat?: number | string | null;
+  service_lng?: number | string | null;
 }
 
 /**
@@ -149,6 +169,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!rateLimit(clientKey(request, 'products-post'), 15, 60_000)) {
+    return NextResponse.json(
+      { error: 'Demasiadas publicações seguidas. Aguarda um minuto.' },
+      { status: 429 }
+    );
+  }
+
   let body: ProductInput;
   try {
     body = await request.json();
@@ -159,12 +186,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const name = body.name?.trim() ?? '';
-  const description = body.description?.trim() ?? '';
+  const name = sanitizeText(body.name, 80);
+  const description = sanitizeMultiline(body.description, 2000);
   const rawPrice = body.price ?? body.price_kz;
   const priceKz = Math.round(Number(rawPrice));
   const type = body.type?.trim() ?? '';
   const imageUrl = body.image_url?.trim() || null;
+  const serviceLat = parseCoord(body.service_lat, ANGOLA_LAT);
+  const serviceLng = parseCoord(body.service_lng, ANGOLA_LNG);
 
   if (name.length < 3) {
     return NextResponse.json(
@@ -190,24 +219,32 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (imageUrl && !/^https?:\/\/.+\..+/.test(imageUrl)) {
+  if (imageUrl && !isSafeHttpUrl(imageUrl)) {
     return NextResponse.json(
       { error: 'O link da imagem deve começar por https:// e ser um endereço válido.' },
+      { status: 400 }
+    );
+  }
+  if (type === 'servico_domicilio' && (serviceLat === null || serviceLng === null)) {
+    return NextResponse.json(
+      { error: 'Escolhe no mapa o ponto de atendimento do serviço ao domicílio.' },
       { status: 400 }
     );
   }
 
   try {
     const inserted = (await sql`
-      INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock)
+      INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng)
       VALUES (
         ${name}, ${description}, ${priceKz}, ${type},
         ${defaultIconFor(type)}, ${defaultGradientFor(type)},
         ${imageUrl}, ${user.id}, FALSE, 4.5,
-        ${type === 'produto_fisico' ? 1 : -1}
+        ${type === 'produto_fisico' ? 1 : -1},
+        ${type === 'servico_domicilio' ? serviceLat : null},
+        ${type === 'servico_domicilio' ? serviceLng : null}
       )
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, rating::float8, stock, user_id
+                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng
     `) as unknown as Product[];
 
     return NextResponse.json({ product: inserted[0] }, { status: 201 });

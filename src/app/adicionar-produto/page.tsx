@@ -32,36 +32,43 @@ import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import type { Product, ProductType } from '@/lib/products-data';
 import ProductIcon from '@/components/ProductIcon';
+import ServiceMap, { centerForCity } from '@/components/ServiceMap';
+import { MapPin } from 'lucide-react';
 
 const TYPE_OPTIONS: {
   value: ProductType;
   label: string;
   hint: string;
   icon: typeof Package;
+  iconName: string;
 }[] = [
   {
     value: 'infoproduto',
     label: 'Infoproduto',
     hint: 'Cursos, eBooks, templates',
     icon: GraduationCap,
+    iconName: 'graduation-cap',
   },
   {
     value: 'produto_fisico',
     label: 'Produto físico',
     hint: 'Artigos com entrega em Luanda',
     icon: Package,
+    iconName: 'package',
   },
   {
     value: 'servico_domicilio',
     label: 'Serviço ao domicílio',
     hint: 'Limpeza, electricista, canalização…',
     icon: HomeIcon,
+    iconName: 'home',
   },
   {
     value: 'servico_remoto',
     label: 'Serviço remoto',
     hint: 'Design, websites, marketing…',
     icon: Globe,
+    iconName: 'globe',
   },
 ];
 
@@ -78,6 +85,8 @@ interface FormState {
   price: string;
   type: ProductType;
   image_url: string;
+  service_lat: number | null;
+  service_lng: number | null;
 }
 
 const EMPTY_FORM: FormState = {
@@ -86,6 +95,8 @@ const EMPTY_FORM: FormState = {
   price: '',
   type: 'infoproduto',
   image_url: '',
+  service_lat: null,
+  service_lng: null,
 };
 
 function AdicionarProdutoContent() {
@@ -114,6 +125,10 @@ function AdicionarProdutoContent() {
         price: String(p.price_kz),
         type: p.type,
         image_url: p.image_url ?? '',
+        service_lat:
+          (p as unknown as { service_lat?: number | null }).service_lat ?? null,
+        service_lng:
+          (p as unknown as { service_lng?: number | null }).service_lng ?? null,
       });
     } catch (error) {
       toast({
@@ -203,7 +218,21 @@ function AdicionarProdutoContent() {
       price: Number(form.price.replace(/[^\d]/g, '')),
       type: form.type,
       image_url: form.image_url,
+      service_lat: form.type === 'servico_domicilio' ? form.service_lat : null,
+      service_lng: form.type === 'servico_domicilio' ? form.service_lng : null,
     };
+
+    if (
+      form.type === 'servico_domicilio' &&
+      (form.service_lat === null || form.service_lng === null)
+    ) {
+      toast({
+        title: 'Falta o ponto de atendimento',
+        description: 'Toca no mapa para escolher onde prestas o serviço.',
+      });
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -364,6 +393,40 @@ function AdicionarProdutoContent() {
               </div>
             </div>
 
+            {/* Mapa — apenas serviço ao domicílio */}
+            {form.type === 'servico_domicilio' && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-orange-500" />
+                  Ponto de atendimento no mapa{' '}
+                  <span className="font-normal text-slate-400">(obrigatório)</span>
+                </Label>
+                <ServiceMap
+                  providerLat={form.service_lat}
+                  providerLng={form.service_lng}
+                  cidade={user?.cidade}
+                  editable
+                  pickedLat={form.service_lat}
+                  pickedLng={form.service_lng}
+                  onPick={(lat, lng) =>
+                    setForm((f) => ({ ...f, service_lat: lat, service_lng: lng }))
+                  }
+                  height={300}
+                />
+                {form.service_lat !== null && form.service_lng !== null ? (
+                  <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                    Ponto definido: {form.service_lat.toFixed(5)}, {form.service_lng.toFixed(5)} — os
+                    clientes verão este marcador na página do serviço.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Toca no mapa para marcar onde costumas prestar o serviço
+                    (centro: {centerForCity(user?.cidade).map((c) => c.toFixed(2)).join(', ')}).
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Pré-visualização */}
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -373,7 +436,7 @@ function AdicionarProdutoContent() {
                 <span
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${previewGradient} text-white shadow-md`}
                 >
-                  <ProductIcon name={TYPE_OPTIONS.find((t) => t.value === form.type)?.icon ?? 'package'} />
+                  <ProductIcon name={TYPE_OPTIONS.find((t) => t.value === form.type)?.iconName ?? 'package'} />
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">

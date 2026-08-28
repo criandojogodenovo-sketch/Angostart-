@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
-import { publicUser, signToken, type UserRow } from '@/lib/auth';
+import { publicUser, signToken, generateUniqueUsername, type UserRow } from '@/lib/auth';
+import { clientKey, rateLimit, sanitizeText } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const name = body.name?.trim() ?? '';
+  const name = sanitizeText(body.name, 80);
   const email = body.email?.trim().toLowerCase() ?? '';
   const password = body.password ?? '';
   const telefone = body.telefone?.trim() ?? '';
@@ -57,6 +58,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!rateLimit(clientKey(request, 'register'), 10, 60_000)) {
+    return NextResponse.json(
+      { error: 'Demasiadas tentativas de registo. Aguarda um minuto.' },
+      { status: 429 }
+    );
+  }
+
   try {
     const existing = (await sql`
       SELECT id FROM users WHERE email = ${email} LIMIT 1
@@ -70,11 +78,12 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const username = await generateUniqueUsername(name);
 
     const inserted = (await sql`
-      INSERT INTO users (name, email, password_hash, phone, telefone, role)
-      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente')
-      RETURNING id, name, email, role, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url
+      INSERT INTO users (name, email, password_hash, phone, telefone, role, username)
+      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente', ${username})
+      RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
     `) as unknown as UserRow[];
 
     const user = publicUser(inserted[0]);

@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { isProductType, type Product } from '@/lib/products-data';
-import { getAuthUser } from '@/lib/auth';
+import { getAuthUser, isAdminRole } from '@/lib/auth';
+import { sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
+
+/** Angola continental — limites geográficos para validação do mapa. */
+const ANGOLA_LAT = [-18.5, -4.5] as const;
+const ANGOLA_LNG = [11.0, 25.0] as const;
+
+function parseCoord(value: unknown, range: readonly [number, number]): number | null {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < range[0] || num > range[1]) return null;
+  return Math.round(num * 1e6) / 1e6;
+}
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -20,7 +31,8 @@ async function loadProduct(id: number): Promise<Product | null> {
 }
 
 /**
- * GET /api/products/[id] — detalhe de um produto (com info do vendedor).
+ * GET /api/products/[id] — detalhe de um produto (com vendedor, mapa e
+ * média de avaliações — página /produtos/[id]).
  */
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { id: rawId } = await context.params;
@@ -34,7 +46,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const rows = (await sql`
       SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
              p.featured::boolean, p.rating::float8, p.stock, p.user_id,
-             u.name AS seller_name, u.role AS seller_role
+             p.service_lat, p.service_lng,
+             u.name AS seller_name, u.role AS seller_role, u.username AS seller_username,
+             u.cidade AS seller_cidade, u.especialidade AS seller_especialidade,
+             u.telefone AS seller_telefone, u.portfolio_image AS seller_portfolio_image
       FROM products p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.id = ${id}
@@ -80,6 +95,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     price_kz?: number | string;
     type?: string;
     image_url?: string;
+    service_lat?: number | string | null;
+    service_lng?: number | string | null;
   };
   try {
     body = await request.json();
@@ -102,13 +119,22 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const name = body.name?.trim() ?? product.name;
-    const description = body.description?.trim() ?? product.description;
+    const name = sanitizeText(body.name, 80) || product.name;
+    const description = sanitizeMultiline(body.description, 2000) || product.description;
     const rawPrice = body.price ?? body.price_kz ?? product.price_kz;
     const priceKz = Math.round(Number(rawPrice));
     const type = body.type?.trim() ?? product.type;
     const imageUrl =
       body.image_url !== undefined ? body.image_url.trim() || null : product.image_url;
+    const nextType = type;
+    const serviceLat =
+      body.service_lat !== undefined || body.service_lng !== undefined
+        ? parseCoord(body.service_lat, ANGOLA_LAT)
+        : (product as unknown as { service_lat?: number | null }).service_lat ?? null;
+    const serviceLng =
+      body.service_lat !== undefined || body.service_lng !== undefined
+        ? parseCoord(body.service_lng, ANGOLA_LNG)
+        : (product as unknown as { service_lng?: number | null }).service_lng ?? null;
 
     if (name.length < 3) {
       return NextResponse.json(
@@ -131,9 +157,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (!isProductType(type)) {
       return NextResponse.json({ error: 'Tipo de produto inválido.' }, { status: 400 });
     }
-    if (imageUrl && !/^https?:\/\/.+\..+/.test(imageUrl)) {
+    if (imageUrl && !isSafeHttpUrl(imageUrl)) {
       return NextResponse.json(
         { error: 'O link da imagem deve começar por https:// e ser um endereço válido.' },
+        { status: 400 }
+      );
+    }
+    if (nextType === 'servico_domicilio' && (serviceLat === null || serviceLng === null)) {
+      return NextResponse.json(
+        { error: 'Escolhe no mapa o ponto de atendimento do serviço ao domicílio.' },
         { status: 400 }
       );
     }
@@ -141,10 +173,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const updated = (await sql`
       UPDATE products
       SET name = ${name}, description = ${description}, price_kz = ${priceKz},
-          type = ${type}, image_url = ${imageUrl}
+          type = ${type}, image_url = ${imageUrl},
+          service_lat = ${nextType === 'servico_domicilio' ? serviceLat : null},
+          service_lng = ${nextType === 'servico_domicilio' ? serviceLng : null}
       WHERE id = ${id}
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, rating::float8, stock, user_id
+                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng
     `) as unknown as Product[];
 
     return NextResponse.json({ product: updated[0] });
@@ -180,15 +214,16 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (!product) {
       return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
     }
-    if (product.user_id !== user.id) {
+    if (product.user_id !== user.id && !isAdminRole(user.role)) {
       return NextResponse.json(
         { error: 'Só podes eliminar os teus próprios produtos.' },
         { status: 403 }
       );
     }
 
+    await sql`DELETE FROM reviews WHERE product_id = ${id}`;
     await sql`DELETE FROM products WHERE id = ${id}`;
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, deletedBy: user.role });
   } catch (error) {
     console.error('[API products/[id]] Erro no DELETE:', error);
     return NextResponse.json(

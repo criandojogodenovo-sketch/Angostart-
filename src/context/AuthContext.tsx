@@ -18,7 +18,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Role } from '@/lib/auth';
+import type { Role } from '@/lib/roles';
 
 /* Tipo espelho do AuthUser server-side (sem imports de servidor no cliente) */
 export interface AuthUser {
@@ -26,12 +26,14 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  username: string | null;
   telefone: string | null;
   bio: string | null;
   area_atuacao: string | null;
   cidade: string | null;
   especialidade: string | null;
   portfolio_url: string | null;
+  blocked: boolean;
 }
 
 const SELLER_ROLES: Role[] = ['criador', 'prestador_domicilio', 'prestador_remoto'];

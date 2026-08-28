@@ -1,7 +1,12 @@
+import 'server-only';
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
 /**
  * AngoStart — Ligação à base de dados Neon (PostgreSQL)
+ *
+ * ⚠️ SERVER-ONLY: `import 'server-only'` garante que este módulo (e o
+ * DATABASE_URL que ele lê) nunca pode ser importado por um Client
+ * Component — o build falha se isso acontecer.
  *
  * Usa o driver serverless oficial da Neon (@neondatabase/serverless),
  * que comunica por HTTPS:443 — ideal para ambientes serverless (Vercel,

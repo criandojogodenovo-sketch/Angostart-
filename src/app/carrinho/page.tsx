@@ -10,13 +10,16 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  BadgeCheck,
   CheckCircle2,
+  CreditCard,
   Loader2,
   Minus,
   PackageOpen,
   Plus,
   Send,
   ShoppingBag,
+  Smartphone,
   Trash2,
 } from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
@@ -32,6 +35,12 @@ interface PlacedOrder {
   id: number;
   total_kz: number;
   whatsappUrl: string;
+  payment?: {
+    reference: string;
+    status: string;
+    simulated: boolean;
+    message: string;
+  } | null;
 }
 
 const WHATSAPP_NUMBER = '244958176915';
@@ -45,6 +54,8 @@ export default function CarrinhoPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [comprovativo, setComprovativo] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'whatsapp' | 'multicaixa'>('whatsapp');
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const { user } = useAuth();
@@ -88,10 +99,9 @@ export default function CarrinhoPage() {
           customer_email: email || undefined,
           delivery_type: 'entrega',
           notes: notes || undefined,
+          comprovativo_url: comprovativo || undefined,
           items: items.map((i) => ({
             id: i.product.id,
-            name: i.product.name,
-            price_kz: i.product.price_kz,
             quantity: i.quantity,
           })),
         }),
@@ -111,10 +121,51 @@ export default function CarrinhoPage() {
         return;
       }
 
+      /* Multicaixa Express — inicia o pagamento na API PayPay (server-side) */
+      let payment: PlacedOrder['payment'] = null;
+      if (paymentMethod === 'multicaixa') {
+        try {
+          const payRes = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ order_id: data.order.id, phone }),
+          });
+          const payData = (await payRes.json()) as {
+            ok?: boolean;
+            payment?: {
+              reference: string;
+              status: string;
+              simulated: boolean;
+              message: string;
+            };
+            error?: string;
+          };
+          if (payRes.ok && payData.ok && payData.payment) {
+            payment = {
+              reference: payData.payment.reference,
+              status: payData.payment.status,
+              simulated: payData.payment.simulated,
+              message: payData.payment.message,
+            };
+          } else {
+            toast({
+              title: 'Pagamento Multicaixa não iniciado',
+              description: payData.error ?? 'Confirma pelo WhatsApp; a encomenda ficou registada.',
+            });
+          }
+        } catch {
+          toast({
+            title: 'Pagamento não iniciado',
+            description: 'A encomenda ficou registada — confirma pelo WhatsApp.',
+          });
+        }
+      }
+
       setPlaced({
         id: data.order.id,
         total_kz: data.order.total_kz,
         whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`,
+        payment,
       });
       clearCart();
       toast({
@@ -147,18 +198,52 @@ export default function CarrinhoPage() {
             Pedido <strong>n.º {placed.id}</strong> registado na base de dados
             com um total de{' '}
             <strong className="text-emerald-600">{formatKz(placed.total_kz)}</strong>.
-            A nossa equipa entra em contacto para combinar a entrega e o
-            pagamento.
           </p>
+
+          {/* Pagamento Multicaixa Express */}
+          {placed.payment && (
+            <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
+                <Smartphone className="h-4 w-4" /> Multicaixa Express
+              </p>
+              <p className="mt-1.5 text-xs text-sky-800">{placed.payment.message}</p>
+              <p className="mt-2 rounded-lg bg-white px-3 py-2 font-mono text-xs text-sky-900">
+                Referência: <strong>{placed.payment.reference}</strong>
+              </p>
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-sky-700">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                {placed.payment.simulated
+                  ? 'Modo sandbox — adiciona as chaves PayPay na Vercel para cobranças reais.'
+                  : 'Aceita a notificação na app Multicaixa e introduz o teu PIN.'}
+              </p>
+            </div>
+          )}
+
+          {!placed.payment && (
+            <p className="mt-2 text-sm text-slate-500">
+              A nossa equipa entra em contacto para combinar a entrega e o pagamento.
+            </p>
+          )}
           <div className="mt-8 space-y-3">
-            <Button
-              asChild
-              className="h-12 w-full bg-[#25D366] text-base font-semibold text-white hover:bg-[#1fb857]"
-            >
-              <a href={placed.whatsappUrl} target="_blank" rel="noopener noreferrer">
-                <Send className="mr-2 h-5 w-5" /> Confirmar no WhatsApp
-              </a>
-            </Button>
+            {placed.payment ? (
+              <Button
+                asChild
+                className="h-12 w-full bg-sky-600 text-base font-semibold text-white hover:bg-sky-700"
+              >
+                <Link href="/perfil">
+                  <CreditCard className="mr-2 h-5 w-5" /> Ver estado da encomenda
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                asChild
+                className="h-12 w-full bg-[#25D366] text-base font-semibold text-white hover:bg-[#1fb857]"
+              >
+                <a href={placed.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                  <Send className="mr-2 h-5 w-5" /> Confirmar no WhatsApp
+                </a>
+              </Button>
+            )}
             <Button
               asChild
               variant="outline"
@@ -359,6 +444,66 @@ export default function CarrinhoPage() {
                   className="h-11"
                 />
               </div>
+
+              {/* Método de pagamento */}
+              <fieldset className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <legend className="px-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Pagamento
+                </legend>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="pagamento"
+                    value="whatsapp"
+                    checked={paymentMethod === 'whatsapp'}
+                    onChange={() => setPaymentMethod('whatsapp')}
+                    className="mt-0.5 h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold text-slate-900">
+                      Combinar pelo WhatsApp
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Transferência, dinheiro na entrega ou Multicaixa — combinado
+                      com a equipa.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="pagamento"
+                    value="multicaixa"
+                    checked={paymentMethod === 'multicaixa'}
+                    onChange={() => setPaymentMethod('multicaixa')}
+                    className="mt-0.5 h-4 w-4 accent-sky-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold text-slate-900">
+                      Multicaixa Express <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">PREMIUM</span>
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Recebes a notificação no teu telefone e confirmas com o PIN
+                      Multicaixa.
+                    </span>
+                  </span>
+                </label>
+                {paymentMethod === 'whatsapp' && (
+                  <div className="space-y-1.5 pl-2 pt-1">
+                    <Label htmlFor="cart-comprovativo" className="text-xs text-slate-500">
+                      Link do comprovativo (opcional — validado pela equipa)
+                    </Label>
+                    <Input
+                      id="cart-comprovativo"
+                      type="url"
+                      value={comprovativo}
+                      onChange={(e) => setComprovativo(e.target.value)}
+                      placeholder="https://…/comprovativo.jpg"
+                      className="h-10 text-sm"
+                    />
+                  </div>
+                )}
+              </fieldset>
 
               <Button
                 type="submit"
