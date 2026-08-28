@@ -1,0 +1,107 @@
+'use client';
+
+/**
+ * AngoStart — Card de produto
+ * Imagem ilustrativa (ícone em gradiente), nome, preço em Kz e botão comprar.
+ */
+
+import { Star, ShoppingCart, Check } from 'lucide-react';
+import { useState } from 'react';
+import type { Product } from '@/lib/products-data';
+import { PRODUCT_TYPES } from '@/lib/products-data';
+import { formatKz } from '@/lib/format';
+import { useCart } from '@/context/StoreContext';
+import { useToast } from '@/hooks/use-toast';
+import ProductIcon from '@/components/ProductIcon';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+export default function ProductCard({ product }: { product: Product }) {
+  const { addItem } = useCart();
+  const { toast } = useToast();
+  const [added, setAdded] = useState(false);
+
+  const typeInfo = PRODUCT_TYPES[product.type];
+  const outOfStock = product.stock === 0;
+
+  function handleBuy() {
+    if (outOfStock) return;
+    addItem(product, 1);
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1200);
+    toast({
+      title: 'Adicionado ao carrinho',
+      description: `${product.name} — ${formatKz(product.price_kz)}`,
+    });
+  }
+
+  return (
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      {/* Cabeçalho ilustrativo */}
+      <div
+        className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${product.gradient}`}
+      >
+        <ProductIcon
+          name={product.icon}
+          className="h-14 w-14 text-white/90 transition-transform duration-300 group-hover:scale-110"
+        />
+        <Badge
+          className="absolute left-3 top-3 border-0 bg-white/20 text-white backdrop-blur-sm"
+          variant="secondary"
+        >
+          {typeInfo.short}
+        </Badge>
+        {product.featured && (
+          <Badge className="absolute right-3 top-3 border-0 bg-amber-400 text-amber-950">
+            Destaque
+          </Badge>
+        )}
+        {product.stock > 0 && product.stock <= 10 && (
+          <span className="absolute bottom-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+            Só {product.stock} em stock
+          </span>
+        )}
+      </div>
+
+      {/* Conteúdo */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex items-center gap-1 text-amber-500">
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+          <span className="text-sm font-semibold text-slate-700">
+            {product.rating.toFixed(1)}
+          </span>
+        </div>
+
+        <h3 className="line-clamp-2 text-base font-semibold leading-snug text-slate-900">
+          {product.name}
+        </h3>
+
+        <p className="line-clamp-2 text-sm text-slate-500">
+          {product.description}
+        </p>
+
+        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+          <p className="text-lg font-bold text-emerald-600">
+            {formatKz(product.price_kz)}
+          </p>
+          <Button
+            onClick={handleBuy}
+            disabled={outOfStock}
+            className="h-10 min-w-0 flex-1 max-w-[150px] bg-emerald-500 px-3 text-white hover:bg-emerald-600 disabled:opacity-50"
+            aria-label={`Comprar ${product.name} por ${formatKz(product.price_kz)}`}
+          >
+            {added ? (
+              <>
+                <Check className="mr-1 h-4 w-4" /> Adicionado
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="mr-1 h-4 w-4" /> Comprar
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}

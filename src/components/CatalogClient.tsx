@@ -1,0 +1,189 @@
+'use client';
+
+/**
+ * AngoStart — Catálogo completo com filtro por tipo + pesquisa global.
+ * Grid responsivo (1 → 2 → 3 → 4 colunas).
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, PackageSearch, RotateCcw, SearchX } from 'lucide-react';
+import ProductCard from '@/components/ProductCard';
+import ProductIcon from '@/components/ProductIcon';
+import { useSearch } from '@/context/StoreContext';
+import {
+  FALLBACK_PRODUCTS,
+  PRODUCT_TYPES,
+  PRODUCT_TYPE_ORDER,
+  type Product,
+  type ProductType,
+} from '@/lib/products-data';
+import { Button } from '@/components/ui/button';
+
+type Filter = 'todos' | ProductType;
+
+export default function CatalogClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { query } = useSearch();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<'neon' | 'fallback'>('neon');
+  const [filter, setFilter] = useState<Filter>('todos');
+  const initialized = useRef(false);
+
+  // Filtro inicial vindo do URL (?tipo=...)
+  useEffect(() => {
+    const param = searchParams.get('tipo');
+    if (param && (PRODUCT_TYPE_ORDER as string[]).includes(param)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com navegação por URL
+      setFilter(param as Filter);
+    }
+    initialized.current = true;
+  }, [searchParams]);
+
+  // Carrega o catálogo completo do Neon (com fallback)
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/products', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data: { products?: Product[]; source?: 'neon' | 'fallback' }) => {
+        if (cancelled) return;
+        setProducts(
+          data.products && data.products.length > 0
+            ? data.products
+            : FALLBACK_PRODUCTS
+        );
+        if (data.source) setSource(data.source);
+      })
+      .catch(() => {
+        if (!cancelled) setProducts(FALLBACK_PRODUCTS);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function changeFilter(next: Filter) {
+    setFilter(next);
+    router.replace(next === 'todos' ? '/produtos' : `/produtos?tipo=${next}`, {
+      scroll: false,
+    });
+  }
+
+  // Pesquisa global (navbar) aplicada sobre o resultado
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    let list = products;
+    if (filter !== 'todos') list = list.filter((p) => p.type === filter);
+    if (needle) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(needle) ||
+          p.description.toLowerCase().includes(needle)
+      );
+    }
+    return list;
+  }, [products, filter, query]);
+
+  const filters: { key: Filter; label: string; icon: string }[] = [
+    { key: 'todos', label: 'Todos', icon: 'package' },
+    ...PRODUCT_TYPE_ORDER.map((t) => ({
+      key: t as Filter,
+      label: PRODUCT_TYPES[t].label,
+      icon: PRODUCT_TYPES[t].icon,
+    })),
+  ];
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Cabeçalho + pesquisa ativa */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          Catálogo AngoStart
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Infoprodutos, produtos físicos e serviços — tudo em Kwanzas, com
+          entrega em Luanda.
+        </p>
+        {query.trim() && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm text-emerald-700">
+            A filtrar por: <strong>“{query.trim()}”</strong>
+          </p>
+        )}
+      </div>
+
+      {/* Filtros por tipo */}
+      <div
+        className="mb-8 flex gap-2 overflow-x-auto pb-2"
+        role="group"
+        aria-label="Filtrar por tipo"
+      >
+        {filters.map(({ key, label, icon }) => {
+          const active = filter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => changeFilter(key)}
+              aria-pressed={active}
+              className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                active
+                  ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600'
+              }`}
+            >
+              <ProductIcon name={icon} className="h-4 w-4" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Estados */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <p className="text-sm">A carregar o catálogo do Neon…</p>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            {query.trim() || filter !== 'todos' ? (
+              <SearchX className="h-8 w-8 text-slate-400" />
+            ) : (
+              <PackageSearch className="h-8 w-8 text-slate-400" />
+            )}
+          </span>
+          <p className="font-medium text-slate-700">Nada encontrado</p>
+          <p className="max-w-sm text-sm text-slate-500">
+            Não há produtos para esta pesquisa ou filtro. Tenta limpar os
+            filtros ou procurar por outro termo.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => changeFilter('todos')}
+            className="mt-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" /> Limpar filtros
+          </Button>
+        </div>
+      ) : (
+        <>
+          <p className="mb-4 text-sm text-slate-400" aria-live="polite">
+            {visible.length} {visible.length === 1 ? 'resultado' : 'resultados'}
+            {source === 'fallback' && ' (modo offline temporário)'}
+          </p>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visible.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
