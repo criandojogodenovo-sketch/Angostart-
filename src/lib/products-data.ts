@@ -22,6 +22,11 @@ export interface Product {
   featured: boolean;
   rating: number;
   stock: number; // -1 = ilimitado (infoprodutos e serviços)
+  /* Campos do marketplace (presentes nos produtos vindos do Neon) */
+  user_id?: number | null;
+  image_url?: string | null;
+  seller_name?: string | null;
+  seller_role?: string | null;
 }
 
 export const PRODUCT_TYPES: Record<

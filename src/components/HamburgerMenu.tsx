@@ -12,6 +12,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Plus,
   ShoppingBag,
   ShoppingCart,
   User,
@@ -19,6 +20,7 @@ import {
   Home,
 } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
+import { useAuth } from '@/context/AuthContext';
 
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
@@ -35,6 +37,7 @@ export default function HamburgerMenu({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const { isSeller, user } = useAuth();
 
   return (
     <>
@@ -93,6 +96,23 @@ export default function HamburgerMenu({
                 </li>
               );
             })}
+            {/* Publicar — visível apenas para vendedores autenticados */}
+            {user && isSeller && (
+              <li>
+                <Link
+                  href="/adicionar-produto"
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                    pathname === '/adicionar-produto'
+                      ? 'bg-amber-500/20 text-amber-400'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  }`}
+                >
+                  <Plus className="h-5 w-5" />
+                  Adicionar Produto
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 
@@ -101,7 +121,7 @@ export default function HamburgerMenu({
             <MapPin className="h-4 w-4 text-emerald-400" /> Luanda, Angola
           </p>
           <p className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-emerald-400" /> +244 923 456 789
+            <Phone className="h-4 w-4 text-emerald-400" /> +244 958 176 915
           </p>
           <p className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-emerald-400" /> geral@angostart.ao

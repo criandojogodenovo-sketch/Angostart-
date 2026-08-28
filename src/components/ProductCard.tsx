@@ -5,7 +5,7 @@
  * Imagem ilustrativa (ícone em gradiente), nome, preço em Kz e botão comprar.
  */
 
-import { Star, ShoppingCart, Check } from 'lucide-react';
+import { Star, ShoppingCart, Check, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import type { Product } from '@/lib/products-data';
 import { PRODUCT_TYPES } from '@/lib/products-data';
@@ -75,6 +75,13 @@ export default function ProductCard({ product }: { product: Product }) {
         <h3 className="line-clamp-2 text-base font-semibold leading-snug text-slate-900">
           {product.name}
         </h3>
+
+        {product.seller_name && (
+          <p className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+            <UserRound className="h-3 w-3 text-emerald-600" />
+            {product.seller_name}
+          </p>
+        )}
 
         <p className="line-clamp-2 text-sm text-slate-500">
           {product.description}

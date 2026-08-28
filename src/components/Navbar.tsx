@@ -8,10 +8,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, Rocket, ShoppingCart } from 'lucide-react';
+import { Menu, Plus, Rocket, ShoppingCart } from 'lucide-react';
 import HamburgerMenu from '@/components/HamburgerMenu';
 import SearchBar from '@/components/SearchBar';
 import { useCart } from '@/context/StoreContext';
+import { useAuth } from '@/context/AuthContext';
 
 const LINKS = [
   { href: '/', label: 'Início' },
@@ -23,6 +24,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { count } = useCart();
+  const { isSeller, user } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-slate-900/95 text-white shadow-lg backdrop-blur supports-[backdrop-filter]:bg-slate-900/85">
@@ -55,6 +57,20 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {/* Publicar — visível apenas para vendedores autenticados */}
+          {user && isSeller && (
+            <Link
+              href="/adicionar-produto"
+              className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                pathname === '/adicionar-produto'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-amber-500 text-white hover:bg-amber-600'
+              }`}
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar Produto
+            </Link>
+          )}
         </nav>
 
         <div className="flex-1" />

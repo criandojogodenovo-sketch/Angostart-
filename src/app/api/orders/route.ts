@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +23,13 @@ interface OrderPayload {
 /**
  * POST /api/orders — Regista uma encomenda no Neon.
  * Corpo: { customer_name, customer_phone, customer_email?, items[], delivery_type?, notes? }
+ * Se o pedido incluir um token válido (Authorization: Bearer), a encomenda
+ * fica ligada ao utilizador — assim o cliente vê o histórico de compras.
  */
 export async function POST(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  const userId = authUser?.id ?? null;
+
   let body: OrderPayload;
 
   try {
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id)
       VALUES (
         ${customer_name.trim()},
         ${customer_phone.trim()},
@@ -80,7 +86,8 @@ export async function POST(request: NextRequest) {
         ${totalKz},
         'pendente',
         ${delivery_type || 'retirada'},
-        ${notes?.trim() || null}
+        ${notes?.trim() || null},
+        ${userId}
       )
       RETURNING id, created_at, total_kz, status
     `);
@@ -109,9 +116,36 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/orders — Lista as últimas encomendas (uso interno/admin).
+ * GET /api/orders?mine=1 — histórico de compras do utilizador autenticado.
+ * Header: Authorization: Bearer <token>
+ * Sem ?mine=1, lista as últimas encomendas (uso interno/admin).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+
+  if (searchParams.get('mine') === '1') {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Sessão inválida ou expirada. Entra novamente.' },
+        { status: 401 }
+      );
+    }
+    try {
+      const myOrders = await sql`
+        SELECT id, items, total_kz, status, delivery_type, created_at
+        FROM orders
+        WHERE user_id = ${user.id}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `;
+      return NextResponse.json({ orders: myOrders });
+    } catch (error) {
+      console.error('[API /api/orders] Erro ao listar (mine):', error);
+      return NextResponse.json({ orders: [] }, { status: 200 });
+    }
+  }
+
   try {
     const rows = await sql`
       SELECT id, customer_name, total_kz, status, created_at

@@ -2,13 +2,13 @@
 
 /**
  * AngoStart — Botão flutuante do WhatsApp (canto inferior direito).
- * Link direto para https://wa.me/244923456789
+ * Link direto para https://wa.me/244958176915
  */
 
 import { MessageCircle } from 'lucide-react';
 
 const WHATSAPP_URL =
-  'https://wa.me/244923456789?text=' +
+  'https://wa.me/244958176915?text=' +
   encodeURIComponent('Olá! Vim do site AngoStart e gostaria de mais informações.');
 
 export default function WhatsAppButton() {

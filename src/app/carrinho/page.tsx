@@ -24,16 +24,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/context/StoreContext';
+import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
-
-const USER_STORAGE_KEY = 'angostart.user.v1';
-
-interface SavedUser {
-  name: string;
-  email: string;
-  phone: string;
-}
 
 interface PlacedOrder {
   id: number;
@@ -41,7 +34,7 @@ interface PlacedOrder {
   whatsappUrl: string;
 }
 
-const WHATSAPP_NUMBER = '244923456789';
+const WHATSAPP_NUMBER = '244958176915';
 
 export default function CarrinhoPage() {
   const { items, count, totalKz, isReady, setQuantity, removeItem, clearCart } =
@@ -54,21 +47,16 @@ export default function CarrinhoPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+  const { user } = useAuth();
 
-  // Preenche com o perfil guardado (página Perfil)
+  // Pré-preenche com os dados da conta autenticada (perfil multi-perfil)
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(USER_STORAGE_KEY);
-      if (raw) {
-        const user = JSON.parse(raw) as SavedUser;
-        setName(user.name ?? '');
-        setPhone(user.phone ?? '');
-        setEmail(user.email ?? '');
-      }
-    } catch {
-      /* ignora */
+    if (user) {
+      setName(user.name);
+      setPhone(user.telefone ?? '');
+      setEmail(user.email);
     }
-  }, []);
+  }, [user]);
 
   const whatsappMessage = useMemo(() => {
     if (items.length === 0) return '';
@@ -93,7 +81,7 @@ export default function CarrinhoPage() {
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           customer_name: name,
           customer_phone: phone,
