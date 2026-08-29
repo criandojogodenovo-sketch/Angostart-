@@ -5,23 +5,36 @@ import { requireAnyAdmin } from '@/lib/security';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/orders?status=aguardando_validacao — fila de validação
- * de comprovativos KWiK.
+ * GET /api/admin/orders?status=aguardando_validacao&method=kwik — fila de
+ * validação de comprovativos (KWiK, PayPay, Multicaixa Express…).
  *
  * 🔒 admin + admin_limitado (o limitado vê APENAS isto — sem utilizadores
  * nem produtos). Por omissão devolve as encomendas com comprovativo à
  * espera de validação.
  *
+ * `method` (opcional): kwik | paypay | multicaixa_express | whatsapp |
+ * carteira | momenu — filtro por método de pagamento (Fase 8).
+ *
  * ⚠️ A lista NUNCA inclui o base64 do comprovativo (payment_proof) —
  * o ficheiro é obtido separadamente em /api/admin/orders/[id]/proof.
  */
+const VALID_METHODS = [
+  'kwik',
+  'paypay',
+  'multicaixa_express',
+  'whatsapp',
+  'carteira',
+  'momenu',
+];
+
 export async function GET(request: NextRequest) {
   const auth = await requireAnyAdmin(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const statusParam = new URL(request.url).searchParams.get('status');
+  const searchParams = new URL(request.url).searchParams;
+  const statusParam = searchParams.get('status');
   const status = [
     'aguardando_validacao',
     'pendente',
@@ -33,6 +46,12 @@ export async function GET(request: NextRequest) {
     ? statusParam!
     : 'aguardando_validacao';
 
+  const methodParam = searchParams.get('method');
+  const methodClause =
+    methodParam && VALID_METHODS.includes(methodParam)
+      ? sql` AND payment_method = ${methodParam}`
+      : sql``;
+
   try {
     const orders = (await sql`
       SELECT id, customer_name, customer_phone, customer_email, items, total_kz,
@@ -41,7 +60,7 @@ export async function GET(request: NextRequest) {
              (payment_proof IS NOT NULL) AS has_payment_proof,
              admin_note, validated_at, created_at
       FROM orders
-      WHERE status = ${status}
+      WHERE status = ${status}${methodClause}
       ORDER BY created_at DESC
       LIMIT 100
     `) as unknown as Record<string, unknown>[];

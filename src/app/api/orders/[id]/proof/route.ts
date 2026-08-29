@@ -3,17 +3,19 @@ import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { clientKey, rateLimit } from '@/lib/security';
 import { parseAndValidateProof } from '@/lib/kwik';
+import { isManualTransferMethod } from '@/lib/payments-manual';
 
 export const dynamic = 'force-dynamic';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * POST /api/orders/[id]/proof — anexa o comprovativo KWiK a uma encomenda
- * já criada (ecrã de confirmação do carrinho).
+ * POST /api/orders/[id]/proof — anexa o comprovativo a uma encomenda já
+ * criada (ecrã de confirmação do carrinho).
  *
- * Fluxo: cliente transfere via KWiK → anexa foto/PDF → o pedido passa a
- * status `aguardando_validacao` até um admin aprovar (`pago`) ou rejeitar.
+ * Fluxo: cliente transfere (KWiK, PayPay ou Multicaixa Express) → anexa
+ * foto/PDF → o pedido passa a status `aguardando_validacao` até um admin
+ * aprovar (`pago`) ou rejeitar.
  *
  * 🔒 SEGURANÇA:
  * - Dono autenticado da encomenda OU (encomenda de convidado) telefone que
@@ -60,13 +62,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const rows = (await sql`
-      SELECT id, user_id, customer_phone, status
+      SELECT id, user_id, customer_phone, status, payment_method
       FROM orders WHERE id = ${id} LIMIT 1
     `) as unknown as {
       id: number;
       user_id: number | null;
       customer_phone: string;
       status: string;
+      payment_method: string | null;
     }[];
 
     const order = rows[0];
@@ -105,9 +108,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Preserva o método manual original (KWiK/PayPay/Multicaixa Express) —
+    // nunca sobrescrever com 'kwik' (bug antigo que apagava o método).
+    const nextMethod = isManualTransferMethod(order.payment_method)
+      ? order.payment_method
+      : 'kwik';
+
     await sql`
       UPDATE orders
-      SET payment_method = 'kwik',
+      SET payment_method = ${nextMethod},
           payment_proof = ${proof.dataUrl},
           payment_proof_name = ${proof.name},
           payment_proof_type = ${proof.mime},

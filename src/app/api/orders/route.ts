@@ -13,6 +13,7 @@ import {
   parseAndValidateProof,
   buildKwikReference,
 } from '@/lib/kwik';
+import { isManualTransferMethod } from '@/lib/payments-manual';
 import {
   payWithWallet,
   ensureWallet,
@@ -42,7 +43,8 @@ interface OrderPayload {
   delivery_type?: string;
   notes?: string;
   comprovativo_url?: string;
-  /** Método de pagamento: 'kwik', 'whatsapp' ou 'carteira' (saldo). */
+  /** Método de pagamento: 'kwik' | 'paypay' | 'multicaixa_express' |
+   *  'whatsapp' | 'carteira' (saldo) | 'momenu' (desativado). */
   payment_method?: unknown;
   /** Comprovativo KWiK como data URL (data:<mime>;base64,<dados>). */
   payment_proof?: unknown;
@@ -109,9 +111,14 @@ export async function POST(request: NextRequest) {
       ? body.comprovativo_url.trim()
       : null;
 
-  /* ── KWiK / carteira: método de pagamento + comprovativo (opcional) ── */
-  const rawMethod =
-    body.payment_method === 'whatsapp'
+  /* ── Métodos de pagamento ──
+   * Manuais por transferência (KWiK principal + PayPay + Multicaixa
+   * Express): mesmo fluxo — cliente anexa comprovativo, admin valida.
+   * 'carteira' = saldo interno; 'momenu' = automático (desativado);
+   * 'whatsapp' = combinar com a equipa. Por omissão → 'kwik'. */
+  const rawMethod = isManualTransferMethod(body.payment_method)
+    ? body.payment_method
+    : body.payment_method === 'whatsapp'
       ? 'whatsapp'
       : body.payment_method === 'carteira'
         ? 'carteira'

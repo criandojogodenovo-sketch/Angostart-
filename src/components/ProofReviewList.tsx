@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * AngoStart — Secção "Comprovativos KWiK" (partilhada pelos painéis
- * /admin e /admin-limitado).
+ * AngoStart — Secção "Comprovativos de pagamentos" (partilhada pelos
+ * painéis /admin e /admin-limitado).
  *
- * Lista as encomendas à espera de validação, permite VER o comprovativo
- * (imagem ou PDF — carregado em binário com autenticação Bearer, nunca
- * num URL público) e Aprovar/Rejeitar com observação interna.
+ * Lista as encomendas à espera de validação (KWiK, PayPay, Multicaixa
+ * Express — badge por método), permite VER o comprovativo (imagem ou PDF
+ * — carregado em binário com autenticação Bearer, nunca num URL público)
+ * e Aprovar/Rejeitar com observação interna.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -32,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { buildKwikReference, ORDER_STATUS_BADGES, ORDER_STATUS_LABELS } from '@/lib/kwik';
+import { PAYMENT_METHOD_BADGES, PAYMENT_METHOD_LABELS } from '@/lib/payments-manual';
 import { useToast } from '@/hooks/use-toast';
 
 export interface KwikAdminOrder {
@@ -160,7 +162,7 @@ export default function ProofReviewList({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
             <Smartphone className="h-4 w-4 text-emerald-600" />
-            Comprovativos KWiK ({orders.length})
+            Comprovativos de pagamentos ({orders.length})
           </h2>
           <Button variant="ghost" size="sm" onClick={onReload}>
             <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
@@ -193,9 +195,15 @@ export default function ProofReviewList({
                       >
                         {ORDER_STATUS_LABELS[order.status] ?? order.status}
                       </span>
-                      {order.payment_method === 'kwik' && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
-                          KWiK
+                      {order.payment_method && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            PAYMENT_METHOD_BADGES[order.payment_method] ??
+                            'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {PAYMENT_METHOD_LABELS[order.payment_method] ??
+                            order.payment_method}
                         </span>
                       )}
                     </div>

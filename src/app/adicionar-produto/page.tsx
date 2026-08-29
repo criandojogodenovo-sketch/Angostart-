@@ -33,6 +33,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
+import {
+  PRODUCT_IMAGE_ACCEPT,
+  PRODUCT_IMAGE_MAX_BYTES,
+  PRODUCT_IMAGE_MIME_TYPES,
+} from '@/lib/payments-manual';
 import type { Product, ProductType } from '@/lib/products-data';
 import ProductIcon from '@/components/ProductIcon';
 import ServiceMap, { centerForCity } from '@/components/ServiceMap';
@@ -114,6 +119,10 @@ function AdicionarProdutoContent() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
+
+  /* ── Upload real de foto do produto (Vercel Blob via /api/upload/image) ── */
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Fase 5: PDF de infoproduto + KYC ── */
   /* Fase 6 (ponto 12): BI é OBRIGATÓRIO para publicar; NIF opcional. */
@@ -221,6 +230,53 @@ function AdicionarProdutoContent() {
   }
 
   /* ─────────── Submissão ─────────── */
+
+  /** Upload real da FOTO do produto (galeria) para o Vercel Blob. */
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = ''; // permite re-selecionar o mesmo ficheiro
+
+    if (file.type && !(PRODUCT_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Usa uma foto JPG, PNG ou WebP.',
+      });
+      return;
+    }
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      toast({
+        title: 'Foto demasiado grande',
+        description: 'O limite é 5 MB — escolhe uma foto mais leve.',
+      });
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: authHeaders(),
+        body,
+      });
+      const data = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!res.ok || !data.ok || !data.url) {
+        toast({ title: 'Upload falhou', description: data.error });
+        return;
+      }
+      setForm((prev) => ({ ...prev, image_url: data.url as string }));
+      toast({
+        title: 'Foto carregada ✓',
+        description: 'A imagem fica visível no catálogo para todos os clientes.',
+      });
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta enviar a foto novamente.' });
+    } finally {
+      setImageUploading(false);
+    }
+  }
 
   /** Upload do PDF do infoproduto para o Vercel Blob (Fase 5). */
   async function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -408,44 +464,101 @@ function AdicionarProdutoContent() {
               />
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="prod-preco">Preço (Kz)</Label>
-                <Input
-                  id="prod-preco"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="numeric"
-                  placeholder="Ex.: 25000"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  className="h-11"
-                  required
+            <div className="space-y-2">
+              <Label htmlFor="prod-preco">Preço (Kz)</Label>
+              <Input
+                id="prod-preco"
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                placeholder="Ex.: 25000"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className="h-11"
+                required
+              />
+              {form.price && Number(form.price) > 0 && (
+                <p className="text-xs font-medium text-emerald-600">
+                  {formatKz(Number(form.price))}
+                </p>
+              )}
+            </div>
+
+            {/* Foto do produto — UPLOAD REAL da galeria (Vercel Blob) */}
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+              <Label className="flex items-center gap-1.5">
+                <ImageIcon className="h-4 w-4 text-emerald-600" />
+                Foto do produto/serviço{' '}
+                <span className="font-normal text-slate-400">
+                  (opcional — JPG, PNG ou WebP, máx. 5 MB)
+                </span>
+              </Label>
+              <p className="text-xs text-slate-500">
+                Escolhe uma foto da tua galeria — ela aparece no catálogo e na
+                página do produto para todos os clientes.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                {form.image_url ? (
+                  <img
+                    src={form.image_url}
+                    alt="Foto do produto"
+                    className="h-20 w-20 rounded-xl border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <span className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-300">
+                    <ImageIcon className="h-7 w-7" />
+                  </span>
+                )}
+                <label
+                  htmlFor="prod-imagem-upload"
+                  className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                >
+                  {imageUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                  {form.image_url ? 'Substituir foto' : 'Escolher foto'}
+                </label>
+                <input
+                  ref={imageInputRef}
+                  id="prod-imagem-upload"
+                  type="file"
+                  accept={PRODUCT_IMAGE_ACCEPT}
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={imageUploading}
                 />
-                {form.price && Number(form.price) > 0 && (
-                  <p className="text-xs font-medium text-emerald-600">
-                    {formatKz(Number(form.price))}
-                  </p>
+                {form.image_url && (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-300">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Foto pronta
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, image_url: '' })}
+                      className="text-xs font-semibold text-rose-500 hover:underline"
+                    >
+                      Remover
+                    </button>
+                  </>
                 )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="prod-imagem">
-                  Link da imagem <span className="text-slate-400">(opcional)</span>
-                </Label>
-                <div className="relative">
-                  <ImageIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    id="prod-imagem"
-                    type="url"
-                    placeholder="https://exemplo.ao/foto.jpg"
-                    value={form.image_url}
-                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                    className="h-11 pl-9"
-                  />
-                </div>
-              </div>
+              {/* Retrocompatibilidade: produto antigo com link externo — continua
+                  a funcionar; o upload é o caminho recomendado. */}
+              <details className="text-xs text-slate-500">
+                <summary className="cursor-pointer select-none font-medium text-slate-600">
+                  Preferes usar um link externo?
+                </summary>
+                <Input
+                  type="url"
+                  placeholder="https://exemplo.ao/foto.jpg"
+                  value={form.image_url}
+                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                  className="mt-2 h-10 bg-white"
+                />
+              </details>
             </div>
 
             <div className="space-y-2">
@@ -613,11 +726,19 @@ function AdicionarProdutoContent() {
                 Pré-visualização no catálogo
               </p>
               <div className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm">
-                <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${previewGradient} text-white shadow-md`}
-                >
-                  <ProductIcon name={TYPE_OPTIONS.find((t) => t.value === form.type)?.iconName ?? 'package'} />
-                </span>
+                {form.image_url ? (
+                  <img
+                    src={form.image_url}
+                    alt="Pré-visualização da foto do produto"
+                    className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <span
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${previewGradient} text-white shadow-md`}
+                  >
+                    <ProductIcon name={TYPE_OPTIONS.find((t) => t.value === form.type)?.iconName ?? 'package'} />
+                  </span>
+                )}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">
                     {form.name || 'Nome do produto'}

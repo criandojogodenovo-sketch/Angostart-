@@ -3,6 +3,7 @@ import { sql } from '@/lib/db';
 import { isProductType, type Product } from '@/lib/products-data';
 import { getAuthUser, isAdminRole } from '@/lib/auth';
 import { sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
+import { isInternalMediaUrl } from '@/lib/payments-manual';
 
 export const dynamic = 'force-dynamic';
 
@@ -204,9 +205,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (!isProductType(type)) {
       return NextResponse.json({ error: 'Tipo de produto inválido.' }, { status: 400 });
     }
-    if (imageUrl && !isSafeHttpUrl(imageUrl)) {
+    /* Imagem: link https externo OU URL interno do upload (/api/media/produtos/…). */
+    const imageUrlValid =
+      !imageUrl || isSafeHttpUrl(imageUrl) || isInternalMediaUrl(imageUrl);
+    if (!imageUrlValid) {
       return NextResponse.json(
-        { error: 'O link da imagem deve começar por https:// e ser um endereço válido.' },
+        { error: 'O link da imagem deve começar por https:// ou ser uma foto enviada para o Blob.' },
         { status: 400 }
       );
     }

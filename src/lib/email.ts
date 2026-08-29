@@ -2,6 +2,10 @@ import 'server-only';
 import { Resend } from 'resend';
 import { getEnv, getAppUrl } from '@/lib/env';
 import { formatKz } from '@/lib/format';
+import {
+  isManualTransferMethod,
+  PAYMENT_METHOD_LABELS,
+} from '@/lib/payments-manual';
 
 /**
  * AngoStart — Notificações por email (Resend).
@@ -96,11 +100,11 @@ interface OrderEmailPayload {
   customerPhone: string;
   totalKz: number;
   items: { name: string; quantity: number; price_kz: number }[];
-  /** 'kwik' (transferência manual) ou 'whatsapp' (combinar com a equipa). */
+  /** 'kwik' | 'paypay' | 'multicaixa_express' | 'whatsapp' | 'carteira'… */
   paymentMethod?: string;
   /** Referência do pedido (ex.: AngoStart-ORD-00042). */
   reference?: string;
-  /** true se o cliente já anexou o comprovativo KWiK. */
+  /** true se o cliente já anexou o comprovativo. */
   proofAttached?: boolean;
 }
 
@@ -110,15 +114,20 @@ export async function sendOrderNotifications(
   sellerEmails: string[]
 ): Promise<void> {
   const linhas = orderItemsTable(order.items);
-  const isKwik = order.paymentMethod !== 'whatsapp';
+  const manualMethod = isManualTransferMethod(order.paymentMethod)
+    ? order.paymentMethod
+    : null;
+  const methodLabel = manualMethod
+    ? PAYMENT_METHOD_LABELS[manualMethod]
+    : null;
   const referencia = order.reference ?? `AngoStart-ORD-${String(order.orderId).padStart(5, '0')}`;
 
-  const instrucoesKwik = isKwik
+  const instrucoesKwik = manualMethod && methodLabel
     ? `<div style="margin:12px 0;padding:14px;border:1px solid #10b981;border-radius:12px;background:#ecfdf5">
-         <p style="margin:0 0 8px;font-weight:bold;color:#065f46">Pagamento KWiK — Transferência Instantânea</p>
+         <p style="margin:0 0 8px;font-weight:bold;color:#065f46">Pagamento ${methodLabel} — Transferência</p>
          <p style="margin:0;font-size:14px;line-height:1.6">
            1. Transfere <strong>${formatKz(order.totalKz)}</strong> para
-           <strong>+244 958 176 915</strong> (KWiK).<br/>
+           <strong>+244 958 176 915</strong> (${methodLabel}).<br/>
            2. Indica na descrição a referência
            <strong>${referencia}</strong>.<br/>
            3. Anexa o comprovativo no site (ou responde a este email).
@@ -158,7 +167,13 @@ export async function sendOrderNotifications(
         `<p>Uma encomenda que inclui os teus produtos/serviços foi registada.</p>
          <p><strong>Encomenda:</strong> n.º ${order.orderId} (${referencia})<br/>
          <strong>Cliente:</strong> ${order.customerName} (${order.customerPhone})<br/>
-         <strong>Pagamento:</strong> ${isKwik ? 'KWiK — aguarda validação do comprovativo' : 'a combinar pelo WhatsApp'}</p>
+         <strong>Pagamento:</strong> ${
+           manualMethod && methodLabel
+             ? `${methodLabel} — aguarda validação do comprovativo`
+             : order.paymentMethod === 'carteira'
+               ? 'pago com o saldo da carteira (escrow até entrega)'
+               : 'a combinar pelo WhatsApp'
+         }</p>
          ${linhas}
          <p style="margin-top:12px">Entra no teu <a href="${getAppUrl()}/dashboard/vendedor">painel de vendas</a> para ver os detalhes.</p>`
       ),

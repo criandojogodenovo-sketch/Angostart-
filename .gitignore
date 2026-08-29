@@ -69,3 +69,8 @@ dev-restart.log
 .env
 .env.local
 .env*.local
+
+# Artefactos locais de build/teste (Fase 8)
+/.next-build/
+/tool-results/
+/upload/

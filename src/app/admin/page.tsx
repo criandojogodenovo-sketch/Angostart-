@@ -238,6 +238,17 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'falhou', label: 'Falhadas' },
 ];
 
+/** Filtros por método de pagamento (Fase 8). */
+const METHOD_FILTERS: { value: string; label: string }[] = [
+  { value: '', label: 'Todos os métodos' },
+  { value: 'kwik', label: 'KWiK' },
+  { value: 'paypay', label: 'PayPay' },
+  { value: 'multicaixa_express', label: 'Multicaixa Express' },
+  { value: 'carteira', label: 'Carteira' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'momenu', label: 'MoMenu' },
+];
+
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
   { key: 'carteira', label: 'Carteira', icon: Wallet },
@@ -293,6 +304,7 @@ function AdminPanel() {
   const [orders, setOrders] = useState<KwikAdminOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('aguardando_validacao');
+  const [methodFilter, setMethodFilter] = useState('');
 
   /* ── Carteira: depósitos e saques pendentes (Fase 4) ── */
   const [walletOps, setWalletOps] = useState<WalletOpRow[]>([]);
@@ -375,9 +387,13 @@ function AdminPanel() {
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
-      const res = await fetch(`/api/admin/orders?status=${statusFilter}`, {
-        headers: authHeaders(),
-      });
+      const methodQuery = methodFilter ? `&method=${methodFilter}` : '';
+      const res = await fetch(
+        `/api/admin/orders?status=${statusFilter}${methodQuery}`,
+        {
+          headers: authHeaders(),
+        }
+      );
       const data = (await res.json()) as { orders?: KwikAdminOrder[]; error?: string };
       if (!res.ok) {
         toast({ title: 'Erro', description: data.error });
@@ -387,7 +403,7 @@ function AdminPanel() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [toast, statusFilter]);
+  }, [toast, statusFilter, methodFilter]);
 
   const loadWalletOps = useCallback(async () => {
     setWalletLoading(true);
@@ -925,7 +941,7 @@ function AdminPanel() {
         ))}
       </nav>
 
-      {/* ── Comprovativos KWiK ── */}
+      {/* ── Comprovativos (KWiK / PayPay / Multicaixa Express / …) ── */}
       {tab === 'encomendas' && (
         <>
           <nav aria-label="Filtrar encomendas por estado" className="mt-6 flex flex-wrap gap-2">
@@ -943,12 +959,30 @@ function AdminPanel() {
               </button>
             ))}
           </nav>
+          <nav
+            aria-label="Filtrar encomendas por método de pagamento"
+            className="mt-2 flex flex-wrap gap-2"
+          >
+            {METHOD_FILTERS.map((filter) => (
+              <button
+                key={filter.value || 'todos'}
+                onClick={() => setMethodFilter(filter.value)}
+                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                  methodFilter === filter.value
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </nav>
           <ProofReviewList
             orders={orders}
             loading={ordersLoading}
             emptyMessage={
               statusFilter === 'aguardando_validacao'
-                ? 'Sem comprovativos KWiK à espera de validação. Bom trabalho!'
+                ? 'Sem comprovativos à espera de validação. Bom trabalho!'
                 : 'Sem encomendas neste estado.'
             }
             onReload={loadOrders}

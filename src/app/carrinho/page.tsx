@@ -44,12 +44,20 @@ import {
   buildKwikReference,
   buildKwikTransferNote,
 } from '@/lib/kwik';
+import {
+  MANUAL_TRANSFER_METHODS,
+  isManualTransferMethod,
+  type ManualMethodId,
+} from '@/lib/payments-manual';
 import { useToast } from '@/hooks/use-toast';
+
+/** Métodos de pagamento disponíveis no carrinho. */
+type PaymentChoice = ManualMethodId | 'whatsapp' | 'carteira' | 'momenu';
 
 interface PlacedOrder {
   id: number;
   total_kz: number;
-  paymentMethod: 'kwik' | 'whatsapp' | 'carteira' | 'momenu';
+  paymentMethod: PaymentChoice;
   reference: string;
   proofAttached: boolean;
   status: string;
@@ -91,9 +99,7 @@ export default function CarrinhoPage() {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [comprovativo, setComprovativo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<
-    'kwik' | 'whatsapp' | 'carteira' | 'momenu'
-  >('kwik');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentChoice>('kwik');
   const [proof, setProof] = useState<ProofState>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
@@ -239,13 +245,16 @@ export default function CarrinhoPage() {
           longitude: hasDomicilio && clientLocation ? clientLocation.lng : undefined,
           comprovativo_url:
             paymentMethod === 'whatsapp' ? comprovativo || undefined : undefined,
-          // KWiK: comprovativo (opcional — pode anexar depois na confirmação)
+          // Transferência manual (KWiK/PayPay/Multicaixa Express):
+          // comprovativo opcional — pode anexar depois na confirmação
           payment_proof:
-            paymentMethod === 'kwik' && proof.kind === 'selected' && proof.dataUrl
+            isManualTransferMethod(paymentMethod) &&
+            proof.kind === 'selected' &&
+            proof.dataUrl
               ? proof.dataUrl
               : undefined,
           payment_proof_name:
-            paymentMethod === 'kwik' && proof.kind === 'selected'
+            isManualTransferMethod(paymentMethod) && proof.kind === 'selected'
               ? proof.file.name
               : undefined,
           items: items.map((i) => ({
@@ -286,7 +295,9 @@ export default function CarrinhoPage() {
               ? 'carteira'
               : data.order.payment_method === 'momenu'
                 ? 'momenu'
-                : 'kwik',
+                : isManualTransferMethod(data.order.payment_method)
+                  ? data.order.payment_method
+                  : 'kwik',
         reference: data.order.reference ?? buildKwikReference(data.order.id),
         proofAttached: data.order.proof_attached,
         status: data.order.status,
@@ -386,7 +397,12 @@ export default function CarrinhoPage() {
 
   /* ─────────── Encomenda concluída ─────────── */
   if (placed) {
-    const isKwik = placed.paymentMethod === 'kwik';
+    const manualMethod = isManualTransferMethod(placed.paymentMethod)
+      ? placed.paymentMethod
+      : null;
+    const methodInfo = manualMethod
+      ? MANUAL_TRANSFER_METHODS[manualMethod]
+      : null;
     const transferNote = buildKwikTransferNote(placed.id, name || 'Cliente');
     return (
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
@@ -402,12 +418,12 @@ export default function CarrinhoPage() {
             <strong className="text-emerald-600">{formatKz(placed.total_kz)}</strong>.
           </p>
 
-          {/* Instruções KWiK — pagamento manual */}
-          {isKwik && (
+          {/* Instruções de transferência manual (KWiK/PayPay/Multicaixa Express) */}
+          {manualMethod && methodInfo && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
               <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
-                <Smartphone className="h-4 w-4" /> Pagamento KWiK — Transferência
-                Instantânea
+                <Smartphone className="h-4 w-4" /> Pagamento {methodInfo.sender} —
+                Transferência
               </p>
               <ol className="mt-3 space-y-2 text-sm text-emerald-900">
                 <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
@@ -421,7 +437,7 @@ export default function CarrinhoPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => copyText(KWIK_PAYEE_DIGITS, 'Número KWiK')}
+                    onClick={() => copyText(KWIK_PAYEE_DIGITS, 'Número para transferência')}
                     aria-label="Copiar número KWiK"
                     className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
                   >
@@ -500,7 +516,7 @@ export default function CarrinhoPage() {
             </div>
           )}
 
-          {!isKwik && placed.paymentMethod === 'carteira' && (
+          {!manualMethod && placed.paymentMethod === 'carteira' && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
               <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
                 <Wallet className="h-4 w-4" /> Pago com o saldo da carteira
@@ -514,14 +530,14 @@ export default function CarrinhoPage() {
             </div>
           )}
 
-          {!isKwik && placed.paymentMethod === 'whatsapp' && (
+          {!manualMethod && placed.paymentMethod === 'whatsapp' && (
             <p className="mt-5 text-sm text-slate-500">
               A nossa equipa entra em contacto pelo WhatsApp para combinar a
               entrega e o pagamento.
             </p>
           )}
 
-          {!isKwik && placed.paymentMethod === 'momenu' && (
+          {!manualMethod && placed.paymentMethod === 'momenu' && (
             <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-left">
               <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
                 <Smartphone className="h-4 w-4" /> MoMenu — Multicaixa Express
@@ -546,7 +562,7 @@ export default function CarrinhoPage() {
           )}
 
           <div className="mt-8 space-y-3">
-            {isKwik ? (
+            {manualMethod ? (
               <Button
                 asChild
                 className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
@@ -797,6 +813,44 @@ export default function CarrinhoPage() {
                   <input
                     type="radio"
                     name="pagamento"
+                    value="paypay"
+                    checked={paymentMethod === 'paypay'}
+                    onChange={() => setPaymentMethod('paypay')}
+                    className="mt-0.5 h-4 w-4 accent-sky-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold text-slate-900">
+                      PayPay (Transferência)
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Na app PayPay, transfere para <strong>{KWIK_PAYEE_NUMBER}</strong> e
+                      anexa o comprovativo.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="pagamento"
+                    value="multicaixa_express"
+                    checked={paymentMethod === 'multicaixa_express'}
+                    onChange={() => setPaymentMethod('multicaixa_express')}
+                    className="mt-0.5 h-4 w-4 accent-violet-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold text-slate-900">
+                      Multicaixa Express (Transferência)
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Na app Multicaixa Express, transfere para{' '}
+                      <strong>{KWIK_PAYEE_NUMBER}</strong> e anexa o comprovativo.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="pagamento"
                     value="whatsapp"
                     checked={paymentMethod === 'whatsapp'}
                     onChange={() => setPaymentMethod('whatsapp')}
@@ -920,17 +974,18 @@ export default function CarrinhoPage() {
                   </div>
                 )}
 
-                {/* KWiK: instruções + comprovativo */}
-                {paymentMethod === 'kwik' && (
+                {/* Transferência manual (KWiK/PayPay/Multicaixa Express):
+                    instruções + comprovativo — o fluxo é o mesmo para os 3 */}
+                {isManualTransferMethod(paymentMethod) && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                     <p className="text-xs font-bold text-emerald-900">
-                      Como funciona o KWiK:
+                      Como pagar com {MANUAL_TRANSFER_METHODS[paymentMethod].sender}:
                     </p>
                     <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-emerald-800">
                       <li>
                         Transfere <strong>{formatKz(totalKz)}</strong> para{' '}
-                        <strong>{KWIK_PAYEE_NUMBER}</strong> (KWiK — Kwanza
-                        Instantâneo).
+                        <strong>{KWIK_PAYEE_NUMBER}</strong> (número que recebe
+                        por KWiK, PayPay ou Multicaixa Express).
                       </li>
                       <li>
                         A referência do pedido (ex.:{' '}
@@ -952,7 +1007,7 @@ export default function CarrinhoPage() {
                       type="file"
                       accept="image/jpeg,image/png,image/webp,application/pdf"
                       onChange={selectProofFile}
-                      aria-label="Comprovativo KWiK (opcional)"
+                      aria-label={`Comprovativo ${MANUAL_TRANSFER_METHODS[paymentMethod].sender} (opcional)`}
                       className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-emerald-600"
                     />
                     {proof.kind === 'selected' && (
@@ -1015,8 +1070,9 @@ export default function CarrinhoPage() {
               </Button>
 
               <p className="text-center text-xs text-slate-400">
-                Pagamento por KWiK (transferência instantânea), carteira
-                AngoStart, WhatsApp ou dinheiro na entrega.
+                Pagamento por KWiK, PayPay ou Multicaixa Express
+                (transferência), carteira AngoStart, WhatsApp ou dinheiro na
+                entrega.
               </p>
             </form>
           </div>
