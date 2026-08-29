@@ -8,19 +8,22 @@
  * sitemap ou robots.txt — acesso apenas por URL direto.
  *
  * Funcionalidades: utilizadores (bloquear), produtos (eliminar),
- * validação de comprovativos (aprovar/rejeitar), criação de admins
- * limitados e ativação do 2FA (QR TOTP).
+ * validação de comprovativos (aprovar/rejeitar), gestão dinâmica de
+ * admins limitados (convites + código diário) e ativação do 2FA (QR TOTP).
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import {
   Ban,
+  CalendarClock,
   CheckCircle2,
   FileText,
   Loader2,
   LogOut,
+  Mail,
   Package,
   RefreshCw,
+  Send,
   ShieldCheck,
   Trash2,
   UserPlus,
@@ -61,6 +64,35 @@ interface AdminProduct {
 
 type Tab = 'utilizadores' | 'produtos' | 'encomendas' | 'admins' | 'seguranca';
 
+interface AdminInviteRow {
+  id: number;
+  email: string;
+  name: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+  created_by_email: string | null;
+}
+
+interface LimitedAdminRow {
+  id: number;
+  name: string;
+  email: string;
+  blocked: boolean;
+  two_factor_enabled: boolean;
+  created_at: string;
+}
+
+interface DailyCodeRow {
+  id: number;
+  admin_id: number;
+  admin_email: string;
+  date: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
 /** Filtros de estado da fila de comprovativos. */
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'aguardando_validacao', label: 'Aguardando validação' },
@@ -75,7 +107,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
-  { key: 'admins', label: 'Admin Limitado', icon: UserPlus },
+  { key: 'admins', label: 'Gerir Admins Limitados', icon: UserPlus },
   { key: 'seguranca', label: 'Segurança 2FA', icon: ShieldCheck },
 ];
 
@@ -105,11 +137,15 @@ function AdminPanel() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('aguardando_validacao');
 
-  /* ── Criar admin limitado ── */
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPass, setNewPass] = useState('');
-  const [creating, setCreating] = useState(false);
+  /* ── Gerir Admins Limitados (convites + código diário) ── */
+  const [invites, setInvites] = useState<AdminInviteRow[]>([]);
+  const [limitedAdmins, setLimitedAdmins] = useState<LimitedAdminRow[]>([]);
+  const [dailyCodes, setDailyCodes] = useState<DailyCodeRow[]>([]);
+  const [adminDataLoading, setAdminDataLoading] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [busyAdminId, setBusyAdminId] = useState<number | null>(null);
 
   /* ── 2FA setup ── */
   const [qr, setQr] = useState<string | null>(null);
@@ -159,6 +195,28 @@ function AdminPanel() {
     }
   }, [toast, statusFilter]);
 
+  const loadAdminSecurityData = useCallback(async () => {
+    setAdminDataLoading(true);
+    try {
+      const res = await fetch('/api/admin/invites', { headers: authHeaders() });
+      const data = (await res.json()) as {
+        invites?: AdminInviteRow[];
+        limitedAdmins?: LimitedAdminRow[];
+        dailyCodes?: DailyCodeRow[];
+        error?: string;
+      };
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      setInvites(data.invites ?? []);
+      setLimitedAdmins(data.limitedAdmins ?? []);
+      setDailyCodes(data.dailyCodes ?? []);
+    } finally {
+      setAdminDataLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     if (tab === 'encomendas') loadOrders();
   }, [tab, loadOrders]);
@@ -166,7 +224,82 @@ function AdminPanel() {
   useEffect(() => {
     if (tab === 'utilizadores') loadUsers();
     if (tab === 'produtos') loadProducts();
-  }, [tab, loadUsers, loadProducts]);
+    if (tab === 'admins') loadAdminSecurityData();
+  }, [tab, loadUsers, loadProducts, loadAdminSecurityData]);
+
+  async function sendInvite(event: React.FormEvent) {
+    event.preventDefault();
+    setInviting(true);
+    try {
+      const res = await fetch('/api/admin/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ name: inviteName, email: inviteEmail }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string; code?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível convidar', description: data.error });
+        return;
+      }
+      toast({
+        title: 'Convite criado',
+        description: data.delivered === false ? data.code : data.message,
+      });
+      setInviteName('');
+      setInviteEmail('');
+      loadAdminSecurityData();
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function revokeInvite(invite: AdminInviteRow) {
+    const res = await fetch(`/api/admin/invites/${invite.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      toast({ title: 'Não foi possível revogar', description: data.error });
+      return;
+    }
+    toast({ title: 'Convite revogado', description: invite.email });
+    loadAdminSecurityData();
+  }
+
+  async function sendDailyCode(admin: LimitedAdminRow) {
+    setBusyAdminId(admin.id);
+    try {
+      const res = await fetch('/api/admin/daily-code/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ admin_id: admin.id }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível enviar', description: data.error });
+        return;
+      }
+      toast({ title: 'Código diário enviado', description: `${admin.email} — ${data.message}` });
+      loadAdminSecurityData();
+    } finally {
+      setBusyAdminId(null);
+    }
+  }
+
+  async function removeLimitedAdmin(admin: LimitedAdminRow) {
+    const res = await fetch(`/api/admin/limited-admins/${admin.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      toast({ title: 'Não foi possível remover', description: data.error });
+      return;
+    }
+    toast({ title: 'Admin limitado removido', description: admin.email });
+    loadAdminSecurityData();
+  }
 
   async function toggleBlock(user: AdminUser) {
     const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -224,28 +357,6 @@ function AdminPanel() {
     loadOrders();
   }
 
-  async function createLimited(event: React.FormEvent) {
-    event.preventDefault();
-    setCreating(true);
-    try {
-      const res = await fetch('/api/admin/limited', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ name: newName, email: newEmail, password: newPass }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
-      if (!res.ok || !data.ok) {
-        toast({ title: 'Não foi possível criar', description: data.error });
-        return;
-      }
-      toast({ title: 'Admin limitado criado', description: data.message });
-      setNewName('');
-      setNewEmail('');
-      setNewPass('');
-    } finally {
-      setCreating(false);
-    }
-  }
 
   async function setup2FA() {
     setGenerating(true);
@@ -439,44 +550,173 @@ function AdminPanel() {
         </section>
       )}
 
-      {/* ── Criar admin limitado ── */}
+      {/* ── Gerir Admins Limitados (convites + código diário) ── */}
       {tab === 'admins' && (
-        <section className="mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Adicionar Admin Limitado</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Este admin só pode validar comprovativos em <code>/admin-limitado</code> — sem acesso
-            a utilizadores, produtos ou criação de admins. Deve ativar o 2FA no primeiro acesso.
-          </p>
-          <form onSubmit={createLimited} className="mt-4 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="al-nome">Nome</Label>
-              <Input id="al-nome" value={newName} onChange={(e) => setNewName(e.target.value)} required minLength={3} />
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          {/* Convidar */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <UserPlus className="h-4 w-4" /> Convidar Admin Limitado
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Sem palavra-passe fixa: a conta é criada em <code className="rounded bg-slate-100 px-1">/admin-limitado</code> com
+              email + código de convite (24 h) e fica protegida por 2FA. Nos dias seguintes, o acesso
+              usa um código diário de 6 dígitos enviado por email.
+            </p>
+            <form onSubmit={sendInvite} className="mt-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="al-nome">Nome</Label>
+                <Input id="al-nome" value={inviteName} onChange={(e) => setInviteName(e.target.value)} required minLength={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="al-email">Email do convidado</Label>
+                <Input id="al-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
+              </div>
+              <Button
+                type="submit"
+                disabled={inviting}
+                className="h-11 w-full bg-slate-900 font-semibold text-white hover:bg-slate-800"
+              >
+                {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Send className="mr-2 h-4 w-4" /> Enviar convite por email
+              </Button>
+            </form>
+          </section>
+
+          {/* Estado */}
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">Estado da equipa de validação</h2>
+              <Button variant="ghost" size="sm" onClick={loadAdminSecurityData}>
+                <RefreshCw className={`mr-1.5 h-4 w-4 ${adminDataLoading ? 'animate-spin' : ''}`} /> Atualizar
+              </Button>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="al-email">Email</Label>
-              <Input id="al-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
+            <div className="max-h-96 space-y-6 overflow-y-auto px-5 py-4">
+              {/* Contas ativas */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Contas ativas ({limitedAdmins.length})
+                </h3>
+                {limitedAdmins.length === 0 ? (
+                  <p className="py-3 text-sm text-slate-400">Ainda sem admins limitados — envia o primeiro convite.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {limitedAdmins.map((a) => (
+                      <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{a.name}</p>
+                          <p className="truncate text-xs text-slate-500">{a.email}</p>
+                          <p className="mt-0.5 flex gap-1.5 text-[11px]">
+                            <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                              {a.two_factor_enabled ? '2FA ativa' : '2FA pendente'}
+                            </span>
+                            {a.blocked && <span className="rounded-full bg-rose-50 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendDailyCode(a)}
+                            disabled={busyAdminId === a.id}
+                            className="h-8 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                          >
+                            {busyAdminId === a.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
+                            Código diário
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeLimitedAdmin(a)}
+                            className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Convites */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Convites ({invites.length})
+                </h3>
+                {invites.length === 0 ? (
+                  <p className="py-3 text-sm text-slate-400">Sem convites enviados.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {invites.map((i) => {
+                      const expired = new Date(i.expires_at).getTime() <= Date.now();
+                      const state = i.accepted_at ? 'aceite' : expired ? 'expirado' : 'pendente';
+                      const stateCls =
+                        state === 'aceite'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : state === 'pendente'
+                            ? 'bg-amber-50 text-amber-600'
+                            : 'bg-slate-100 text-slate-500';
+                      return (
+                        <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">{i.email}</p>
+                            <p className="text-xs text-slate-500">
+                              {i.name ? `${i.name} · ` : ''}expira {new Date(i.expires_at).toLocaleDateString('pt-PT')}{' '}
+                              {new Date(i.expires_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${stateCls}`}>{state}</span>
+                            {!i.accepted_at && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => revokeInvite(i)}
+                                className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {/* Códigos diários gerados */}
+              <div>
+                <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                  <CalendarClock className="h-3.5 w-3.5" /> Códigos diários gerados (últimos)
+                </h3>
+                {dailyCodes.length === 0 ? (
+                  <p className="py-3 text-sm text-slate-400">Ainda não foram gerados códigos.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {dailyCodes.slice(0, 10).map((c) => (
+                      <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-700">{c.admin_email}</p>
+                          <p className="text-xs text-slate-400">dia {c.date}</p>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.used_at ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                          {c.used_at ? 'usado' : 'ativo'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-400">
+                  <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" />
+                  Por segurança os códigos ficam guardados apenas com hash — não podem ser
+                  mostrados aqui; usa “Código diário” para reenviar um novo por email.
+                </p>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="al-pass">Palavra-passe (mín. 8)</Label>
-              <Input
-                id="al-pass"
-                type="password"
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={creating}
-              className="h-11 w-full bg-slate-900 font-semibold text-white hover:bg-slate-800"
-            >
-              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <UserPlus className="mr-2 h-4 w-4" /> Criar admin limitado
-            </Button>
-          </form>
-        </section>
+          </section>
+        </div>
       )}
 
       {/* ── Segurança 2FA ── */}

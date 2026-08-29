@@ -188,3 +188,75 @@ export async function sendOrderValidatedEmail(
     ),
   });
 }
+
+/* ─────────────────────── Administração dinâmica ────────────────────── */
+
+/**
+ * Email de CONVITE para admin limitado: código de 8 caracteres (24 h) +
+ * link do painel oculto. O código só é usado uma vez, na criação da conta.
+ */
+export async function sendAdminInviteEmail(
+  to: string,
+  name: string | null,
+  code: string,
+  expiresAt: Date
+): Promise<boolean> {
+  const horas = Math.max(
+    1,
+    Math.round((expiresAt.getTime() - Date.now()) / (60 * 60 * 1000))
+  );
+  return sendMail({
+    to,
+    subject: 'Convite para Administração Limitada — AngoStart',
+    html: layout(
+      'Foste convidado para a equipa de validação',
+      `<p>Olá ${name || ''},</p>
+       <p>Foste convidado(a) para <strong>Administrador Limitado</strong> da AngoStart
+       — vais validar comprovativos de pagamento KWiK no painel de validação.</p>
+       <div style="margin:14px 0;padding:16px;border:2px dashed #10b981;border-radius:12px;background:#ecfdf5;text-align:center">
+         <p style="margin:0 0 6px;font-size:12px;color:#065f46;font-weight:bold">CÓDIGO DE CONVITE (expira em ${horas} h)</p>
+         <p style="margin:0;font-size:28px;letter-spacing:6px;font-weight:bold;color:#065f46">${code}</p>
+       </div>
+       <p><strong>Como ativar a conta (só a primeira vez):</strong></p>
+       <p style="line-height:1.7">
+         1. Abre <strong>${getAppUrl()}/admin-limitado</strong><br/>
+         2. Escolhe <em>“Primeiro acesso”</em> e introduz o teu email + o código acima<br/>
+         3. Lê o QR do 2FA com a app autenticadora (obrigatório)<br/>
+         4. Valida o código TOTP — a conta fica ativa
+       </p>
+       <p style="margin-top:12px;font-size:13px;color:#64748b">
+         Todos os dias receberás um <strong>código diário</strong> de 6 dígitos neste email —
+         é ele + o 2FA que te dá acesso ao painel. Não há palavra-passe fixa.
+       </p>`
+    ),
+  });
+}
+
+/** Email do CÓDIGO DIÁRIO (6 dígitos) para um admin limitado ativo. */
+export async function sendDailyCodeEmail(
+  to: string,
+  code: string,
+  expiresAt: Date
+): Promise<boolean> {
+  const horas = Math.max(
+    1,
+    Math.ceil((expiresAt.getTime() - Date.now()) / (60 * 60 * 1000))
+  );
+  return sendMail({
+    to,
+    subject: 'Código diário de acesso — AngoStart',
+    html: layout(
+      'O teu código de acesso de hoje',
+      `<p>Olá,</p>
+       <p>Usa este código de 6 dígitos para entrar no painel de validação
+       (<strong>${getAppUrl()}/admin-limitado</strong>) — a seguir, introduz o
+       código TOTP da tua app autenticadora.</p>
+       <div style="margin:14px 0;padding:16px;border:2px dashed #10b981;border-radius:12px;background:#ecfdf5;text-align:center">
+         <p style="margin:0 0 6px;font-size:12px;color:#065f46;font-weight:bold">CÓDIGO DIÁRIO (expira em ${horas} h · uso único)</p>
+         <p style="margin:0;font-size:32px;letter-spacing:8px;font-weight:bold;color:#065f46">${code}</p>
+       </div>
+       <p style="font-size:13px;color:#64748b">Se não foste tu que pediste o acesso, ignora este email
+       e avisa o administrador — o código só funciona uma vez e expira hoje.</p>`
+    ),
+  });
+}

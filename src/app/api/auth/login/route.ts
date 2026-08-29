@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { publicUser, signToken, type UserRow } from '@/lib/auth';
 import { clientKey, rateLimit } from '@/lib/security';
+import { logAdminAudit } from '@/lib/admin-invites';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,9 @@ export const dynamic = 'force-dynamic';
  * POST /api/auth/login (genérico — clientes e vendedores)
  * Corpo: { email, password }
  * Devolve { token, user } — o `user.role` indica o perfil autenticado.
+ * 🔒 admin_limitado NÃO entra aqui: o acesso é por código diário + 2FA.
+ * Auditoria: acessos de admins e todas as tentativas falhadas ficam
+ * registados em admin_audit.
  */
 export async function POST(request: NextRequest) {
   let body: { email?: string; password?: string };
@@ -51,6 +55,12 @@ export async function POST(request: NextRequest) {
 
     const row = rows[0];
     if (!row || !row.password_hash) {
+      await logAdminAudit({
+        email,
+        event: 'login_failed',
+        detail: 'conta inexistente ou sem senha (admin_limitado não entra aqui)',
+        ip: clientKey(request, 'audit'),
+      });
       return NextResponse.json(
         { error: 'Email ou palavra-passe incorretos.' },
         { status: 401 }
@@ -58,6 +68,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (row.blocked) {
+      await logAdminAudit({
+        userId: row.id,
+        email,
+        event: 'login_failed',
+        detail: 'conta bloqueada',
+        ip: clientKey(request, 'audit'),
+      });
       return NextResponse.json(
         { error: 'A tua conta foi bloqueada. Contacta o suporte via WhatsApp.' },
         { status: 403 }
@@ -66,6 +83,13 @@ export async function POST(request: NextRequest) {
 
     const passwordOk = await bcrypt.compare(password, row.password_hash);
     if (!passwordOk) {
+      await logAdminAudit({
+        userId: row.id,
+        email,
+        event: 'login_failed',
+        detail: 'palavra-passe incorreta',
+        ip: clientKey(request, 'audit'),
+      });
       return NextResponse.json(
         { error: 'Email ou palavra-passe incorretos.' },
         { status: 401 }
@@ -74,6 +98,16 @@ export async function POST(request: NextRequest) {
 
     const user = publicUser(row);
     const token = signToken(user);
+
+    if (user.role === 'admin' || user.role === 'admin_limitado') {
+      await logAdminAudit({
+        userId: user.id,
+        email: user.email,
+        event: 'login_admin',
+        detail: `login com senha (${user.role})`,
+        ip: clientKey(request, 'audit'),
+      });
+    }
 
     return NextResponse.json({ token, user });
   } catch (error) {

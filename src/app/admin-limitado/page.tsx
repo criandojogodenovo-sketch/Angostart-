@@ -3,8 +3,12 @@
 /**
  * AngoStart — Painel Admin Limitado (/admin-limitado) — ROTA OCULTA.
  *
- * 🔒 Acesso: apenas role='admin_limitado' (middleware + APIs). Este painel
- * tem UMA única função: validar comprovativos KWiK pendentes
+ * 🔒 Acesso: apenas role='admin_limitado' (middleware + APIs). Sem
+ * palavra-passe fixa: o primeiro acesso usa o código de CONVITE enviado
+ * por email pelo admin total; os acessos seguintes usam o CÓDIGO DIÁRIO
+ * (6 dígitos, muda a cada 24 h, uso único) + 2FA obrigatório.
+ *
+ * O painel tem UMA única função: validar comprovativos KWiK pendentes
  * (aprovar/rejeitar com observação interna). Sem listas de utilizadores,
  * produtos ou criação de admins.
  */
@@ -21,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function AdminLimitadoPage() {
   return (
-    <AdminGate title="Administração Limitada">
+    <AdminGate title="Administração Limitada" authMode="code">
       {({ role }) => <LimitedPanel expectedRole={role} />}
     </AdminGate>
   );

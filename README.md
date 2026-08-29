@@ -101,19 +101,49 @@ O registo condicional recolhe: `bio` (criador), `area_atuacao`+`cidade` (domicí
 ### `/admin` — Administração Total
 1. **Gate**: email + palavra-passe → se for a primeira vez, o QR TOTP é gerado no próprio gate → código de 6 dígitos → cookie de sessão (8 h).
 2. **Proteção dupla**: `src/proxy.ts` (ex-middleware) valida o cookie no edge **e** cada API valida Bearer/cookie + role no servidor.
-3. **Funcionalidades**: validar comprovativos (aprovar/rejeitar com notificação ao cliente), listar/bloquear utilizadores, eliminar produtos, criar admins limitados, reconfigurar 2FA (QR).
+3. **Funcionalidades**: validar comprovativos (aprovar/rejeitar com notificação ao cliente), listar/bloquear utilizadores, eliminar produtos, **gerir admins limitados (convites + códigos diários)**, reconfigurar 2FA (QR).
 
-### `/admin-limitado` — Administração Limitada
+### `/admin-limitado` — Administração Limitada (SEM palavra-passe fixa)
+- Acesso **100 % dinâmico** — não existem credenciais fixas para validadores:
+  - **Primeiro acesso**: o admin total convida um email no painel `/admin` → o sistema envia um **código de convite de 8 caracteres** (validade 24 h) por email (Resend) → o convidado abre `/admin-limitado`, escolhe *“Primeiro acesso”*, introduz email + código → a conta é criada com role `admin_limitado` → ativa o 2FA (QR).
+  - **Acesso diário**: todos os dias às 00:00 (África/Luanda) um **código de 6 dígitos** é gerado e enviado por email (Vercel Cron → `/api/cron/daily-codes`; também gerado a pedido no primeiro login do dia). O código muda a cada 24 h, é de **uso único** e expira no fim do dia. Entrada = email + código diário + 2FA.
 - Apenas a validação de comprovativos. Sem listas de utilizadores/produtos nem criação de admins.
 - `admin_limitado` é bloqueado em `/admin` (redirect) e recebe **403** nas APIs de utilizadores/produtos.
 
-### Primeiro admin (bootstrap)
+### Segurança do sistema dinâmico (convites + códigos diários)
+| Regra | Implementação |
+|---|---|
+| Códigos nunca em texto claro | Guardados apenas como **HMAC-SHA256** (pepper = `JWT_SECRET`), comparação *timing-safe* (`node:crypto.timingSafeEqual`) |
+| Geração imprevisível | `crypto.randomInt` — convite: 8 caracteres sem ambíguos (0/O/1/I/L); diário: 6 dígitos |
+| Validade | Convite 24 h; código diário expira à meia-noite de Luanda **ou no 1.º uso** |
+| Reenvio | Roda o código (novo valor invalida o anterior) — painel `/admin` → “Código diário” ou rota protegida |
+| Rate limiting | Convite/aceite 5/min·IP; código diário 5/min·IP; geração (admin) 10/min |
+| Auditoria | Tabela `admin_audit`: acessos, tentativas falhadas, convites, códigos gerados/validados (IP + detalhe) |
+| 2FA obrigatório | Ambos os painéis exigem TOTP (otplib) para emitir o cookie de sessão (8 h) |
+| Cron seguro | `/api/cron/daily-codes` exige `Authorization: Bearer $CRON_SECRET` (403 em produção sem a variável) |
+
+### Endpoints da administração dinâmica
+| Rota | Acesso | Descrição |
+|---|---|---|
+| `POST /api/admin/invites` | admin | cria/reemite convite (email Resend; código só na resposta se o email falhar) |
+| `GET /api/admin/invites` | admin | lista convites + contas limitadas + histórico de códigos (sem valores) |
+| `DELETE /api/admin/invites/[id]` | admin | revoga convite pendente |
+| `POST /api/admin/invites/accept` | público (5/min) | valida convite, cria conta `admin_limitado`, devolve JWT → 2FA |
+| `POST /api/admin/daily-code/generate` | admin ou `Bearer CRON_SECRET` | gera/roda e envia código diário (1 conta ou todas) |
+| `POST /api/admin/daily-code/verify` | público (5/min) | valida código diário (uso único) → JWT → 2FA |
+| `DELETE /api/admin/limited-admins/[id]` | admin | remove conta admin_limitado + códigos |
+| `GET /api/cron/daily-codes` | Vercel Cron (`Bearer CRON_SECRET`) | gera os códigos do dia às 00:00 em Luanda |
+
+### Bootstrap do admin total (credenciais só por env — nunca no repositório)
 ```bash
-env -u DATABASE_URL node --env-file=.env.local scripts/create-admin.js \
-  admin@angostart.ao "PalavraPasseForte!2026" admin "Nome do Admin"
-# ou admin_limitado em vez de admin
+env -u DATABASE_URL \
+  ADMIN_EMAIL='o-teu-email@exemplo.com' ADMIN_PASSWORD='senha-forte-aleatoria' \
+  node --env-file=.env.local scripts/migrate-admin-dynamic.js
 ```
-Depois: abrir `/admin` → entrar → o gate mostra o QR → ler na app autenticadora (Google Authenticator, Aegis, Authy…) → introduzir o código → 2FA ativada para sempre.
+O script cria as tabelas do sistema dinâmico, define o admin total (bcrypt, sem texto claro no repo) e remove contas antigas.
+Depois: abrir `/admin` → entrar → o gate mostra o QR → ler na app autenticadora (Google Authenticator, Aegis, Authy…) → introduzir o código → 2FA ativada.
+
+Admins **limitados** não são criados por script — são sempre **convidados** no painel `/admin` (tab *Gerir Admins Limitados*).
 
 ### 2FA — endpoints
 | Rota | Descrição |
@@ -287,7 +317,8 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 |---|---|
 | `RESEND_API_KEY` | envio real de emails (sem ela: modo log) |
 | `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
-| `ADMIN_EMAIL` | (reservado para futuros alertas ao administrador) |
+| `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
+| `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
 | `NEXT_PUBLIC_APP_URL` | URL público (links em emails) |
 
 > 💡 **Pagamentos não exigem variáveis**: o KWiK é uma transferência manual para o número da empresa — sem gateway, sem chaves RSA, sem webhooks.
@@ -338,7 +369,8 @@ npm run build        # produção (38 rotas)
 1. Importar o repositório (framework Next.js detetado automaticamente).
 2. Environment Variables: `DATABASE_URL`, `JWT_SECRET` (obrigatórias) + opcionais do topo.
 3. Deploy — as rotas API correm no runtime Node (driver Neon usa HTTPS:443).
-4. Criar o primeiro admin com `scripts/create-admin.js` (local, apontando à BD de produção) e ativar 2FA no painel.
+4. Definir o admin total com `scripts/migrate-admin-dynamic.js` (credenciais apenas por variáveis de ambiente) e ativar 2FA no painel.
+5. Na Vercel: definir `CRON_SECRET` (aleatória, 32+ caracteres) para o cron dos códigos diários funcionar.
 
 ---
 

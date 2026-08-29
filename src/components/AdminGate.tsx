@@ -3,39 +3,61 @@
 /**
  * AngoStart — Porta de entrada dos painéis de administração.
  *
- * Fluxo: 1) login (email + palavra-passe) → 2) código TOTP de 6 dígitos
- * (Google Authenticator etc.) → cookie de sessão admin (8 h) emitido pelo
- * servidor. Só depois os dados do painel são carregados.
+ * Dois modos de autenticação:
+ *  - 'password' (Admin Total /admin): email + palavra-passe → 2FA.
+ *  - 'code' (Admin Limitado /admin-limitado): SEM palavra-passe fixa.
+ *      · Primeiro acesso: email + código de convite (recebido por email)
+ *        → cria a conta → 2FA.
+ *      · Acesso diário: email + código diário de 6 dígitos (enviado por
+ *        email, muda a cada 24 h, uso único) → 2FA.
+ *
+ * Passo final partilhado: código TOTP (Google Authenticator etc.) →
+ * cookie de sessão admin (8 h) emitido pelo servidor.
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react';
+import { CalendarClock, Gift, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getToken, useAuth } from '@/context/AuthContext';
+import { getToken, useAuth, type AuthUser } from '@/context/AuthContext';
 
 interface AdminGateProps {
   /** Título do painel (ex.: "Administração Total"). */
   title: string;
+  /** 'password' = admin total · 'code' = admin limitado (convite + código diário). */
+  authMode?: 'password' | 'code';
   /** Sessão válida carregada → renderiza o painel. */
   children: (ctx: { role: 'admin' | 'admin_limitado' }) => ReactNode;
 }
 
-export default function AdminGate({ title, children }: AdminGateProps) {
+interface CodeLoginResponse {
+  ok?: boolean;
+  pending?: boolean;
+  token?: string;
+  user?: AuthUser;
+  code?: string;
+  message?: string;
+  error?: string;
+}
+
+export default function AdminGate({ title, authMode = 'password', children }: AdminGateProps) {
   const { toast } = useToast();
-  const { login: authLogin } = useAuth();
+  const { login: authLogin, applySession } = useAuth();
 
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [role, setRole] = useState<'admin' | 'admin_limitado'>('admin');
 
-  // Passo 1 — login
+  // Passo 1 — identidade
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'daily' | 'invite'>('daily');
+  const [accessCode, setAccessCode] = useState('');
   const [logging, setLogging] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   // Passo 2 — 2FA (QR na primeira ativação + código TOTP)
@@ -65,7 +87,25 @@ export default function AdminGate({ title, children }: AdminGateProps) {
     checkSession();
   }, []);
 
-  async function handleLogin(event: React.FormEvent) {
+  async function beginTwoFactor(newToken: string) {
+    setToken(newToken);
+    // Prepara o passo 2FA: sem segredo TOTP → QR de ativação; com segredo → código
+    try {
+      const setupRes = await fetch('/api/auth/2fa/setup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${newToken}` },
+      });
+      const setupData = (await setupRes.json()) as { qr?: string; otpauth?: string };
+      if (setupRes.ok && setupData.qr) {
+        setQrData(setupData.qr);
+        setOtpauthUrl(setupData.otpauth ?? null);
+      }
+    } catch {
+      /* se o setup falhar mas o 2FA já estiver ativo, seguimos para o código */
+    }
+  }
+
+  async function handlePasswordLogin(event: React.FormEvent) {
     event.preventDefault();
     setLogging(true);
     try {
@@ -88,32 +128,73 @@ export default function AdminGate({ title, children }: AdminGateProps) {
         });
         return;
       }
-      const token = getToken();
-      if (!token) {
+      const saved = getToken();
+      if (!saved) {
         toast({ title: 'Erro interno', description: 'Sessão não persistida.' });
         return;
       }
-      setToken(token);
       setRole(user.role);
+      await beginTwoFactor(saved);
+    } catch {
+      toast({ title: 'Erro de ligação' });
+    } finally {
+      setLogging(false);
+    }
+  }
 
-      /* Prepara o passo 2FA: se ainda não tiver segredo TOTP, gera o QR
-         agora (primeira ativação). Se já tiver, vai direto ao código. */
-      try {
-        const setupRes = await fetch('/api/auth/2fa/setup', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const setupData = (await setupRes.json()) as {
-          qr?: string;
-          otpauth?: string;
-        };
-        if (setupRes.ok && setupData.qr) {
-          setQrData(setupData.qr);
-          setOtpauthUrl(setupData.otpauth ?? null);
-        }
-      } catch {
-        /* se o setup falhar mas o 2FA já estiver ativo, seguimos para o código */
+  async function handleCodeLogin(event: React.FormEvent) {
+    event.preventDefault();
+    setLogging(true);
+    setHint(null);
+    try {
+      const endpoint =
+        mode === 'invite' ? '/api/admin/invites/accept' : '/api/admin/daily-code/verify';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: accessCode }),
+      });
+      const data = (await res.json()) as CodeLoginResponse;
+
+      if (res.status === 202 && data.pending) {
+        // Código diário gerado e enviado por email agora
+        setHint(
+          data.delivered === false
+            ? data.message ?? 'Email indisponível — código mostrado.'
+            : 'Código diário enviado para o teu email. Introduz-o aqui para continuar.'
+        );
+        if (data.code) setAccessCode(data.code);
+        toast({ title: 'Código enviado', description: data.message });
+        return;
       }
+      if (!res.ok || !data.ok || !data.token || !data.user) {
+        toast({
+          title: mode === 'invite' ? 'Convite recusado' : 'Código recusado',
+          description: data.error ?? 'Verifica os dados e tenta novamente.',
+        });
+        return;
+      }
+
+      // Carrega o utilizador completo (mesma forma do login por senha)
+      const meRes = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${data.token}` },
+      });
+      if (!meRes.ok) {
+        toast({ title: 'Erro interno', description: 'Sessão criada mas incompleta — tenta entrar de novo.' });
+        return;
+      }
+      const meData = (await meRes.json()) as { user?: AuthUser };
+      if (!meData.user) {
+        toast({ title: 'Erro interno', description: 'Sessão criada mas incompleta — tenta entrar de novo.' });
+        return;
+      }
+      applySession(data.token, meData.user);
+      setRole(meData.user.role as 'admin' | 'admin_limitado');
+      toast({
+        title: mode === 'invite' ? 'Conta criada' : 'Código validado',
+        description: data.message,
+      });
+      await beginTwoFactor(data.token);
     } catch {
       toast({ title: 'Erro de ligação' });
     } finally {
@@ -160,7 +241,7 @@ export default function AdminGate({ title, children }: AdminGateProps) {
     return <>{children({ role })}</>;
   }
 
-  /* ── Gate: login + 2FA ── */
+  /* ── Gate: identidade + 2FA ── */
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-slate-950 px-4 py-16">
       <div className="w-full max-w-md">
@@ -176,39 +257,124 @@ export default function AdminGate({ title, children }: AdminGateProps) {
           </div>
 
           {!token ? (
-            <form onSubmit={handleLogin} className="mt-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="admin-email" className="text-slate-300">Email de administrador</Label>
-                <Input
-                  id="admin-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                  placeholder="admin@angostart.ao"
-                  required
-                />
+            authMode === 'password' ? (
+              /* ── Admin Total: email + palavra-passe ── */
+              <form onSubmit={handlePasswordLogin} className="mt-6 space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="admin-email" className="text-slate-300">Email de administrador</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-11 border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
+                    placeholder="o teu email de administração"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="admin-pass" className="text-slate-300">Palavra-passe</Label>
+                  <Input
+                    id="admin-pass"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-11 border-slate-700 bg-slate-800 text-white"
+                    required
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={logging}
+                  className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                >
+                  {logging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+                  Entrar
+                </Button>
+              </form>
+            ) : (
+              /* ── Admin Limitado: código diário OU convite ── */
+              <div className="mt-6">
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-800 p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('daily');
+                      setHint(null);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                      mode === 'daily' ? 'bg-emerald-500 text-white' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <CalendarClock className="h-4 w-4" /> Acesso diário
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('invite');
+                      setHint(null);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                      mode === 'invite' ? 'bg-emerald-500 text-white' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <Gift className="h-4 w-4" /> Primeiro acesso
+                  </button>
+                </div>
+
+                <form onSubmit={handleCodeLogin} className="mt-5 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lim-email" className="text-slate-300">O teu email</Label>
+                    <Input
+                      id="lim-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-11 border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
+                      placeholder="email convidado pela administração"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lim-code" className="text-slate-300">
+                      {mode === 'daily' ? 'Código diário (6 dígitos)' : 'Código de convite (8 caracteres)'}
+                    </Label>
+                    <Input
+                      id="lim-code"
+                      value={accessCode}
+                      onChange={(e) =>
+                        setAccessCode(
+                          mode === 'daily'
+                            ? e.target.value.replace(/\D/g, '').slice(0, 6)
+                            : e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+                        )
+                      }
+                      className="h-12 border-slate-700 bg-slate-800 text-center text-xl font-bold tracking-[0.4em] text-white"
+                      placeholder={mode === 'daily' ? '000000' : 'XXXXXXXX'}
+                      required
+                    />
+                    <p className="text-[11px] leading-relaxed text-slate-500">
+                      {mode === 'daily'
+                        ? 'Enviado para este email hoje — muda a cada 24 h e só serve uma vez.'
+                        : 'Recebido por email quando o administrador te convidou (vale 24 h).'}
+                    </p>
+                  </div>
+                  {hint && (
+                    <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+                      {hint}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={logging}
+                    className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                  >
+                    {logging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+                    {mode === 'invite' ? 'Ativar conta com o convite' : 'Validar código diário'}
+                  </Button>
+                </form>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin-pass" className="text-slate-300">Palavra-passe</Label>
-                <Input
-                  id="admin-pass"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 border-slate-700 bg-slate-800 text-white"
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={logging}
-                className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
-              >
-                {logging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-                Entrar
-              </Button>
-            </form>
+            )
           ) : (
             <form onSubmit={handleVerify} className="mt-6 space-y-4">
               {qrData ? (

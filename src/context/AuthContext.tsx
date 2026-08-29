@@ -72,6 +72,8 @@ interface AuthContextValue {
   registerCliente: (data: RegisterClienteData) => Promise<AuthUser>;
   registerVendedor: (data: RegisterVendedorData) => Promise<AuthUser>;
   login: (email: string, password: string) => Promise<AuthUser>;
+  /** Sessão já obtida (login por código diário/convite) — persiste token+user. */
+  applySession: (token: string, user: AuthUser) => AuthUser;
   logout: () => void;
 }
 
@@ -202,6 +204,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  /** Persiste uma sessão já criada no servidor (login por código). */
+  const applySession = useCallback((token: string, nextUser: AuthUser) => {
+    persistSession(token, nextUser);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -210,9 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       registerCliente,
       registerVendedor,
       login,
+      applySession,
       logout,
     }),
-    [user, loading, registerCliente, registerVendedor, login, logout]
+    [user, loading, registerCliente, registerVendedor, login, applySession, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
