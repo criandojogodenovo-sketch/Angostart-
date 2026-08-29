@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily-codes",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/gamification",
+      "schedule": "0 3 * * *"
     }
   ]
 }

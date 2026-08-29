@@ -477,6 +477,30 @@ npm run build        # produção (38 rotas)
 4. Definir o admin total com `scripts/migrate-admin-dynamic.js` (credenciais apenas por variáveis de ambiente) e ativar 2FA no painel.
 5. Na Vercel: definir `CRON_SECRET` (aleatória, 32+ caracteres) para o cron dos códigos diários funcionar.
 6. **Fase 5**: criar um Blob Store (Storage → Blob) para os PDFs de infoprodutos e ligar `BLOB_READ_WRITE_TOKEN`; ajustar comissões/limites adicionando as variáveis de negócio sem redeploy de código.
+7. **Fase 7 — Web Push**: adicionar na Vercel as variáveis `NEXT_PUBLIC_VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` (par VAPID gerado com `npx web-push generate-vapid-keys`). Sem elas, o resto da plataforma continua a funcionar — o botão "Ativar notificações" mostra "Em breve".
+
+---
+
+## 🚀 Fase 7 — funcionalidades avançadas
+
+| Bloco | O que faz |
+|---|---|
+| **Propostas robustas** | Negociação de preço e prazo com contrapropostas alternadas (`proposal_counters` guarda o histórico completo, visível a ambas as partes). Ao aceitar, gera automaticamente um pedido KWiK com o valor acordado + escrow. Vendedor gere tudo no dashboard («Propostas recebidas» com filtros); o cliente acompanha em «Minhas propostas» no perfil. Emails + Web Push em cada passo. |
+| **Web Push (VAPID)** | `lib/push.ts` (server-only) + `web-push`. Rotas `POST /api/push/subscribe`, `POST /api/push/unsubscribe` (só o dono remove) e `GET /api/push/subscribe` (estado + chave pública). Service Worker mostra as notificações mesmo com a app fechada. Eventos: mensagem no chat, proposta nova/contraproposta/aceite, pedido pago, venda realizada, disputas. Subscriptions mortas (404/410) são limpas automaticamente. |
+| **Gamificação** | Pontos (+1 venda · +5 avaliação 5★ · +10 resposta ao chat <1 h) e níveis bronze → prata → ouro → platina (`lib/gamification.ts` puro + `lib/gamification-server.ts`). 8 selos automáticos (primeira venda, 100 vendas, média ≥4,8, top do mês, resposta rápida, 5 infoprodutos, 20 serviços ao domicílio, 10 projetos remotos). UI no perfil, dashboard e mini-loja. Cron diário `/api/cron/gamification` reavalia selos e atribui «Top Vendedor do Mês». |
+| **Comissões flexíveis** | Taxas por tipo em `commission_rates` (5 % produtos, 10 % domicílio, 6,5 % freelancers), overrides individuais em `seller_commission_overrides` e auditoria completa em `commission_audit` (máx. 50 %). O escrow (`creditSellersOnPaid`) usa a taxa efetiva. Secção «Comissões» no painel admin com relatório por categoria e por mês. O vendedor vê a taxa aplicada no dashboard. |
+
+### Testes da Fase 7
+
+```bash
+node --env-file=.env scripts/test-fase7.js
+```
+Suite com 73 verificações: código-fonte → schema (8 tabelas novas) → fluxo
+completo de propostas (envio com preço/prazo, contraproposta, histórico,
+aceitação com geração de pedido, regras 401/403/409) → Web Push (validação,
+ownership) → gamificação (pontos, selo automático) → comissões (override 3 %
+refletido no escrow: 18.000 Kz → 540 Kz de comissão → 17.460 Kz líquidos,
+auditoria, limite de 50 %). Limpa os dados de teste no fim.
 
 ---
 
@@ -490,7 +514,9 @@ npm run build        # produção (38 rotas)
 | 3.5 | `8451adc` | Remove PayPay, implementa pagamento KWiK manual |
 | 3.6 | `110bb6a` | Administração dinâmica: convites por email e código diário |
 | 4 | `d2146cd` | **Fase 4: Favicon, Hot, Busca, Reputação, Carteira, Afiliados** |
-| 5 | *atual* | **feat: comissões, anúncios, chat, anti-burla, mapa, dashboard pro, UX, business config** |
+| 5 | `e3cde5e` | **feat: comissões, anúncios, chat, anti-burla, mapa, dashboard pro, UX, business config** |
+| 6 | `edae78d` | **feat: fase 6 — mini-loja, disputas, PWA, relatorios, mobile nav, seguranca** |
+| 7 | *atual* | **feat: propostas robustas, push notifications, gamificação, comissões flexíveis** |
 
 ## 🧪 Testes da Fase 5
 

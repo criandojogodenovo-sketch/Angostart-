@@ -31,6 +31,15 @@ export async function pushNotification(
   } catch (error) {
     console.error('[notifications] Falha ao criar notificação:', error);
   }
+
+  // Web Push no telemóvel/browser (Fase 7) — melhor-esforço, nunca quebra
+  // o fluxo principal (chat, encomendas, propostas, carteira).
+  try {
+    const { sendWebPushToUser } = await import('@/lib/push');
+    await sendWebPushToUser(userId, { title, body, url: link });
+  } catch {
+    /* push opcional */
+  }
 }
 
 export async function listNotifications(

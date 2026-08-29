@@ -287,6 +287,16 @@ export async function POST(request: NextRequest) {
                 featured::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url
     `) as unknown as Product[];
 
+    // Gamificação (Fase 7): selo «Criador de Infoprodutos» a partir de 5
+    if (inserted[0]?.user_id) {
+      try {
+        const { evaluateBadges } = await import('@/lib/gamification-server');
+        evaluateBadges(inserted[0].user_id).catch(() => {});
+      } catch {
+        /* gamificação opcional */
+      }
+    }
+
     return NextResponse.json({ product: inserted[0] }, { status: 201 });
   } catch (error) {
     console.error('[API /api/products] Erro ao inserir:', error);

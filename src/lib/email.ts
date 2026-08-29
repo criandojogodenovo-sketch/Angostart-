@@ -423,3 +423,67 @@ export async function sendDailyCodeEmail(
     ),
   });
 }
+
+/* ──────────────────────── Propostas (Fase 7) ─────────────────────────── */
+
+const kz = (v: number) => `${new Intl.NumberFormat('pt-AO').format(v)} Kz`;
+
+/** Notifica o vendedor/prestador de uma nova proposta recebida (Fase 7). */
+export async function sendNewProposalEmail(
+  to: string,
+  clientName: string,
+  serviceName: string,
+  priceKz: number,
+  deadlineDays: number | null,
+  link: string
+): Promise<boolean> {
+  return sendMail({
+    to,
+    subject: `Nova proposta de ${clientName} (${kz(priceKz)}) — AngoStart`,
+    html: layout(
+      'Recebeste uma nova proposta',
+      `<p>O cliente <strong>${clientName}</strong> enviou-te uma proposta
+       para <strong>${serviceName}</strong>:</p>
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+         <p style="margin:0 0 6px"><strong>Preço proposto:</strong> ${kz(priceKz)}</p>
+         ${deadlineDays ? `<p style="margin:0"><strong>Prazo:</strong> ${deadlineDays} dias</p>` : ''}
+       </div>
+       <p><a href="${link}" style="color:#059669;font-weight:bold">Aceitar, recusar ou contrapropor →</a></p>
+       <p style="font-size:13px;color:#64748b">Responde rapidamente — propostas com resposta
+       rápida aumentam a confiança dos clientes.</p>`,
+    ),
+  });
+}
+
+/** Confirma a aceitação de uma proposta com os detalhes da negociação (Fase 7). */
+export async function sendProposalAcceptedEmail(
+  to: string,
+  role: 'cliente' | 'vendedor',
+  serviceName: string,
+  priceKz: number,
+  deadlineDays: number | null,
+  orderId: number,
+  link: string
+): Promise<boolean> {
+  return sendMail({
+    to,
+    subject: `Proposta aceite — pedido #${orderId} criado — AngoStart`,
+    html: layout(
+      'Proposta aceite — negócio fechado!',
+      `<p>Os termos acordados para <strong>${serviceName}</strong> foram aceites
+       ${role === 'cliente' ? 'pelo vendedor e por ti' : 'pelo cliente e por ti'}:</p>
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+         <p style="margin:0 0 6px"><strong>Valor acordado:</strong> ${kz(priceKz)}</p>
+         ${deadlineDays ? `<p style="margin:0 0 6px"><strong>Prazo acordado:</strong> ${deadlineDays} dias</p>` : ''}
+         <p style="margin:0"><strong>Pedido gerado:</strong> #${orderId}</p>
+       </div>
+       ${
+         role === 'cliente'
+           ? `<p><a href="${link}" style="color:#059669;font-weight:bold">Pagar agora com KWiK e garantir o negócio →</a></p>
+              <p style="font-size:13px;color:#64748b">O valor fica protegido em escrow até confirmares a entrega.</p>`
+           : `<p><a href="${link}" style="color:#059669;font-weight:bold">Ver pedido no meu painel →</a></p>
+              <p style="font-size:13px;color:#64748b">Aguarda o pagamento do cliente — recebe aviso assim que for validado.</p>`
+       }`,
+    ),
+  });
+}

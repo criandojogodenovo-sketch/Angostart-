@@ -117,6 +117,33 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       ratingEstimado = Math.round(Number(globalAvg[0]?.media ?? 4.5) * 10) / 10;
     }
 
+    // Gamificação (Fase 7): nível, pontos e selos públicos do vendedor
+    let gamificacao: {
+      level: string;
+      points: number;
+      badges: { code: string; name: string; icon: string }[];
+    } | null = null;
+    try {
+      const pointsRow = (await sql`
+        SELECT points::int FROM seller_points WHERE user_id = ${seller.id} LIMIT 1
+      `) as unknown as { points: number }[];
+      const badgeRows = (await sql`
+        SELECT b.code, b.name, b.icon
+        FROM user_badges ub JOIN badges b ON b.id = ub.badge_id
+        WHERE ub.user_id = ${seller.id}
+        ORDER BY ub.awarded_at DESC LIMIT 12
+      `) as unknown as { code: string; name: string; icon: string }[];
+      const { levelFor } = await import('@/lib/gamification');
+      const pts = Number(pointsRow[0]?.points ?? 0);
+      gamificacao = {
+        points: pts,
+        level: levelFor(pts).key,
+        badges: badgeRows.map((b) => ({ code: String(b.code), name: String(b.name), icon: String(b.icon) })),
+      };
+    } catch {
+      gamificacao = null;
+    }
+
     return NextResponse.json({
       seller: {
         name: seller.name,
@@ -136,6 +163,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         // Estatísticas da Mini-Loja
         total_produtos: Number(productCount[0]?.n ?? 0),
         total_clientes: Number(clientsCount[0]?.n ?? 0),
+        // Gamificação (Fase 7)
+        gamificacao,
         // 🔒 Fase 6 (ponto 2): whatsapp/telefone REMOVIDOS do payload público
       },
       items,

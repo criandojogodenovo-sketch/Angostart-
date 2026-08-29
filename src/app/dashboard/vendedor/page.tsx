@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  Award,
   ClipboardList,
   Copy,
   ExternalLink,
@@ -24,6 +25,7 @@ import {
   Loader2,
   Lock,
   MapPin,
+  Medal,
   MessageCircle,
   Package,
   PiggyBank,
@@ -109,17 +111,45 @@ interface WalletSummary {
   saldo_bloqueado: number;
 }
 
-/** Proposta recebida de cliente (Fase 6, ponto 12). */
+/** Proposta recebida de cliente (Fase 7 — negociação de preço/prazo). */
 interface ProviderProposal {
   id: number;
   service_id: number;
   service_name: string | null;
   description: string;
   budget_kz: number;
+  price_kz: number;
+  deadline_days: number | null;
   status: string;
   created_at: string;
+  updated_at: string;
+  order_id: number | null;
+  my_offer_standing: boolean;
   client_name: string | null;
   is_mine: boolean;
+  rounds: number;
+}
+
+/** Histórico de uma negociação (contrapropostas — Fase 7). */
+interface CounterEntry {
+  id: number;
+  price_kz: number;
+  deadline_days: number | null;
+  message: string | null;
+  created_at: string;
+  author_name: string | null;
+  by_me: boolean;
+}
+
+/** Gamificação do vendedor (Fase 7). */
+interface GamificationData {
+  points: number;
+  level: string;
+  sales_count: number;
+  badges: { code: string; name: string; description: string; icon: string; awarded_at: string }[];
+  next_level: { key: string; label: string; missing: number } | null;
+  progress: number;
+  locked_badges: { code: string; name: string; description: string; icon: string }[];
 }
 
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ef4444'];
@@ -798,25 +828,182 @@ export default function DashboardVendedorPage() {
         )}
       </section>
 
-      {/* Propostas recebidas (Fase 6, ponto 12) */}
+      {/* Gamificação — selos, nível e progresso (Fase 7) */}
+      <GamificationCard />
+
+      {/* Comissão efetiva aplicada às vendas (Fase 7) */}
+      <CommissionRateCard />
+
+      {/* Propostas v2 — negociação (Fase 7) */}
       <PropostasRecebidas />
     </div>
   );
 }
 
-/** Propostas de serviços personalizados recebidas de clientes (Fase 6). */
+/* ════════════════════════ Fase 7 — Gamificação ════════════════════════ */
+
+const LEVEL_STYLE: Record<string, { label: string; emoji: string; bar: string }> = {
+  bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-600' },
+  prata: { label: 'Prata', emoji: '🥈', bar: 'bg-slate-400' },
+  ouro: { label: 'Ouro', emoji: '🥇', bar: 'bg-yellow-500' },
+  platina: { label: 'Platina', emoji: '💎', bar: 'bg-emerald-500' },
+};
+
+/** Selos, nível e progresso para o próximo nível (Fase 7, ponto 3). */
+function GamificationCard() {
+  const [data, setData] = useState<GamificationData | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/dashboard/gamification', { headers: authHeaders() });
+        if (!res.ok) throw new Error();
+        setData((await res.json()) as GamificationData);
+      } catch {
+        setData(null);
+      }
+    })();
+  }, []);
+
+  if (!data) return null;
+  const level = LEVEL_STYLE[data.level] ?? LEVEL_STYLE.bronze;
+
+  return (
+    <section aria-label="Nível e selos" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-900">Nível e selos</h2>
+        <Medal className="h-5 w-5 text-slate-300" />
+      </div>
+      <div className="px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-sm font-bold text-white`}>
+            {level.emoji} {level.label}
+          </span>
+          <span className="text-sm text-slate-600">
+            <strong className="text-slate-900">{data.points}</strong> pontos ·{' '}
+            {data.sales_count} vendas concluídas
+          </span>
+        </div>
+
+        {/* Progresso para o próximo nível */}
+        {data.next_level ? (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>Progresso para {data.next_level.label}</span>
+              <span>
+                faltam <strong>{data.next_level.missing}</strong> pontos
+              </span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={`h-full rounded-full ${level.bar} transition-all`}
+                style={{ width: `${Math.round(data.progress * 100)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Como ganhar pontos: +1 por venda concluída · +5 por avaliação 5★ · +10 por resposta
+              ao chat em menos de 1 h.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs font-semibold text-emerald-600">
+            Nível máximo atingido — parabéns! 💎
+          </p>
+        )}
+
+        {/* Selos conquistados + bloqueados */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {data.badges.map((b) => (
+            <span
+              key={b.code}
+              title={b.description}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
+            >
+              <Award className="h-3.5 w-3.5" /> {b.name}
+            </span>
+          ))}
+          {data.locked_badges.slice(0, 6).map((b) => (
+            <span
+              key={b.code}
+              title={b.description}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-400"
+            >
+              <Lock className="h-3 w-3" /> {b.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Taxa de comissão efetiva do vendedor (Fase 7 — transparência). */
+function CommissionRateCard() {
+  const [percent, setPercent] = useState<number | null>(null);
+  const [source, setSource] = useState<string>('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/dashboard/commission', { headers: authHeaders() });
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { percent: number; source: string };
+        setPercent(data.percent);
+        setSource(data.source);
+      } catch {
+        setPercent(null);
+      }
+    })();
+  }, []);
+
+  if (percent === null) return null;
+
+  return (
+    <section
+      aria-label="Taxa de comissão"
+      className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <Receipt className="h-5 w-5 text-emerald-500" />
+        <div>
+          <p className="text-sm font-semibold text-slate-900">
+            Comissão AngoStart: {percent}%
+          </p>
+          <p className="text-xs text-slate-400">
+            {source === 'override'
+              ? 'Taxa personalizada definida pela equipa AngoStart.'
+              : source === 'tabela'
+                ? 'Taxa standard para a tua categoria.'
+                : 'Taxa por defeito da plataforma.'}
+          </p>
+        </div>
+      </div>
+      <p className="text-xs text-slate-400">Descontada no escrow quando o pedido é pago.</p>
+    </section>
+  );
+}
+
+/* ══════════════════ Fase 7 — Propostas v2 (negociação) ══════════════════ */
+
+/** Propostas recebidas: aceitar, recusar ou contrapropor (Fase 7). */
 function PropostasRecebidas() {
   const { toast } = useToast();
   const [proposals, setProposals] = useState<ProviderProposal[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'todas' | 'pendente' | 'aceite' | 'recusada'>('todas');
+  const [counterFor, setCounterFor] = useState<ProviderProposal | null>(null);
+  const [counterPrice, setCounterPrice] = useState('');
+  const [counterDeadline, setCounterDeadline] = useState('');
+  const [counterMessage, setCounterMessage] = useState('');
+  const [history, setHistory] = useState<{ proposalId: number; entries: CounterEntry[] } | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/proposals', { headers: authHeaders() });
+      const res = await fetch('/api/proposals?scope=recebidas', { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { proposals?: ProviderProposal[] };
-      setProposals((data.proposals ?? []).filter((p) => !p.is_mine));
+      setProposals(data.proposals ?? []);
     } catch {
       setProposals([]);
     } finally {
@@ -828,6 +1015,9 @@ function PropostasRecebidas() {
     load();
   }, [load]);
 
+  const filtered =
+    statusFilter === 'todas' ? proposals : proposals.filter((p) => p.status === statusFilter);
+
   async function answer(id: number, action: 'aceite' | 'recusada') {
     if (busyId !== null) return;
     setBusyId(id);
@@ -837,14 +1027,17 @@ function PropostasRecebidas() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ action }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
+      const data = (await res.json()) as { ok?: boolean; error?: string; order_id?: number };
       if (!res.ok || !data.ok) {
         toast({ title: 'Não foi possível responder', description: data.error });
         return;
       }
       toast({
         title: action === 'aceite' ? 'Proposta aceite ✓' : 'Proposta recusada',
-        description: 'O cliente foi notificado — combina os detalhes no chat.',
+        description:
+          action === 'aceite'
+            ? `Pedido #${data.order_id} criado — o cliente foi notificado para pagar via KWiK.`
+            : 'O cliente foi notificado.',
       });
       load();
     } finally {
@@ -852,61 +1045,224 @@ function PropostasRecebidas() {
     }
   }
 
+  async function sendCounter() {
+    if (!counterFor || busyId !== null) return;
+    setBusyId(counterFor.id);
+    try {
+      const res = await fetch(`/api/proposals/${counterFor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          action: 'contrapropor',
+          price_kz: Number(counterPrice.replace(/[^\d]/g, '')),
+          deadline_days:
+            counterDeadline.length > 0 ? Number(counterDeadline.replace(/[^\d]/g, '')) : undefined,
+          message: counterMessage || undefined,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível contrapropor', description: data.error });
+        return;
+      }
+      toast({ title: 'Contraproposta enviada ✓', description: 'O cliente foi notificado (email + push).' });
+      setCounterFor(null);
+      setCounterPrice('');
+      setCounterDeadline('');
+      setCounterMessage('');
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function openHistory(proposalId: number) {
+    if (history?.proposalId === proposalId) {
+      setHistory(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { history?: CounterEntry[] };
+      setHistory({ proposalId, entries: data.history ?? [] });
+    } catch {
+      toast({ title: 'Não foi possível carregar o histórico.' });
+    }
+  }
+
   if (!loaded) return null;
 
   return (
     <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <h2 className="text-base font-semibold text-slate-900">Propostas recebidas</h2>
-        <ClipboardList className="h-5 w-5 text-slate-300" />
+        <div className="flex gap-1">
+          {(['todas', 'pendente', 'aceite', 'recusada'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+                statusFilter === s
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
-      {proposals.length === 0 ? (
+
+      {filtered.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-slate-400">
-          Sem propostas por agora — os clientes podem enviar propostas a partir
-          das páginas dos teus serviços.
+          Sem propostas {statusFilter === 'todas' ? 'por agora' : `«${statusFilter}»`} — os clientes
+          podem negociar preço e prazo a partir das páginas dos teus produtos e serviços.
         </p>
       ) : (
         <ul className="divide-y divide-slate-100">
-          {proposals.map((p) => (
+          {filtered.map((p) => (
             <li key={p.id} className="px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-900">
                   {p.client_name ?? 'Cliente'} — sobre «{p.service_name}»
                 </p>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    p.status === 'pendente'
-                      ? 'bg-amber-100 text-amber-700'
-                      : p.status === 'aceite'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {p.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {p.rounds > 1 && (
+                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                      {p.rounds} rodadas
+                    </span>
+                  )}
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      p.status === 'pendente'
+                        ? 'bg-amber-100 text-amber-700'
+                        : p.status === 'aceite'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {p.status}
+                  </span>
+                </div>
               </div>
               <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{p.description}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Orçamento sugerido: <strong className="text-slate-700">{formatKz(p.budget_kz)}</strong> ·{' '}
-                {new Date(p.created_at).toLocaleString('pt-PT')}
+                Oferta atual: <strong className="text-emerald-700">{formatKz(p.price_kz)}</strong>
+                {p.deadline_days ? ` · prazo ${p.deadline_days} dias` : ''} ·{' '}
+                {p.my_offer_standing && p.status === 'pendente'
+                  ? 'a tua oferta está na mesa — aguarda o cliente'
+                  : new Date(p.updated_at).toLocaleString('pt-PT')}
+                {p.order_id ? ` · pedido #${p.order_id}` : ''}
               </p>
-              {p.status === 'pendente' && (
-                <div className="mt-2 flex gap-2">
+
+              {/* Histórico da negociação */}
+              {history?.proposalId === p.id && (
+                <ol className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {history.entries.map((h) => (
+                    <li key={h.id} className="text-xs text-slate-600">
+                      <span className={h.by_me ? 'font-semibold text-emerald-700' : 'font-semibold'}>
+                        {h.author_name ?? 'Parte'} ofereceu {formatKz(h.price_kz)}
+                        {h.deadline_days ? ` · ${h.deadline_days} dias` : ''}
+                      </span>
+                      {h.message ? <span> — “{h.message.slice(0, 160)}”</span> : null}
+                      <span className="text-slate-400"> · {new Date(h.created_at).toLocaleString('pt-PT')}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {/* Formulário de contraproposta */}
+              {counterFor?.id === p.id && (
+                <div className="mt-3 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      value={counterPrice}
+                      onChange={(e) => setCounterPrice(e.target.value.replace(/[^\d]/g, ''))}
+                      inputMode="numeric"
+                      placeholder={`O teu preço em Kz (atual: ${p.price_kz})`}
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                    <input
+                      value={counterDeadline}
+                      onChange={(e) => setCounterDeadline(e.target.value.replace(/[^\d]/g, ''))}
+                      inputMode="numeric"
+                      placeholder="Prazo em dias (opcional)"
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <textarea
+                    value={counterMessage}
+                    onChange={(e) => setCounterMessage(e.target.value)}
+                    rows={2}
+                    maxLength={2000}
+                    placeholder="Mensagem com a contraproposta (opcional)…"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-sm outline-none focus:border-emerald-400"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={sendCounter}
+                      disabled={busyId === p.id || counterPrice.length === 0}
+                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      {busyId === p.id ? 'A enviar…' : 'Enviar contraproposta'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCounterFor(null)}
+                      className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {p.status === 'pendente' && counterFor?.id !== p.id && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {p.my_offer_standing ? (
+                    <span className="inline-flex h-8 items-center rounded-lg bg-slate-100 px-3 text-xs font-medium text-slate-500">
+                      Aguarda a resposta do cliente
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => answer(p.id, 'aceite')}
+                        disabled={busyId === p.id}
+                        className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        Aceitar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCounterFor(p);
+                          setCounterPrice(String(p.price_kz));
+                        }}
+                        disabled={busyId === p.id}
+                        className="inline-flex h-8 items-center rounded-lg bg-violet-500 px-3 text-xs font-semibold text-white hover:bg-violet-600 disabled:opacity-50"
+                      >
+                        Contrapropor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => answer(p.id, 'recusada')}
+                        disabled={busyId === p.id}
+                        className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        Recusar
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
-                    onClick={() => answer(p.id, 'aceite')}
-                    disabled={busyId === p.id}
-                    className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                    onClick={() => openHistory(p.id)}
+                    className="inline-flex h-8 items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                   >
-                    Aceitar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => answer(p.id, 'recusada')}
-                    disabled={busyId === p.id}
-                    className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                  >
-                    Recusar
+                    {history?.proposalId === p.id ? 'Esconder histórico' : 'Histórico'}
                   </button>
                 </div>
               )}

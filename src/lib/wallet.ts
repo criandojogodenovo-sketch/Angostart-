@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from '@/lib/db';
-import { getBusinessConfig, commissionPercentForRole } from '@/lib/config';
+import { getBusinessConfig } from '@/lib/config';
+import { getEffectiveCommissionPercent } from '@/lib/commissions';
 
 /**
  * AngoStart — Carteira (Fase W + Fase 5) — TODA a lógica no servidor.
@@ -396,7 +397,11 @@ export async function creditSellersOnPaid(orderId: number): Promise<void> {
   let orderCommission = 0;
 
   for (const share of shares) {
-    const percent = commissionPercentForRole(roleById.get(share.sellerId), getBusinessConfig());
+    // Fase 7 — taxa efetiva: override individual > tabela admin > default env
+    const { percent } = await getEffectiveCommissionPercent(
+      share.sellerId,
+      roleById.get(share.sellerId)
+    );
     const commissionKz = Math.floor((share.total * percent) / 100);
     const net = Math.max(share.total - commissionKz, 0);
     orderCommission += commissionKz;
@@ -614,11 +619,45 @@ export async function applyOrderStatusSideEffects(
 ): Promise<void> {
   if (nextStatus === 'pago' && prevStatus !== 'pago') {
     const order = (await sql`
-      SELECT total_kz::float8 AS total, affiliate_code
+      SELECT total_kz::float8 AS total, affiliate_code, user_id AS buyer_id
       FROM orders WHERE id = ${orderId} LIMIT 1
-    `) as unknown as { total: number; affiliate_code: string | null }[];
+    `) as unknown as { total: number; affiliate_code: string | null; buyer_id: number | null }[];
     await creditSellersOnPaid(orderId);
     await payAffiliateCommission(orderId, toNumber(order[0]?.total), order[0]?.affiliate_code ?? null);
+
+    // Fase 7 — notificações push: pedido pago (cliente) + venda realizada (vendedor)
+    try {
+      const { pushNotification } = await import('@/lib/notifications');
+      if (order[0]?.buyer_id) {
+        await pushNotification(
+          Number(order[0].buyer_id),
+          'Pedido pago ✓',
+          `O teu pedido #${orderId} foi validado e está em preparação.`,
+          '/perfil'
+        );
+      }
+      const sellers = (await sql`
+        SELECT DISTINCT (item->>'seller_id')::int AS seller_id
+        FROM orders, jsonb_array_elements(items) item
+        WHERE id = ${orderId} AND (item->>'seller_id')::int > 0
+      `) as unknown as { seller_id: number }[];
+      for (const s of sellers) {
+        await pushNotification(
+          Number(s.seller_id),
+          'Venda realizada 🎉',
+          `Tens uma nova venda no pedido #${orderId} — valor em escrow até à entrega.`,
+          '/dashboard/vendedor'
+        );
+      }
+      // Fase 7 — gamificação: +1 ponto por venda concluída + selos automáticos
+      const { awardPoints, evaluateBadges } = await import('@/lib/gamification-server');
+      for (const s of sellers) {
+        await awardPoints(Number(s.seller_id), 1);
+        await evaluateBadges(Number(s.seller_id));
+      }
+    } catch (sideEffectError) {
+      console.error('[wallet] Efeitos colaterais Fase 7 falharam (não bloqueia):', sideEffectError);
+    }
   }
   if (nextStatus === 'entregue') {
     await releaseOnDelivered(orderId);

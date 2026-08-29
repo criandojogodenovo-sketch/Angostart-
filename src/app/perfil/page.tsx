@@ -46,6 +46,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders } from '@/context/AuthContext';
+import ProfileGamificationCard from '@/components/ProfileGamificationCard';
+import MyProposals from '@/components/MyProposals';
 import { formatKz, formatDateTime } from '@/lib/format';
 import {
   ORDER_STATUS_BADGES,
@@ -726,6 +728,10 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Fase 7 — nível, pontos e notificações push */}
+      <div className="mb-6">
+        <ProfileGamificationCard />
+      </div>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Cliente'} />
 
@@ -907,6 +913,9 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
               </ul>
             )}
           </div>
+
+          {/* Fase 7 — propostas enviadas: acompanhar, contrapropor, aceitar */}
+          <MyProposals />
         </div>
       </div>
     </div>
@@ -1109,6 +1118,9 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
               </ul>
             )}
           </div>
+
+          {/* Fase 7 — propostas enviadas: acompanhar, contrapropor, aceitar */}
+          <MyProposals />
         </div>
       </div>
     </div>

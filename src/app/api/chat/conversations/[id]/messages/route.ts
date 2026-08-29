@@ -101,6 +101,22 @@ export async function POST(
 
     notifyByEmail(recipientId, user.name, convId, content).catch(() => {});
 
+    /* ── Gamificação (Fase 7): resposta em <1h = +10 pontos ── */
+    try {
+      const prev = (await sql`
+        SELECT created_at FROM messages
+        WHERE conversation_id = ${convId} AND sender_id <> ${user.id}
+        ORDER BY created_at DESC, id DESC LIMIT 1
+      `) as unknown as { created_at: string }[];
+      if (prev[0]) {
+        const seconds = (Date.now() - new Date(prev[0].created_at).getTime()) / 1000;
+        const { awardChatReplyPoints } = await import('@/lib/gamification-server');
+        awardChatReplyPoints(convId, user.id, seconds).catch(() => {});
+      }
+    } catch {
+      /* gamificação opcional */
+    }
+
     return NextResponse.json(
       {
         ok: true,

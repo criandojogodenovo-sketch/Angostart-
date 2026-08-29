@@ -140,6 +140,17 @@ export async function POST(request: NextRequest) {
       WHERE id = ${productId}
     `;
 
+    // Gamificação (Fase 7): avaliação 5 estrelas = +5 pontos ao vendedor
+    if (rating === 5 && product[0].user_id) {
+      try {
+        const { awardPoints, evaluateBadges } = await import('@/lib/gamification-server');
+        await awardPoints(product[0].user_id, 5);
+        evaluateBadges(product[0].user_id).catch(() => {});
+      } catch {
+        /* gamificação opcional */
+      }
+    }
+
     /* ── Anti-burla (Fase 5): reclamações repetidas → supervisão ── */
     if (rating <= 2) {
       const sellerRows = (await sql`

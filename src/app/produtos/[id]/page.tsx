@@ -135,10 +135,11 @@ export default function ProdutoDetalhePage() {
     }
   }
 
-  /* ── Propostas (Fase 6, ponto 12): cliente envia proposta sobre serviço complexo ── */
+  /* ── Propostas v2 (Fase 7): preço + prazo personalizados ── */
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposalDesc, setProposalDesc] = useState('');
   const [proposalBudget, setProposalBudget] = useState('');
+  const [proposalDeadline, setProposalDeadline] = useState('');
   const [proposalSending, setProposalSending] = useState(false);
 
   async function submitProposal() {
@@ -151,7 +152,9 @@ export default function ProdutoDetalhePage() {
         body: JSON.stringify({
           service_id: productId,
           description: proposalDesc,
-          budget_kz: Number(proposalBudget.replace(/[^\d]/g, '')),
+          price_kz: Number(proposalBudget.replace(/[^\d]/g, '')),
+          deadline_days:
+            proposalDeadline.length > 0 ? Number(proposalDeadline.replace(/[^\d]/g, '')) : undefined,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
@@ -161,11 +164,12 @@ export default function ProdutoDetalhePage() {
       }
       toast({
         title: 'Proposta enviada ✓',
-        description: 'O prestador foi notificado e vai responder-te.',
+        description: 'O vendedor foi notificado (email + push) e vai responder-te.',
       });
       setProposalOpen(false);
       setProposalDesc('');
       setProposalBudget('');
+      setProposalDeadline('');
     } catch {
       toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
     } finally {
@@ -349,11 +353,11 @@ export default function ProdutoDetalhePage() {
                 guardado no chat — é a tua proteção em caso de disputa.
               </p>
 
-              {/* Propostas — serviços complexos (Fase 6, ponto 12) */}
-              {(product.type === 'servico_domicilio' || product.type === 'servico_remoto') && (
+              {/* Propostas v2 — negociação de preço/prazo (Fase 7) */}
+              {product.type !== 'infoproduto' && (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-700">
-                    Precisas de algo mais personalizado?
+                    Negocia preço e prazo com o vendedor
                   </p>
                   {!proposalOpen ? (
                     <button
@@ -377,7 +381,14 @@ export default function ProdutoDetalhePage() {
                         value={proposalBudget}
                         onChange={(e) => setProposalBudget(e.target.value.replace(/[^\d]/g, ''))}
                         inputMode="numeric"
-                        placeholder="O teu orçamento em Kz (ex.: 15000)"
+                        placeholder="O teu preço proposto em Kz (ex.: 15000)"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                      />
+                      <input
+                        value={proposalDeadline}
+                        onChange={(e) => setProposalDeadline(e.target.value.replace(/[^\d]/g, ''))}
+                        inputMode="numeric"
+                        placeholder="Prazo em dias (opcional, ex.: 7)"
                         className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
                       />
                       <div className="flex gap-2">

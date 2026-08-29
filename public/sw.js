@@ -74,3 +74,51 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+/* ───────────────── Web Push (Fase 7) ─────────────────
+   Recebe notificações do servidor (VAPID) e mostra-as ao
+   utilizador mesmo com a app fechada. Clique abre o link. */
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'AngoStart', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = String(data.title || 'AngoStart').slice(0, 120);
+  const options = {
+    body: String(data.body || '').slice(0, 300),
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'angostart-' + Date.now(),
+    data: { url: String(data.url || '/').slice(0, 200) },
+    vibrate: [80, 40, 80],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => undefined)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        try {
+          const path = new URL(client.url).pathname + new URL(client.url).search;
+          if (path === target || client.url.endsWith(target)) {
+            return client.focus();
+          }
+        } catch {
+          /* ignora URLs inválidas */
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});

@@ -25,6 +25,7 @@ import {
   LogOut,
   Mail,
   Megaphone,
+  Percent,
   Package,
   RefreshCw,
   Send,
@@ -80,12 +81,51 @@ interface AdminProduct {
   seller_name?: string | null;
 }
 
+interface CommissionRate {
+  scope: string;
+  percent: number;
+  updated_at: string;
+}
+
+interface CommissionOverride {
+  user_id: number;
+  name: string | null;
+  email: string | null;
+  percent: number;
+  updated_at: string;
+}
+
+interface CommissionAuditRow {
+  id: number;
+  admin_name: string | null;
+  scope: string;
+  seller_id: number | null;
+  seller_name: string | null;
+  old_percent: number | null;
+  new_percent: number;
+  created_at: string;
+}
+
+interface CommissionReport {
+  por_categoria: { categoria: string; vendas: number; receita: number; comissao: number }[];
+  por_mes: { mes: string; comissao: number }[];
+  total_comissoes: number;
+}
+
+interface CommissionData {
+  rates: CommissionRate[];
+  overrides: CommissionOverride[];
+  audit: CommissionAuditRow[];
+  report: CommissionReport;
+}
+
 type Tab =
   | 'utilizadores'
   | 'produtos'
   | 'encomendas'
   | 'carteira'
   | 'disputas'
+  | 'comissoes'
   | 'admins'
   | 'anuncios'
   | 'monitorizacao'
@@ -202,6 +242,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
   { key: 'carteira', label: 'Carteira', icon: Wallet },
   { key: 'disputas', label: 'Disputas', icon: Gavel },
+  { key: 'comissoes', label: 'Comissões', icon: Percent },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
   { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
@@ -291,6 +332,13 @@ function AdminPanel() {
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [disputesLoading, setDisputesLoading] = useState(false);
   const [disputeBusyId, setDisputeBusyId] = useState<number | null>(null);
+
+  /* ── Comissões (Fase 7) ── */
+  const [commissions, setCommissions] = useState<CommissionData | null>(null);
+  const [rateDraft, setRateDraft] = useState<Record<string, string>>({});
+  const [overrideSellerId, setOverrideSellerId] = useState('');
+  const [overridePercent, setOverridePercent] = useState('');
+  const [commissionsBusy, setCommissionsBusy] = useState(false);
   const [disputeNote, setDisputeNote] = useState<Record<number, string>>({});
 
   /* ── 2FA setup ── */
@@ -471,6 +519,68 @@ function AdminPanel() {
     }
   }
 
+
+  /* ── Comissões (Fase 7) ── */
+  const loadCommissions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/commissions', { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      setCommissions((await res.json()) as CommissionData);
+    } catch {
+      setCommissions(null);
+    }
+  }, []);
+
+  async function saveRate(scope: string) {
+    if (commissionsBusy) return;
+    setCommissionsBusy(true);
+    try {
+      const res = await fetch('/api/admin/commissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ scope, percent: Number((rateDraft[scope] ?? '').replace(',', '.')) }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível guardar', description: data.error });
+        return;
+      }
+      toast({ title: 'Taxa atualizada ✓', description: `${scope}: nova taxa guardada com auditoria.` });
+      loadCommissions();
+    } finally {
+      setCommissionsBusy(false);
+    }
+  }
+
+  async function saveOverride(remove = false) {
+    if (commissionsBusy) return;
+    setCommissionsBusy(true);
+    try {
+      const res = await fetch('/api/admin/commissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          seller_id: Number(overrideSellerId.replace(/[^\d]/g, '')),
+          percent: remove ? null : Number(overridePercent.replace(',', '.')),
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível guardar o override', description: data.error });
+        return;
+      }
+      toast({
+        title: remove ? 'Override removido ✓' : 'Override guardado ✓',
+        description: remove ? 'O vendedor volta à taxa geral.' : `Taxa individual aplicada.`,
+      });
+      setOverrideSellerId('');
+      setOverridePercent('');
+      loadCommissions();
+    } finally {
+      setCommissionsBusy(false);
+    }
+  }
+
   useEffect(() => {
     if (tab === 'encomendas') loadOrders();
   }, [tab, loadOrders]);
@@ -484,7 +594,8 @@ function AdminPanel() {
     if (tab === 'monitorizacao') loadSuspicious();
     if (tab === 'relatorios') loadReport();
     if (tab === 'disputas') loadDisputes();
-  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport, loadDisputes]);
+    if (tab === 'comissoes') loadCommissions();
+  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport, loadDisputes, loadCommissions]);
 
   async function sendInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -1833,6 +1944,200 @@ function AdminPanel() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Comissões (Fase 7) ── */}
+      {tab === 'comissoes' && (
+        <div className="mt-6 space-y-6">
+          {/* Taxas por tipo */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">Taxas por tipo de venda</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Aplicadas no escrow quando o pedido é pago (máx. 50%). Toda a alteração fica
+              registada na auditoria.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {(commissions?.rates ?? []).map((r) => {
+                const label =
+                  r.scope === 'produto'
+                    ? 'Produtos físicos / infoprodutos'
+                    : r.scope === 'servico_domicilio'
+                      ? 'Serviços ao domicílio'
+                      : 'Freelancers (remoto)';
+                return (
+                  <div key={r.scope} className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold text-slate-500">{label}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        value={rateDraft[r.scope] ?? String(r.percent)}
+                        onChange={(e) =>
+                          setRateDraft((d) => ({ ...d, [r.scope]: e.target.value }))
+                        }
+                        inputMode="decimal"
+                        className="h-9 w-24"
+                      />
+                      <span className="text-sm font-semibold text-slate-600">%</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => saveRate(r.scope)}
+                        disabled={commissionsBusy}
+                        className="ml-auto h-9"
+                      >
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Overrides por vendedor */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">Taxa individual (override)</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Define uma taxa especial para um vendedor pelo ID do utilizador. Vazio + Guardar
+              remove o override.
+            </p>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div>
+                <Label htmlFor="ov-seller">ID do vendedor</Label>
+                <Input
+                  id="ov-seller"
+                  value={overrideSellerId}
+                  onChange={(e) => setOverrideSellerId(e.target.value.replace(/[^\d]/g, ''))}
+                  inputMode="numeric"
+                  className="mt-1 h-9 w-36"
+                  placeholder="ex.: 42"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ov-percent">Taxa (%)</Label>
+                <Input
+                  id="ov-percent"
+                  value={overridePercent}
+                  onChange={(e) => setOverridePercent(e.target.value)}
+                  inputMode="decimal"
+                  className="mt-1 h-9 w-28"
+                  placeholder="ex.: 4"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => saveOverride(false)}
+                disabled={commissionsBusy || overrideSellerId.length === 0 || overridePercent.length === 0}
+                className="h-9"
+              >
+                Aplicar override
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => saveOverride(true)}
+                disabled={commissionsBusy || overrideSellerId.length === 0}
+                className="h-9"
+              >
+                Remover
+              </Button>
+            </div>
+            {(commissions?.overrides.length ?? 0) > 0 && (
+              <ul className="mt-4 divide-y divide-slate-100 text-sm">
+                {commissions!.overrides.map((o) => (
+                  <li key={o.user_id} className="flex items-center justify-between py-2">
+                    <span className="text-slate-700">
+                      #{o.user_id} — {o.name ?? o.email ?? 'Vendedor'}
+                    </span>
+                    <span className="font-semibold text-emerald-700">{o.percent}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Relatório de comissões */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">
+              Receita de comissões — total {formatKz(commissions?.report.total_comissoes ?? 0)}
+            </h2>
+            <div className="mt-4 grid gap-6 lg:grid-cols-2">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Por categoria
+                </h3>
+                <table className="mt-2 w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-slate-400">
+                      <th className="py-1">Categoria</th>
+                      <th className="py-1">Vendas</th>
+                      <th className="py-1">Receita líquida</th>
+                      <th className="py-1">Comissões</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(commissions?.report.por_categoria ?? []).map((cat) => (
+                      <tr key={cat.categoria} className="border-t border-slate-100">
+                        <td className="py-1.5 font-medium text-slate-700">{cat.categoria}</td>
+                        <td className="py-1.5">{cat.vendas}</td>
+                        <td className="py-1.5">{formatKz(cat.receita)}</td>
+                        <td className="py-1.5 font-semibold text-emerald-700">
+                          {formatKz(cat.comissao)}
+                        </td>
+                      </tr>
+                    ))}
+                    {(commissions?.report.por_categoria.length ?? 0) === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-3 text-xs text-slate-400">
+                          Ainda sem comissões registadas.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Comissões por mês (12m)
+                </h3>
+                <div className="mt-2 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={(commissions?.report.por_mes ?? []).map((m) => ({ mes: m.mes.slice(5), comissao: m.comissao }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} width={54} />
+                      <Tooltip formatter={(v) => formatKz(Number(v))} />
+                      <Bar dataKey="comissao" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Auditoria */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">Auditoria de alterações</h2>
+            <ul className="mt-3 divide-y divide-slate-100 text-sm">
+              {(commissions?.audit ?? []).map((a) => (
+                <li key={a.id} className="py-2 text-slate-600">
+                  <span className="font-medium text-slate-800">{a.admin_name ?? 'Admin'}</span>{' '}
+                  alterou <span className="font-medium">{a.scope}</span>
+                  {a.seller_name ? ` (vendedor ${a.seller_name})` : ''}:{' '}
+                  {a.old_percent === null ? '—' : `${a.old_percent}%`} →{' '}
+                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-emerald-700'}>
+                    {a.new_percent < 0 ? 'removido' : `${a.new_percent}%`}
+                  </span>{' '}
+                  <span className="text-xs text-slate-400">
+                    · {new Date(a.created_at).toLocaleString('pt-PT')}
+                  </span>
+                </li>
+              ))}
+              {(commissions?.audit.length ?? 0) === 0 && (
+                <li className="py-3 text-xs text-slate-400">Sem alterações registadas.</li>
+              )}
+            </ul>
+          </section>
         </div>
       )}
 

@@ -16,9 +16,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
+  Award,
   Globe,
   Loader2,
   MapPin,
+  Medal,
   MessageCircle,
   Package,
   SearchX,
@@ -37,6 +39,13 @@ interface PortfolioItem {
   image_url: string;
 }
 
+const LEVEL_BADGE: Record<string, { label: string; emoji: string }> = {
+  bronze: { label: 'Bronze', emoji: '🥉' },
+  prata: { label: 'Prata', emoji: '🥈' },
+  ouro: { label: 'Ouro', emoji: '🥇' },
+  platina: { label: 'Platina', emoji: '💎' },
+};
+
 interface SellerData {
   name: string;
   role: string;
@@ -53,6 +62,11 @@ interface SellerData {
   rating_estimado?: number | null;
   total_produtos?: number | null;
   total_clientes?: number | null;
+  gamificacao?: {
+    level: string;
+    points: number;
+    badges: { code: string; name: string; icon: string }[];
+  } | null;
 }
 
 interface ReviewItem {
@@ -240,7 +254,32 @@ export default function PortfolioPublicoPage() {
             </dt>
             <dd className="mt-1 text-lg font-bold text-white">{seller.total_clientes ?? 0}</dd>
           </div>
+          {seller.gamificacao && (
+            <div className="bg-slate-900 px-2 py-4">
+              <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
+                <Medal className="h-3.5 w-3.5 text-emerald-400" /> Nível
+              </dt>
+              <dd className="mt-1 text-lg font-bold text-white">
+                {LEVEL_BADGE[seller.gamificacao.level]?.emoji ?? '🥉'}{' '}
+                {LEVEL_BADGE[seller.gamificacao.level]?.label ?? 'Bronze'}
+              </dd>
+            </div>
+          )}
         </dl>
+
+        {/* Selos de confiança (Fase 7) */}
+        {seller.gamificacao && seller.gamificacao.badges.length > 0 && (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {seller.gamificacao.badges.map((b) => (
+              <span
+                key={b.code}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
+              >
+                <Award className="h-3.5 w-3.5" /> {b.name}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Sobre mim */}
