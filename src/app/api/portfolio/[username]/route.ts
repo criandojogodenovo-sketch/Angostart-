@@ -8,9 +8,15 @@ type RouteContext = { params: Promise<{ username: string }> };
 
 /**
  * GET /api/portfolio/[username] — portfólio PÚBLICO de um vendedor
- * (página /portfolio/[username]).
- * Não expõe email nem dados sensíveis — apenas o número para o CTA
- * WhatsApp do prestador (números de negócio).
+ * (página /portfolio/[username]) — Mini-Loja (Fase 6, ponto 1).
+ *
+ * Devolve: dados de perfil, estatísticas públicas (produtos publicados,
+ * clientes servidos, média de avaliações), produtos ativos e avaliações
+ * recebidas. Quando ainda não há avaliações reais devolve uma
+ * `rating_estimado` claramente marcada como estimada (Fase 6, ponto 6).
+ *
+ * 🔒 Fase 6 (ponto 2): NÃO expõe whatsapp/telefone — todo o contacto
+ * passa pelo chat interno da plataforma.
  */
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { username: rawUsername } = await context.params;
@@ -23,7 +29,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const rows = (await sql`
       SELECT id, name, role, username, cidade, especialidade, bio,
-             portfolio_bio, portfolio_image, portfolio_url, telefone
+             portfolio_bio, portfolio_image, portfolio_url
       FROM users
       WHERE username = ${username}
         AND role IN ('criador', 'prestador_domicilio', 'prestador_remoto')
@@ -40,7 +46,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       portfolio_bio: string | null;
       portfolio_image: string | null;
       portfolio_url: string | null;
-      telefone: string | null;
     }[];
 
     const seller = rows[0];
@@ -63,8 +68,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       LIMIT 12
     `) as unknown as Record<string, unknown>[];
 
-    /* Reputação do vendedor (média ponderada = média das avaliações reais
-       recebidas nos produtos dele — Fase R) */
+    /* Reputação: média das avaliações reais recebidas nos produtos dele */
     const reputation = (await sql`
       SELECT COALESCE(AVG(r.rating), 0)::float8 AS media,
              count(*)::int AS total
@@ -72,6 +76,46 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       JOIN products p ON p.id = r.product_id
       WHERE p.user_id = ${seller.id}
     `) as unknown as { media: number; total: number }[];
+
+    /* Estatísticas públicas da Mini-Loja (Fase 6, ponto 1):
+       - produtos publicados (total no catálogo)
+       - clientes servidos (compradores distintos com pagamento confirmado) */
+    const productCount = (await sql`
+      SELECT count(*)::int AS n FROM products WHERE user_id = ${seller.id}
+    `) as unknown as { n: number }[];
+
+    const clientsCount = (await sql`
+      SELECT count(DISTINCT o.user_id)::int AS n
+      FROM orders o, jsonb_array_elements(o.items) AS item
+      WHERE o.status IN ('pago', 'entregue')
+        AND (item->>'seller_id')::int = ${seller.id}
+    `) as unknown as { n: number }[];
+
+    /* Últimas avaliações recebidas (com produto, nota e comentário) */
+    const reviews = (await sql`
+      SELECT r.id, r.rating, r.comment, r.created_at,
+             u.name AS user_name, u.username AS user_username,
+             p.name AS product_name
+      FROM reviews r
+      JOIN products p ON p.id = r.product_id
+      LEFT JOIN users u ON u.id = r.user_id
+      WHERE p.user_id = ${seller.id}
+      ORDER BY r.created_at DESC
+      LIMIT 10
+    `) as unknown as Record<string, unknown>[];
+
+    const media = Math.round(Number(reputation[0]?.media ?? 0) * 10) / 10;
+    const total = Number(reputation[0]?.total ?? 0);
+
+    /* Avaliação estimada (Fase 6, ponto 6): sem avaliações reais, mostra a
+       média global da plataforma como estimativa, claramente marcada. */
+    let ratingEstimado: number | null = null;
+    if (total === 0) {
+      const globalAvg = (await sql`
+        SELECT COALESCE(AVG(rating), 4.5)::float8 AS media FROM reviews
+      `) as unknown as { media: number }[];
+      ratingEstimado = Math.round(Number(globalAvg[0]?.media ?? 4.5) * 10) / 10;
+    }
 
     return NextResponse.json({
       seller: {
@@ -85,14 +129,26 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         portfolio_bio: seller.portfolio_bio,
         portfolio_image: seller.portfolio_image,
         portfolio_url: seller.portfolio_url,
-        // Reputação (média das avaliações dos produtos + nº de avaliações)
-        media_avaliacoes: Math.round(Number(reputation[0]?.media ?? 0) * 10) / 10,
-        total_avaliacoes: Number(reputation[0]?.total ?? 0),
-        // Número apenas para contacto de negócio (CTA WhatsApp)
-        whatsapp: seller.telefone,
+        // Reputação
+        media_avaliacoes: media,
+        total_avaliacoes: total,
+        rating_estimado: ratingEstimado,
+        // Estatísticas da Mini-Loja
+        total_produtos: Number(productCount[0]?.n ?? 0),
+        total_clientes: Number(clientsCount[0]?.n ?? 0),
+        // 🔒 Fase 6 (ponto 2): whatsapp/telefone REMOVIDOS do payload público
       },
       items,
       products,
+      reviews: reviews.map((r) => ({
+        id: Number(r.id),
+        rating: Number(r.rating),
+        comment: (r.comment as string) ?? '',
+        created_at: String(r.created_at),
+        user_name: (r.user_name as string) ?? 'Cliente AngoStart',
+        user_username: (r.user_username as string) ?? null,
+        product_name: (r.product_name as string) ?? null,
+      })),
     });
   } catch (error) {
     console.error('[API portfolio/[username]] Erro:', error);

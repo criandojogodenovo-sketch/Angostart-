@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   ClipboardList,
   Copy,
+  ExternalLink,
   Flame,
   Loader2,
   Lock,
@@ -106,6 +107,19 @@ interface AffiliateData {
 interface WalletSummary {
   saldo: number;
   saldo_bloqueado: number;
+}
+
+/** Proposta recebida de cliente (Fase 6, ponto 12). */
+interface ProviderProposal {
+  id: number;
+  service_id: number;
+  service_name: string | null;
+  description: string;
+  budget_kz: number;
+  status: string;
+  created_at: string;
+  client_name: string | null;
+  is_mine: boolean;
 }
 
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ef4444'];
@@ -350,6 +364,13 @@ export default function DashboardVendedorPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {user?.username && (
+            <Button asChild variant="outline" className="h-10 border-slate-300 text-slate-600 hover:bg-slate-50">
+              <Link href={`/portfolio/${user.username}`} target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" /> Ver Mini-Loja pública
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" className="h-10 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
             <Link href="/dashboard/vendedor/portfolio">Editar portfólio</Link>
           </Button>
@@ -357,6 +378,29 @@ export default function DashboardVendedorPage() {
             <Link href="/adicionar-produto">Publicar produto</Link>
           </Button>
         </div>
+      </div>
+
+      {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+          <span className="flex items-center gap-1.5 font-semibold text-emerald-900">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            {cards && cards.ratingCount > 0
+              ? `${cards.ratingAverage.toFixed(1)} ★ (${cards.ratingCount})`
+              : 'Avaliação estimada da plataforma · sem avaliações reais'}
+          </span>
+          <span className="flex items-center gap-1.5 text-emerald-900">
+            <Package className="h-4 w-4 text-emerald-600" />
+            {cards?.productsPublished ?? 0} produtos publicados
+          </span>
+          <span className="flex items-center gap-1.5 text-emerald-900">
+            <Users className="h-4 w-4 text-emerald-600" />
+            {cards?.clients ?? 0} clientes servidos
+          </span>
+        </div>
+        <p className="text-[11px] text-emerald-800/70">
+          Estes números são o que os clientes veem na tua Mini-Loja.
+        </p>
       </div>
 
       {/* Alertas (Fase 5) */}
@@ -753,6 +797,123 @@ export default function DashboardVendedorPage() {
           </ul>
         )}
       </section>
+
+      {/* Propostas recebidas (Fase 6, ponto 12) */}
+      <PropostasRecebidas />
     </div>
+  );
+}
+
+/** Propostas de serviços personalizados recebidas de clientes (Fase 6). */
+function PropostasRecebidas() {
+  const { toast } = useToast();
+  const [proposals, setProposals] = useState<ProviderProposal[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/proposals', { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { proposals?: ProviderProposal[] };
+      setProposals((data.proposals ?? []).filter((p) => !p.is_mine));
+    } catch {
+      setProposals([]);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function answer(id: number, action: 'aceite' | 'recusada') {
+    if (busyId !== null) return;
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/proposals/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ action }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível responder', description: data.error });
+        return;
+      }
+      toast({
+        title: action === 'aceite' ? 'Proposta aceite ✓' : 'Proposta recusada',
+        description: 'O cliente foi notificado — combina os detalhes no chat.',
+      });
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (!loaded) return null;
+
+  return (
+    <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-900">Propostas recebidas</h2>
+        <ClipboardList className="h-5 w-5 text-slate-300" />
+      </div>
+      {proposals.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-slate-400">
+          Sem propostas por agora — os clientes podem enviar propostas a partir
+          das páginas dos teus serviços.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {proposals.map((p) => (
+            <li key={p.id} className="px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">
+                  {p.client_name ?? 'Cliente'} — sobre «{p.service_name}»
+                </p>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    p.status === 'pendente'
+                      ? 'bg-amber-100 text-amber-700'
+                      : p.status === 'aceite'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {p.status}
+                </span>
+              </div>
+              <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{p.description}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Orçamento sugerido: <strong className="text-slate-700">{formatKz(p.budget_kz)}</strong> ·{' '}
+                {new Date(p.created_at).toLocaleString('pt-PT')}
+              </p>
+              {p.status === 'pendente' && (
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => answer(p.id, 'aceite')}
+                    disabled={busyId === p.id}
+                    className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    Aceitar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => answer(p.id, 'recusada')}
+                    disabled={busyId === p.id}
+                    className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    Recusar
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

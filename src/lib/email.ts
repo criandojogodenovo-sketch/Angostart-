@@ -271,6 +271,40 @@ export async function sendAdminAlertEmail(
   return sendMail({ to, subject: `${subject} — AngoStart`, html: layout(subject, htmlBody) });
 }
 
+/* ───────────────────────────── Disputas (Fase 6) ────────────────────────── */
+
+/** Notifica as partes do resultado de uma disputa (Fase 6, ponto 7). */
+export async function sendDisputeDecisionEmail(
+  to: string,
+  orderId: number,
+  favorCliente: boolean,
+  resolutionNote: string
+): Promise<boolean> {
+  const title = favorCliente
+    ? `Disputa da encomenda #${orderId} — resolvida a teu favor`
+    : `Disputa da encomenda #${orderId} — resolvida`;
+
+  const body = favorCliente
+    ? `<p>A tua disputa sobre a encomenda <strong>#${orderId}</strong> foi
+       analisada pela equipa AngoStart e <strong>resolvida a teu favor</strong>:
+       o valor da encomenda foi devolvido ao saldo da tua carteira.</p>`
+    : `<p>A disputa sobre a encomenda <strong>#${orderId}</strong> foi analisada
+       pela equipa AngoStart e <strong>resolvida a favor do vendedor</strong>.
+       Os valores retidos em escrow foram libertados para o vendedor.</p>`;
+
+  const note = resolutionNote
+    ? `<div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+         <strong>Nota da equipa:</strong> ${resolutionNote}
+       </div>`
+    : '';
+
+  return sendMail({
+    to,
+    subject: `${title} — AngoStart`,
+    html: layout('Resultado da disputa', `${body}${note}`),
+  });
+}
+
 /* ────────────────────────────── Chat (Fase 5) ────────────────────────── */
 
 /** Notifica um utilizador que recebeu uma nova mensagem no chat. */

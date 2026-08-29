@@ -1,19 +1,37 @@
 import 'server-only';
 
 /**
- * AngoStart — Estrutura preparada para PAGAMENTO AUTOMÁTICO MoMenu (Fase 5).
+ * AngoStart — Gateway MoMenu (Fase 6, ponto 9) — PREPARAÇÃO.
  *
- * ⚠️ NÃO ATIVADO: a AngoStart continua a usar KWiK MANUAL como método
- * principal. Este módulo deixa a estrutura pronta para quando a conta
- * MoMenu estiver aprovada — basta implementar as chamadas HTTP reais
- * usando MOMENU_API_KEY (placeholder definido no .env / Vercel).
+ * O MoMenu é um gateway angolano com suporte a Multicaixa Express e
+ * Referências. A integração em si não tem custo de código; a MoMenu cobra
+ * uma taxa por transação (tipicamente 1,5%–3%) descontada ao comerciante.
  *
- * Documentação esperada (a confirmar com o MoMenu):
- *  - POST {base}/payments      → cria intenção de pagamento
+ * Estado (não quebra nada enquanto a chave não existir):
+ *  - MOMENU_API_KEY definida na Vercel → a opção "MoMenu (Multicaixa Express)"
+ *    aparece no checkout (via /api/config → momenuEnabled).
+ *  - Sem chave → checkout continua KWiK manual como método principal.
+ *  - MOMENU_SANDBOX=true → "modo sandbox": devolve uma referência simulada
+ *    SEM chamar a API real (para testes de fluxo) — nunca ativa pagamentos
+ *    reais.
+ *
+ * Integração real (a confirmar com a MoMenu):
+ *  - POST {base}/payments          → cria intenção de pagamento
+ *  - GET  {base}/payments/:id      → consulta estado
  *  - POST {base}/payments/:id/confirm → confirma + webhook de callback
  */
 
-export const MOMENU_ENABLED = false; // ligar apenas quando a API real estiver aprovada
+export function momenuEnabled(): boolean {
+  const key = process.env.MOMENU_API_KEY;
+  return !!key && key.trim().length > 0 && key.trim() !== 'SEU_API_KEY';
+}
+
+export function momenuSandbox(): boolean {
+  return process.env.MOMENU_SANDBOX === 'true';
+}
+
+/** Taxa indicativa do gateway (para transparência no dashboard, 1,5–3%). */
+export const MOMENU_FEE_RANGE = '1.5%–3%';
 
 export interface MoMenuPaymentInput {
   orderId: number;
@@ -25,13 +43,21 @@ export interface MoMenuPaymentInput {
 export interface MoMenuPaymentResult {
   ok: boolean;
   paymentId?: string;
+  /** Referência Multicaixa Express / URL de checkout, conforme o método. */
   checkoutUrl?: string;
+  reference?: string;
+  sandbox?: boolean;
   error?: string;
 }
 
-/** Cria uma intenção de pagamento MoMenu (PLACEHOLDER — não chama API real). */
+/**
+ * Cria uma intenção de pagamento MoMenu.
+ *  - Sandbox: devolve referência simulada `MOMENU-SB-<orderId>` sem chamada externa.
+ *  - Real: POST para a API MoMenu com MOMENU_API_KEY (a ativar quando a conta
+ *    de comerciante estiver aprovada e a documentação final for entregue).
+ */
 export async function createPayment(input: MoMenuPaymentInput): Promise<MoMenuPaymentResult> {
-  if (!MOMENU_ENABLED) {
+  if (!momenuEnabled()) {
     return {
       ok: false,
       error:
@@ -39,26 +65,49 @@ export async function createPayment(input: MoMenuPaymentInput): Promise<MoMenuPa
     };
   }
 
-  const apiKey = process.env.MOMENU_API_KEY;
-  if (!apiKey || apiKey === 'SEU_API_KEY') {
-    return { ok: false, error: 'MOMENU_API_KEY não configurada.' };
+  const apiKey = process.env.MOMENU_API_KEY as string;
+
+  if (momenuSandbox()) {
+    return {
+      ok: true,
+      sandbox: true,
+      paymentId: `SB-${input.orderId}-${Date.now()}`,
+      reference: `MOMENU-SB-${String(input.orderId).padStart(5, '0')}`,
+      checkoutUrl: `/carrinho?momenu=sandbox&order=${input.orderId}`,
+    };
   }
 
-  // TODO (integração real): POST para a API MoMenu com MOMENU_API_KEY
-  // e devolver checkoutUrl para o cliente autorizar o pagamento.
+  // TODO (integração real): substituir pelo endpoint definitivo da MoMenu.
+  // Exemplo de estrutura esperada — confirmar com o gateway:
+  // const res = await fetch(`${base}/payments`, {
+  //   method: 'POST',
+  //   headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+  //   body: JSON.stringify({
+  //     amount: input.amountKz,
+  //     currency: 'AOA',
+  //     phone: input.customerPhone,
+  //     description: input.description,
+  //     external_id: input.orderId,
+  //   }),
+  // });
+  void apiKey;
   void input;
-  return { ok: false, error: 'Integração MoMenu não implementada.' };
+  return { ok: false, error: 'Integração MoMenu real ainda não ativada.' };
 }
 
-/** Verifica o estado de um pagamento MoMenu (PLACEHOLDER). */
+/** Verifica o estado de um pagamento MoMenu (sandbox → pending sempre). */
 export async function getPaymentStatus(paymentId: string): Promise<{
   ok: boolean;
   status?: 'pending' | 'paid' | 'failed';
+  sandbox?: boolean;
   error?: string;
 }> {
-  if (!MOMENU_ENABLED) {
+  if (momenuSandbox() && paymentId.startsWith('SB-')) {
+    return { ok: true, sandbox: true, status: 'pending' };
+  }
+  if (!momenuEnabled()) {
     return { ok: false, error: 'MoMenu ainda não está ativo.' };
   }
-  void paymentId;
-  return { ok: false, error: 'Integração MoMenu não implementada.' };
+  // TODO (integração real): GET {base}/payments/:id
+  return { ok: false, error: 'Integração MoMenu real ainda não ativada.' };
 }

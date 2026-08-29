@@ -3,14 +3,28 @@
 /**
  * AngoStart — Portfólio público (/portfolio/[username]).
  *
- * Mostra a bio, especialidade, galeria de trabalhos, produtos à venda
- * e o CTA "Contactar via WhatsApp" com o número do prestador.
+ * Mini-Loja (Fase 6, ponto 1): cabeçalho com estatísticas públicas
+ * (avaliação média, produtos publicados, clientes servidos), produtos à
+ * venda, "Sobre mim" e avaliações recebidas.
+ *
+ * 🔒 Fase 6 (ponto 2): SEM contacto WhatsApp do vendedor — toda a
+ * comunicação passa pelo chat interno (botão "Falar no chat").
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Globe, Loader2, MapPin, SearchX, Send, Star } from 'lucide-react';
+import {
+  ArrowLeft,
+  Globe,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Package,
+  SearchX,
+  Star,
+  Users,
+} from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
 import { Button } from '@/components/ui/button';
 import { formatKz } from '@/lib/format';
@@ -34,9 +48,21 @@ interface SellerData {
   portfolio_bio: string | null;
   portfolio_image: string | null;
   portfolio_url: string | null;
-  whatsapp: string | null;
   media_avaliacoes?: number | null;
   total_avaliacoes?: number | null;
+  rating_estimado?: number | null;
+  total_produtos?: number | null;
+  total_clientes?: number | null;
+}
+
+interface ReviewItem {
+  id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  user_name: string;
+  user_username: string | null;
+  product_name: string | null;
 }
 
 interface PortfolioPayload {
@@ -52,6 +78,22 @@ interface PortfolioPayload {
     image_url: string | null;
     rating: number;
   }[];
+  reviews?: ReviewItem[];
+}
+
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating.toFixed(1)} de 5 estrelas`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-4 w-4 ${
+            n <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+          }`}
+        />
+      ))}
+    </span>
+  );
 }
 
 export default function PortfolioPublicoPage() {
@@ -104,12 +146,10 @@ export default function PortfolioPublicoPage() {
     );
   }
 
-  const { seller, items, products } = data;
-  const waNumber = (seller.whatsapp ?? '').replace(/\D/g, '');
-  const waTarget = waNumber.length >= 9 ? waNumber : '244958176915';
-  const waText = encodeURIComponent(
-    `Olá ${seller.name}! Encontrei o teu portfólio na AngoStart e quero falar contigo.`
-  );
+  const { seller, items, products, reviews = [] } = data;
+  const totalAvaliacoes = seller.total_avaliacoes ?? 0;
+  const estimada = totalAvaliacoes === 0 && typeof seller.rating_estimado === 'number';
+  const media = estimada ? (seller.rating_estimado as number) : (seller.media_avaliacoes ?? 0);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
@@ -120,12 +160,11 @@ export default function PortfolioPublicoPage() {
         <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
       </Link>
 
-      {/* Cabeçalho do vendedor */}
+      {/* Cabeçalho do vendedor — Mini-Loja */}
       <header className="mt-6 overflow-hidden rounded-3xl bg-slate-900 shadow-lg">
         <div className="h-28 bg-gradient-to-r from-emerald-600/40 via-slate-800 to-slate-900" />
         <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           {seller.portfolio_image ? (
-             
             <img
               src={seller.portfolio_image}
               alt={`Foto de ${seller.name}`}
@@ -148,30 +187,63 @@ export default function PortfolioPublicoPage() {
               {seller.especialidade && <span>{seller.especialidade}</span>}
               <span>@{seller.username}</span>
             </div>
-            {/* Reputação — média ponderada das avaliações reais (Fase R) */}
-            {typeof seller.media_avaliacoes === 'number' && seller.media_avaliacoes > 0 && (
-              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300">
-                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                {seller.media_avaliacoes.toFixed(1)} de 5
-                <span className="font-normal text-amber-200/70">
-                  · {seller.total_avaliacoes ?? 0}{' '}
-                  {(seller.total_avaliacoes ?? 0) === 1 ? 'avaliação' : 'avaliações'}
-                </span>
+            {/* Reputação — real ou estimada (claramente marcada, Fase 6 ponto 6) */}
+            {media > 0 && (
+              <p
+                className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                  estimada
+                    ? 'bg-slate-400/15 text-slate-300'
+                    : 'bg-amber-400/15 text-amber-300'
+                }`}
+              >
+                <Star className={`h-3.5 w-3.5 ${estimada ? 'text-slate-300' : 'fill-amber-400 text-amber-400'}`} />
+                {media.toFixed(1)} de 5
+                {estimada ? (
+                  <span className="font-normal text-slate-400">· avaliação estimada</span>
+                ) : (
+                  <span className="font-normal text-amber-200/70">
+                    · {totalAvaliacoes}{' '}
+                    {totalAvaliacoes === 1 ? 'avaliação' : 'avaliações'} reais
+                  </span>
+                )}
               </p>
             )}
           </div>
-          <Button
-            asChild
-            className="h-12 bg-[#25D366] px-6 font-semibold text-white hover:bg-[#1fb857]"
-          >
-            <a href={`https://wa.me/${waTarget}?text=${waText}`} target="_blank" rel="noopener noreferrer">
-              <Send className="mr-2 h-5 w-5" /> Contactar via WhatsApp
-            </a>
+          {/* 🔒 Fase 6 (ponto 2): contacto apenas via chat interno */}
+          <Button asChild className="h-12 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600">
+            <Link href="/chat">
+              <MessageCircle className="mr-2 h-5 w-5" /> Falar no chat
+            </Link>
           </Button>
         </div>
+
+        {/* Estatísticas da Mini-Loja */}
+        <dl className="grid grid-cols-3 gap-px border-t border-white/10 bg-white/10 text-center">
+          <div className="bg-slate-900 px-2 py-4">
+            <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
+              <Star className="h-3.5 w-3.5 text-amber-400" /> Avaliação
+            </dt>
+            <dd className="mt-1 text-lg font-bold text-white">
+              {media > 0 ? media.toFixed(1) : '—'}
+              {estimada && <span className="ml-1 text-[10px] font-normal text-slate-400">est.</span>}
+            </dd>
+          </div>
+          <div className="bg-slate-900 px-2 py-4">
+            <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
+              <Package className="h-3.5 w-3.5 text-emerald-400" /> Produtos
+            </dt>
+            <dd className="mt-1 text-lg font-bold text-white">{seller.total_produtos ?? 0}</dd>
+          </div>
+          <div className="bg-slate-900 px-2 py-4">
+            <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
+              <Users className="h-3.5 w-3.5 text-emerald-400" /> Clientes
+            </dt>
+            <dd className="mt-1 text-lg font-bold text-white">{seller.total_clientes ?? 0}</dd>
+          </div>
+        </dl>
       </header>
 
-      {/* Bio */}
+      {/* Sobre mim */}
       <section aria-label="Sobre o prestador" className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-base font-semibold text-slate-900">Sobre mim</h2>
         <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
@@ -200,7 +272,6 @@ export default function PortfolioPublicoPage() {
           <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-                { }
                 <img loading="lazy" src={item.image_url} alt={item.title} className="h-44 w-full object-cover" />
                 <div className="p-4">
                   <h3 className="text-sm font-semibold text-slate-900">{item.title}</h3>
@@ -217,7 +288,7 @@ export default function PortfolioPublicoPage() {
       {/* Produtos/serviços à venda */}
       {products.length > 0 && (
         <section aria-label="Produtos à venda" className="mt-8">
-          <h2 className="text-xl font-bold text-slate-900">À venda na AngoStart</h2>
+          <h2 className="text-xl font-bold text-slate-900">Produtos à venda</h2>
           <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
               <li key={product.id}>
@@ -249,6 +320,49 @@ export default function PortfolioPublicoPage() {
           </ul>
         </section>
       )}
+
+      {/* Avaliações recebidas (Fase 6, ponto 1) */}
+      <section aria-label="Avaliações recebidas" className="mt-8">
+        <h2 className="text-xl font-bold text-slate-900">Avaliações ({totalAvaliacoes})</h2>
+        {reviews.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+            Ainda sem avaliações reais — a nota acima é uma estimativa da
+            plataforma e desaparece assim que chegarem as primeiras avaliações.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {reviews.map((review) => (
+              <li
+                key={review.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-slate-900">
+                    {review.user_name}
+                    {review.user_username && (
+                      <span className="ml-1 text-xs font-normal text-slate-400">
+                        @{review.user_username}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Stars rating={review.rating} />
+                    <span className="text-xs text-slate-400">
+                      {new Date(review.created_at).toLocaleDateString('pt-PT')}
+                    </span>
+                  </span>
+                </div>
+                {review.product_name && (
+                  <p className="mt-1 text-xs text-slate-400">sobre «{review.product_name}»</p>
+                )}
+                {review.comment && (
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{review.comment}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

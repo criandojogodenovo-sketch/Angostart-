@@ -22,7 +22,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
 
   const typeInfo = PRODUCT_TYPES[product.type];
-  const outOfStock = product.stock === 0;
+  // 🔒 Fase 6 (ponto 3): a cota exata é interna — o público vê só disponibilidade
+  const outOfStock = product.available === false || product.stock === 0;
 
   function handleBuy() {
     if (outOfStock) return;
@@ -61,11 +62,6 @@ export default function ProductCard({ product }: { product: Product }) {
           <Badge className="absolute right-3 top-3 border-0 bg-amber-400 text-amber-950">
             Destaque
           </Badge>
-        )}
-        {product.stock > 0 && product.stock <= 10 && (
-          <span className="absolute bottom-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-            Só {product.stock} em stock
-          </span>
         )}
       </div>
 

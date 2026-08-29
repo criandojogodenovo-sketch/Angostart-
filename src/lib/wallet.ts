@@ -541,6 +541,68 @@ export async function refundWalletPayment(orderId: number): Promise<void> {
   }
 }
 
+/* ───────────────────────── Disputas (Fase 6) ─────────────────────────── */
+
+/**
+ * Retira dos vendedores o escrow ainda bloqueado de uma encomenda
+ * (resolução de disputa a favor do cliente). Idempotente: só mexe em
+ * movimentações `recebimento` com estado `bloqueado`.
+ * Devolve o total retirado de `saldo_bloqueado`.
+ */
+export async function clawbackBlockedEscrowForDispute(orderId: number): Promise<number> {
+  const rows = (await sql`
+    SELECT id, user_id, valor::float8 AS valor
+    FROM wallet_transactions
+    WHERE order_id = ${orderId} AND tipo = 'recebimento' AND status = 'bloqueado'
+  `) as unknown as { id: number; user_id: number; valor: number }[];
+
+  let total = 0;
+  for (const row of rows) {
+    const clawbackNote = `Disputa — valor retido devolvido ao cliente (encomenda #${orderId})`;
+    const updated = (await sql`
+      UPDATE wallet_transactions
+      SET status = 'rejeitado',
+          descricao = ${clawbackNote}
+      WHERE id = ${row.id} AND status = 'bloqueado'
+      RETURNING id
+    `) as unknown as { id: number }[];
+    if (!updated[0]) continue; // outra resolução chegou primeiro
+
+    await sql`
+      UPDATE wallets
+      SET saldo_bloqueado = GREATEST(saldo_bloqueado - ${row.valor}, 0), updated_at = now()
+      WHERE user_id = ${row.user_id}
+    `;
+    total += row.valor;
+  }
+  return total;
+}
+
+/**
+ * Crédita ao comprador o reembolso de uma disputa (a favor do cliente),
+ * idempotente por (order_id, tipo='reembolso', user_id) — chamar 2× não
+ * credita 2×. Devolve true se o crédito foi aplicado agora.
+ */
+export async function refundDisputeToBuyer(
+  orderId: number,
+  buyerId: number,
+  totalKz: number
+): Promise<boolean> {
+  if (totalKz <= 0) return false;
+  await ensureWallet(buyerId);
+  const inserted = await insertOrderTxOnce({
+    userId: buyerId,
+    tipo: 'reembolso',
+    valor: totalKz,
+    status: 'concluido',
+    orderId,
+    descricao: 'Disputa resolvida a favor do cliente — reembolso integral',
+  });
+  if (!inserted) return false;
+  await creditSaldo(buyerId, totalKz);
+  return true;
+}
+
 /**
  * Efeitos colaterais de uma transição de estado de encomenda.
  * Chamado pelos painéis admin (validação de comprovativo / entrega).

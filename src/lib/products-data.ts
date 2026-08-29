@@ -23,7 +23,14 @@ export interface Product {
   /** Produto "em alta" — badge de chama 🔥 escolhido pelo vendedor. */
   is_hot?: boolean;
   rating: number;
-  stock: number; // -1 = ilimitado (infoprodutos e serviços)
+  /**
+   * 🔒 Fase 6 (ponto 3): a cota interna (`stock`) só é visível ao DONO
+   * (vistas "meu=1" e detalhe para dono/admin). Nas vistas públicas a API
+   * devolve apenas `available` (disponibilidade derivada).
+   */
+  stock?: number | null;
+  /** Disponibilidade pública (derivada do stock; -1 = ilimitado). */
+  available?: boolean;
   /* Campos do marketplace (presentes nos produtos vindos do Neon) */
   user_id?: number | null;
   image_url?: string | null;

@@ -19,7 +19,6 @@ import {
   Loader2,
   MapPin,
   MessageCircle,
-  Send,
   ShoppingCart,
   Star,
   Timer,
@@ -36,15 +35,12 @@ import { PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-da
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
 
-const WHATSAPP_NUMBER = '244958176915';
-
 interface DetailProduct extends Product {
   service_lat?: number | null;
   service_lng?: number | null;
   seller_username?: string | null;
   seller_cidade?: string | null;
   seller_especialidade?: string | null;
-  seller_telefone?: string | null;
 }
 
 interface Review {
@@ -136,6 +132,44 @@ export default function ProdutoDetalhePage() {
       window.location.href = `/chat?c=${data.conversation.id}`;
     } finally {
       setChatStarting(false);
+    }
+  }
+
+  /* ── Propostas (Fase 6, ponto 12): cliente envia proposta sobre serviço complexo ── */
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [proposalDesc, setProposalDesc] = useState('');
+  const [proposalBudget, setProposalBudget] = useState('');
+  const [proposalSending, setProposalSending] = useState(false);
+
+  async function submitProposal() {
+    if (proposalSending) return;
+    setProposalSending(true);
+    try {
+      const res = await fetch('/api/proposals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          service_id: productId,
+          description: proposalDesc,
+          budget_kz: Number(proposalBudget.replace(/[^\d]/g, '')),
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível enviar a proposta', description: data.error });
+        return;
+      }
+      toast({
+        title: 'Proposta enviada ✓',
+        description: 'O prestador foi notificado e vai responder-te.',
+      });
+      setProposalOpen(false);
+      setProposalDesc('');
+      setProposalBudget('');
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setProposalSending(false);
     }
   }
 
@@ -232,11 +266,6 @@ export default function ProdutoDetalhePage() {
   }
 
   const typeInfo = PRODUCT_TYPES[product.type as ProductType];
-  const waNumber = (product.seller_telefone ?? '').replace(/\D/g, '');
-  const waTarget = waNumber.length >= 9 ? waNumber : WHATSAPP_NUMBER;
-  const waText = encodeURIComponent(
-    `Olá! Vi "${product.name}" na AngoStart e quero mais informações.`
-  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
@@ -314,16 +343,64 @@ export default function ProdutoDetalhePage() {
                   )}
                   Falar no chat da AngoStart
                 </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-12 border-[#25D366] px-6 font-semibold text-[#128C4A] hover:bg-[#25D366]/10"
-                >
-                  <a href={`https://wa.me/${waTarget}?text=${waText}`} target="_blank" rel="noopener noreferrer">
-                    <Send className="mr-2 h-5 w-5" /> WhatsApp
-                  </a>
-                </Button>
               </div>
+              <p className="mt-3 text-xs text-slate-400">
+                🔒 Toda a negociação acontece dentro da plataforma, com histórico
+                guardado no chat — é a tua proteção em caso de disputa.
+              </p>
+
+              {/* Propostas — serviços complexos (Fase 6, ponto 12) */}
+              {(product.type === 'servico_domicilio' || product.type === 'servico_remoto') && (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Precisas de algo mais personalizado?
+                  </p>
+                  {!proposalOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => (user ? setProposalOpen(true) : toast({ title: 'Entra na tua conta', description: 'Precisas de sessão para enviar propostas.' }))}
+                      className="mt-2 text-xs font-semibold text-emerald-600 hover:underline"
+                    >
+                      Enviar uma proposta ao prestador →
+                    </button>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={proposalDesc}
+                        onChange={(e) => setProposalDesc(e.target.value)}
+                        maxLength={3000}
+                        rows={3}
+                        placeholder="Descreve o que precisas (mín. 20 caracteres)…"
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                      />
+                      <input
+                        value={proposalBudget}
+                        onChange={(e) => setProposalBudget(e.target.value.replace(/[^\d]/g, ''))}
+                        inputMode="numeric"
+                        placeholder="O teu orçamento em Kz (ex.: 15000)"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={submitProposal}
+                          disabled={proposalSending || proposalDesc.trim().length < 20 || proposalBudget.length === 0}
+                          className="inline-flex h-9 items-center rounded-lg bg-emerald-500 px-4 text-xs font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {proposalSending ? 'A enviar…' : 'Enviar proposta'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProposalOpen(false)}
+                          className="inline-flex h-9 items-center rounded-lg border border-slate-300 px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

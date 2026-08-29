@@ -94,10 +94,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const product = (await sql`
-      SELECT id FROM products WHERE id = ${productId} LIMIT 1
-    `) as unknown as { id: number }[];
+      SELECT id, user_id FROM products WHERE id = ${productId} LIMIT 1
+    `) as unknown as { id: number; user_id: number | null }[];
     if (!product[0]) {
       return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
+    }
+
+    // 🔒 Anti-auto-avaliação (Fase 6, ponto 6): ninguém avalia o próprio
+    // produto — o user_id do avaliador não pode ser o do vendedor.
+    if (product[0].user_id === auth.user.id) {
+      return NextResponse.json(
+        { error: 'Não podes avaliar o teu próprio produto.' },
+        { status: 403 }
+      );
     }
 
     // 🔒 Compra confirmada obrigatória: encomenda paga/entregue com este produto

@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Eye,
   FileText,
+  Gavel,
   Loader2,
   LogOut,
   Mail,
@@ -35,6 +36,17 @@ import {
   Wallet,
   XCircle,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import AdminGate from '@/components/AdminGate';
 import ProofReviewList, {
   type KwikAdminOrder,
@@ -73,6 +85,7 @@ type Tab =
   | 'produtos'
   | 'encomendas'
   | 'carteira'
+  | 'disputas'
   | 'admins'
   | 'anuncios'
   | 'monitorizacao'
@@ -129,6 +142,27 @@ interface AdminReport {
   ordersByStatus: { status: string; n: number; volume: number }[];
   monthly: { month: string; orders: number; revenue: number; commission: number }[];
   totals: { revenue: number; commission: number; newUsers30d: number };
+  /* Fase 6 (ponto 8) */
+  usersByMonth?: { month: string; n: number }[];
+  topProducts?: { id: number; name: string; units: number; revenue: number }[];
+  topSellers?: { id: number; name: string; username: string | null; revenue: number; sales: number }[];
+  completion?: { concluidas: number; perdidas: number; total: number; rate: number };
+}
+
+interface DisputeRow {
+  id: number;
+  order_id: number;
+  reason: string;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolution: string | null;
+  total_kz: number;
+  order_status: string;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  seller_name: string | null;
+  resolved_by_name: string | null;
 }
 
 interface DailyCodeRow {
@@ -167,6 +201,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
   { key: 'carteira', label: 'Carteira', icon: Wallet },
+  { key: 'disputas', label: 'Disputas', icon: Gavel },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
   { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
@@ -251,6 +286,12 @@ function AdminPanel() {
   /* ── Relatórios (Fase 5) ── */
   const [report, setReport] = useState<AdminReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+
+  /* ── Disputas (Fase 6, ponto 7) ── */
+  const [disputes, setDisputes] = useState<DisputeRow[]>([]);
+  const [disputesLoading, setDisputesLoading] = useState(false);
+  const [disputeBusyId, setDisputeBusyId] = useState<number | null>(null);
+  const [disputeNote, setDisputeNote] = useState<Record<number, string>>({});
 
   /* ── 2FA setup ── */
   const [qr, setQr] = useState<string | null>(null);
@@ -381,6 +422,55 @@ function AdminPanel() {
     }
   }, [toast]);
 
+  /* ── Disputas (Fase 6, ponto 7) ── */
+  const loadDisputes = useCallback(async () => {
+    setDisputesLoading(true);
+    try {
+      const res = await fetch('/api/admin/disputes', { headers: authHeaders() });
+      const data = (await res.json()) as { disputes?: DisputeRow[]; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      setDisputes(data.disputes ?? []);
+    } finally {
+      setDisputesLoading(false);
+    }
+  }, [toast]);
+
+  /** Resolve uma disputa: a favor do cliente (reembolso) ou do vendedor (libertação). */
+  async function resolveDispute(dispute: DisputeRow, favor: 'cliente' | 'vendedor') {
+    if (disputeBusyId !== null) return;
+    const confirmMsg =
+      favor === 'cliente'
+        ? `Reembolsar ${formatKz(dispute.total_kz)} à carteira de ${dispute.buyer_name ?? 'o cliente'}?`
+        : `Libertar o escrow ao vendedor ${dispute.seller_name ?? ''}?`;
+    if (!window.confirm(confirmMsg)) return;
+    setDisputeBusyId(dispute.id);
+    try {
+      const res = await fetch(`/api/admin/disputes/${dispute.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ favor, note: disputeNote[dispute.id] ?? '' }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível resolver', description: data.error });
+        return;
+      }
+      toast({
+        title: 'Disputa resolvida',
+        description:
+          favor === 'cliente'
+            ? 'Reembolso creditado na carteira do cliente.'
+            : 'Escrow libertado para o vendedor.',
+      });
+      loadDisputes();
+    } finally {
+      setDisputeBusyId(null);
+    }
+  }
+
   useEffect(() => {
     if (tab === 'encomendas') loadOrders();
   }, [tab, loadOrders]);
@@ -393,7 +483,8 @@ function AdminPanel() {
     if (tab === 'anuncios') loadAnnouncements();
     if (tab === 'monitorizacao') loadSuspicious();
     if (tab === 'relatorios') loadReport();
-  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport]);
+    if (tab === 'disputas') loadDisputes();
+  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport, loadDisputes]);
 
   async function sendInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -1422,6 +1513,131 @@ function AdminPanel() {
         </section>
       )}
 
+      {/* ── Disputas (Fase 6, ponto 7) ── */}
+      {tab === 'disputas' && (
+        <section className="mt-6" aria-label="Gestão de disputas">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <Gavel className="h-5 w-5 text-emerald-600" /> Disputas
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadDisputes}
+              className="h-9 border-slate-300 text-slate-600 hover:bg-slate-50"
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Atualizar
+            </Button>
+          </div>
+
+          {disputesLoading && disputes.length === 0 ? (
+            <p className="flex items-center justify-center py-10 text-sm text-slate-400">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar disputas…
+            </p>
+          ) : disputes.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+              Sem disputas registadas — bom sinal! 🎉
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-4">
+              {disputes.map((d) => {
+                const aberta = d.status === 'aberta';
+                return (
+                  <li
+                    key={d.id}
+                    className={`rounded-2xl border bg-white p-5 shadow-sm ${
+                      aberta ? 'border-amber-300' : 'border-slate-200 opacity-90'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          Disputa #{d.id} — Encomenda #{d.order_id}{' '}
+                          <span className="ml-1 font-normal text-slate-400">
+                            ({formatKz(d.total_kz)} · encomenda {d.order_status})
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          Cliente: <strong>{d.buyer_name ?? '—'}</strong> · Vendedor:{' '}
+                          <strong>{d.seller_name ?? '—'}</strong> ·{' '}
+                          {new Date(d.created_at).toLocaleString('pt-PT')}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          aberta
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {d.status === 'aberta'
+                          ? 'ABERTA'
+                          : d.status === 'resolvida_cliente'
+                            ? 'RESOLVIDA — CLIENTE'
+                            : d.status === 'resolvida_vendedor'
+                              ? 'RESOLVIDA — VENDEDOR'
+                              : d.status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                      {d.reason}
+                    </p>
+
+                    {!aberta && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Resolvida por {d.resolved_by_name ?? 'equipa'}
+                        {d.resolution ? ` — «${d.resolution}»` : ''}
+                      </p>
+                    )}
+
+                    {aberta && (
+                      <div className="mt-3 space-y-2">
+                        <Input
+                          value={disputeNote[d.id] ?? ''}
+                          onChange={(e) =>
+                            setDisputeNote((prev) => ({ ...prev, [d.id]: e.target.value }))
+                          }
+                          placeholder="Nota da decisão (visível às partes no email — opcional)"
+                          maxLength={500}
+                          className="h-10"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={() => resolveDispute(d, 'cliente')}
+                            disabled={disputeBusyId === d.id}
+                            className="h-10 bg-rose-500 text-white hover:bg-rose-600"
+                          >
+                            {disputeBusyId === d.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <XCircle className="mr-2 h-4 w-4" />
+                            )}
+                            A favor do cliente (reembolsar {formatKz(d.total_kz)})
+                          </Button>
+                          <Button
+                            onClick={() => resolveDispute(d, 'vendedor')}
+                            disabled={disputeBusyId === d.id}
+                            className="h-10 bg-emerald-500 text-white hover:bg-emerald-600"
+                          >
+                            {disputeBusyId === d.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                            )}
+                            A favor do vendedor (libertar escrow)
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* ── Relatórios (Fase 5) ── */}
       {tab === 'relatorios' && (
         <div className="mt-6 space-y-6">
@@ -1454,6 +1670,110 @@ function AdminPanel() {
                     <span className="text-sm font-semibold text-amber-500">({report.products.hot} em alta)</span>
                   </p>
                 </div>
+                {report.completion && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-slate-400">Taxa de conclusão</p>
+                    <p className="mt-1 text-2xl font-bold text-emerald-600">{report.completion.rate}%</p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {report.completion.concluidas} concluídas · {report.completion.perdidas} perdidas ·{' '}
+                      {report.completion.total} total
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Fase 6 (ponto 8): gráficos Recharts ── */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Receita mensal (Recharts)</h3>
+                  <div className="mt-4 h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={report.monthly.map((m) => ({ ...m, label: `${m.month.slice(5)}/${m.month.slice(2, 4)}` }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} />
+                        <Tooltip
+                          formatter={(value: number | string) => formatKz(Number(value))}
+                          contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                        />
+                        <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} name="Receita (Kz)" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Utilizadores registados por mês</h3>
+                  <div className="mt-4 h-56">
+                    {(report.usersByMonth?.length ?? 0) > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={report.usersByMonth!.map((m) => ({ ...m, label: `${m.month.slice(5)}/${m.month.slice(2, 4)}` }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                          <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+                          <Line type="monotone" dataKey="n" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981' }} name="Registos" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="flex h-full items-center justify-center text-sm text-slate-400">
+                        Ainda sem registos nos últimos 12 meses.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              {/* Top produtos e top vendedores */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Top 5 produtos mais vendidos</h3>
+                  {(report.topProducts?.length ?? 0) === 0 ? (
+                    <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
+                  ) : (
+                    <ol className="mt-3 space-y-2">
+                      {report.topProducts!.map((p, i) => (
+                        <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                          <span className="min-w-0 truncate text-slate-700">
+                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
+                              {i + 1}
+                            </span>
+                            {p.name}
+                          </span>
+                          <span className="shrink-0 text-right text-xs">
+                            <strong className="text-slate-900">{formatKz(p.revenue)}</strong>
+                            <span className="block text-slate-400">{p.units} un.</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Top 5 vendedores por receita</h3>
+                  {(report.topSellers?.length ?? 0) === 0 ? (
+                    <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
+                  ) : (
+                    <ol className="mt-3 space-y-2">
+                      {report.topSellers!.map((s, i) => (
+                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                          <span className="min-w-0 truncate text-slate-700">
+                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
+                              {i + 1}
+                            </span>
+                            {s.name}
+                            {s.username && <span className="ml-1 text-xs text-slate-400">@{s.username}</span>}
+                          </span>
+                          <span className="shrink-0 text-right text-xs">
+                            <strong className="text-slate-900">{formatKz(s.revenue)}</strong>
+                            <span className="block text-slate-400">{s.sales} vendas</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
               </div>
 
               <div className="grid gap-6 lg:grid-cols-2">

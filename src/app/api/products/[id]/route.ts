@@ -33,8 +33,13 @@ async function loadProduct(id: number): Promise<Product | null> {
 /**
  * GET /api/products/[id] — detalhe de um produto (com vendedor, mapa e
  * média de avaliações — página /produtos/[id]).
+ *
+ * 🔒 Privacidade (Fase 6, ponto 3): o público NÃO vê a cota interna
+ * (`stock`), o URL do ficheiro (`file_url`) nem o telefone do vendedor
+ * (contacto é pelo chat). Dono e administradores recebem o produto
+ * completo — os botões Editar/Eliminar só funcionam para o dono.
  */
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   const { id: rawId } = await context.params;
   const id = Number(rawId);
 
@@ -59,7 +64,25 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     if (!rows[0]) {
       return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
     }
-    return NextResponse.json({ product: rows[0] });
+
+    const product = rows[0];
+    const viewer = await getAuthUser(request);
+    const isOwner = !!viewer && product.user_id === viewer.id;
+    const isAdmin = !!viewer && (viewer.role === 'admin' || viewer.role === 'admin_limitado');
+
+    if (isOwner || isAdmin) {
+      return NextResponse.json({ product });
+    }
+
+    // Vista pública: sem cota, sem file_url, sem telefone do vendedor
+    const publicProduct = { ...product } as Record<string, unknown>;
+    const stock = publicProduct.stock;
+    delete publicProduct.stock;
+    delete publicProduct.file_url;
+    delete publicProduct.seller_telefone;
+    return NextResponse.json({
+      product: { ...publicProduct, available: (Number(stock ?? -1)) !== 0 },
+    });
   } catch (error) {
     console.error('[API products/[id]] Erro no GET:', error);
     return NextResponse.json(

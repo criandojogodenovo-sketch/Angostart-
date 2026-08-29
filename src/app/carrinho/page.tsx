@@ -49,10 +49,12 @@ import { useToast } from '@/hooks/use-toast';
 interface PlacedOrder {
   id: number;
   total_kz: number;
-  paymentMethod: 'kwik' | 'whatsapp' | 'carteira';
+  paymentMethod: 'kwik' | 'whatsapp' | 'carteira' | 'momenu';
   reference: string;
   proofAttached: boolean;
   status: string;
+  momenuReference?: string | null;
+  momenuSandbox?: boolean;
 }
 
 type ProofState =
@@ -89,14 +91,26 @@ export default function CarrinhoPage() {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [comprovativo, setComprovativo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'kwik' | 'whatsapp' | 'carteira'>(
-    'kwik'
-  );
+  const [paymentMethod, setPaymentMethod] = useState<
+    'kwik' | 'whatsapp' | 'carteira' | 'momenu'
+  >('kwik');
   const [proof, setProof] = useState<ProofState>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const proofInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  /* ── MoMenu (Fase 6, ponto 9): opção só aparece se MOMENU_API_KEY existir ── */
+  const [momenuEnabled, setMomenuEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/config', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg: { momenuEnabled?: boolean } | null) =>
+        setMomenuEnabled(Boolean(cfg?.momenuEnabled))
+      )
+      .catch(() => setMomenuEnabled(false));
+  }, []);
 
   /* ── Carteira (Fase 4): saldo consultado à API — nunca no bundle ── */
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null);
@@ -270,18 +284,57 @@ export default function CarrinhoPage() {
             ? 'whatsapp'
             : data.order.payment_method === 'carteira'
               ? 'carteira'
-              : 'kwik',
+              : data.order.payment_method === 'momenu'
+                ? 'momenu'
+                : 'kwik',
         reference: data.order.reference ?? buildKwikReference(data.order.id),
         proofAttached: data.order.proof_attached,
         status: data.order.status,
       });
+
+      /* MoMenu (Fase 6): cria a intenção de pagamento automático (se ativo) */
+      let momenuResult: { reference?: string | null; sandbox?: boolean } | null = null;
+      if (data.order.payment_method === 'momenu') {
+        try {
+          const payRes = await fetch('/api/payments/momenu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ order_id: data.order.id }),
+          });
+          const payData = (await payRes.json()) as {
+            ok?: boolean;
+            sandbox?: boolean;
+            payment?: { reference?: string | null };
+          };
+          if (payRes.ok && payData.ok) {
+            momenuResult = {
+              reference: payData.payment?.reference ?? null,
+              sandbox: payData.sandbox,
+            };
+          }
+        } catch {
+          /* pagamento automático opcional — o pedido continua válido */
+        }
+      }
+
+      setPlaced((prev) =>
+        prev
+          ? {
+              ...prev,
+              momenuReference: momenuResult?.reference ?? null,
+              momenuSandbox: momenuResult?.sandbox,
+            }
+          : prev
+      );
       clearCart();
       toast({
         title: 'Encomenda registada!',
         description:
           paymentMethod === 'carteira'
             ? 'Pago com o saldo da carteira — a equipa prepara a entrega.'
-            : `Referência ${buildKwikReference(data.order.id)}.`,
+            : paymentMethod === 'momenu'
+              ? 'Pagamento MoMenu iniciado — confirma no teu telefone.'
+              : `Referência ${buildKwikReference(data.order.id)}.`,
       });
     } catch {
       toast({
@@ -466,6 +519,30 @@ export default function CarrinhoPage() {
               A nossa equipa entra em contacto pelo WhatsApp para combinar a
               entrega e o pagamento.
             </p>
+          )}
+
+          {!isKwik && placed.paymentMethod === 'momenu' && (
+            <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
+                <Smartphone className="h-4 w-4" /> MoMenu — Multicaixa Express
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-sky-900">
+                Foi enviada uma intenção de pagamento de{' '}
+                <strong>{formatKz(placed.total_kz)}</strong> para o teu telefone.
+                Confirma no ecrã do Multicaixa Express introduzindo o teu PIN.
+              </p>
+              {placed.momenuReference && (
+                <p className="mt-2 text-xs font-semibold text-sky-800">
+                  Referência:{' '}
+                  <span className="font-mono">{placed.momenuReference}</span>
+                  {placed.momenuSandbox && (
+                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                      SANDBOX — sem cobrança real
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="mt-8 space-y-3">
@@ -736,11 +813,38 @@ export default function CarrinhoPage() {
                   </span>
                 </label>
 
-                {/* Pagamento automático MoMenu — em breve (Fase 5, estrutura preparada) */}
-                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                  🔒 Pagamento automático (MoMenu) <strong>em breve</strong> — por agora o KWiK
-                  manual é o método principal e mais seguro.
-                </p>
+                {/* MoMenu (Multicaixa Express) — apenas com MOMENU_API_KEY definida (Fase 6) */}
+                {momenuEnabled && user && (
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
+                    <input
+                      type="radio"
+                      name="pagamento"
+                      value="momenu"
+                      checked={paymentMethod === 'momenu'}
+                      onChange={() => setPaymentMethod('momenu')}
+                      className="mt-0.5 h-4 w-4 accent-emerald-600"
+                    />
+                    <span className="text-sm">
+                      <span className="font-semibold text-slate-900">
+                        MoMenu (Multicaixa Express){' '}
+                        <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">
+                          AUTOMÁTICO
+                        </span>
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        Confirma o pagamento no teu telefone com Multicaixa Express.
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                {/* Pagamento automático MoMenu — em breve (Fase 5/6, estrutura preparada) */}
+                {!momenuEnabled && (
+                  <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    🔒 Pagamento automático (MoMenu) <strong>em breve</strong> — por agora o KWiK
+                    manual é o método principal e mais seguro.
+                  </p>
+                )}
 
                 {/* Carteira (Fase 4) — apenas utilizadores autenticados */}
                 {user && (

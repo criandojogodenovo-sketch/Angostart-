@@ -14,7 +14,6 @@ interface PrestadorRow {
   especialidade: string | null;
   bio: string | null;
   portfolio_image: string | null;
-  telefone: string | null;
   produtos: number;
   media_avaliacoes: number | null;
   total_avaliacoes: number;
@@ -30,7 +29,7 @@ interface PrestadorRow {
  *  - ordenar: 'rating' (padrão) | 'nome' | 'recentes'
  *
  * 🔒 Apenas contas de prestadores ativas e não bloqueadas; expõe apenas
- * dados públicos (sem email). O telefone serve para o CTA WhatsApp.
+ * dados públicos (sem email, sem telefone — Fase 6: contacto é pelo chat).
  */
 export async function GET(request: NextRequest) {
   if (!rateLimit(clientKey(request, 'prestadores-get'), 60, 60_000)) {
@@ -69,7 +68,7 @@ export async function GET(request: NextRequest) {
   try {
     const rows = (await sql`
       SELECT u.id, u.name, u.username, u.role, u.cidade, u.especialidade,
-             u.bio, u.portfolio_image, u.telefone,
+             u.bio, u.portfolio_image,
              (SELECT count(*)::int FROM products p WHERE p.user_id = u.id) AS produtos,
              (SELECT AVG(r.rating)::float8 FROM reviews r
                 JOIN products p2 ON p2.id = r.product_id

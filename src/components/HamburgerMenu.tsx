@@ -61,7 +61,7 @@ export default function HamburgerMenu({
       <aside
         id="menu-mobile"
         aria-hidden={!open}
-        className={`fixed right-0 top-0 z-[70] flex h-full w-[82%] max-w-xs flex-col bg-slate-900 text-white shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed right-0 top-0 z-[70] flex h-full w-[86%] max-w-xs flex-col bg-slate-900 text-white shadow-[0_0_50px_rgba(0,0,0,0.55)] ring-1 ring-white/10 transition-transform duration-300 ease-out md:hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -83,7 +83,7 @@ export default function HamburgerMenu({
         </div>
 
         <nav className="flex-1 px-3" aria-label="Navegação móvel">
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {LINKS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
               return (
@@ -91,13 +91,13 @@ export default function HamburgerMenu({
                   <Link
                     href={href}
                     onClick={onClose}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                       active
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'text-slate-100 hover:bg-white/15 hover:text-white'
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-6 w-6" />
                     {label}
                   </Link>
                 </li>
@@ -109,13 +109,13 @@ export default function HamburgerMenu({
                 <Link
                   href="/dashboard/vendedor"
                   onClick={onClose}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                  className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                     pathname.startsWith('/dashboard')
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'text-slate-100 hover:bg-white/15 hover:text-white'
                   }`}
                 >
-                  <BarChart3 className="h-5 w-5" />
+                  <BarChart3 className="h-6 w-6" />
                   Painel de vendas
                 </Link>
               </li>
@@ -126,13 +126,13 @@ export default function HamburgerMenu({
                 <Link
                   href="/adicionar-produto"
                   onClick={onClose}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                  className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                     pathname === '/adicionar-produto'
-                      ? 'bg-amber-500/20 text-amber-400'
+                      ? 'bg-amber-500/20 text-amber-300'
                       : 'bg-amber-500 text-white hover:bg-amber-600'
                   }`}
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-6 w-6" />
                   Adicionar Produto
                 </Link>
               </li>

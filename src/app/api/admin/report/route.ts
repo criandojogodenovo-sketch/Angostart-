@@ -62,6 +62,55 @@ export async function GET(request: NextRequest) {
       WHERE created_at >= now() - interval '30 days'
     `) as unknown as { n: number }[];
 
+    /* ── Fase 6 (ponto 8): relatórios avançados ── */
+
+    // Utilizadores registados por mês (12 meses)
+    const usersByMonth = (await sql`
+      SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+             count(*)::int AS n
+      FROM users
+      WHERE created_at >= date_trunc('month', now()) - interval '11 months'
+      GROUP BY 1 ORDER BY 1
+    `) as unknown as { month: string; n: number }[];
+
+    // Top 5 produtos mais vendidos (unidades e receita, encomendas confirmadas)
+    const topProducts = (await sql`
+      SELECT p.id, p.name,
+             SUM((item->>'quantity')::int)::int AS units,
+             SUM((item->>'price_kz')::numeric * (item->>'quantity')::numeric)::float8 AS revenue
+      FROM orders o,
+           jsonb_array_elements(o.items) AS item
+      JOIN products p ON p.id = (item->>'id')::int
+      WHERE o.status IN ('pago', 'entregue')
+      GROUP BY p.id, p.name
+      ORDER BY revenue DESC
+      LIMIT 5
+    `) as unknown as { id: number; name: string; units: number; revenue: number }[];
+
+    // Top 5 vendedores por receita (parte bruta dos itens confirmados)
+    const topSellers = (await sql`
+      SELECT u.id, u.name, u.username,
+             SUM((item->>'price_kz')::numeric * (item->>'quantity')::numeric)::float8 AS revenue,
+             count(*)::int AS sales
+      FROM orders o,
+           jsonb_array_elements(o.items) AS item
+      JOIN users u ON u.id = (item->>'seller_id')::int
+      WHERE o.status IN ('pago', 'entregue')
+        AND (item->>'seller_id') IS NOT NULL
+      GROUP BY u.id, u.name, u.username
+      ORDER BY revenue DESC
+      LIMIT 5
+    `) as unknown as { id: number; name: string; username: string | null; revenue: number; sales: number }[];
+
+    // Taxa de conclusão: pagas+entregues vs. total (canceladas/rejeitadas/falhadas)
+    const completion = (await sql`
+      SELECT
+        count(*) FILTER (WHERE status IN ('pago', 'entregue'))::int AS concluidas,
+        count(*) FILTER (WHERE status IN ('cancelado', 'rejeitado', 'falhou'))::int AS perdidas,
+        count(*)::int AS total
+      FROM orders
+    `) as unknown as { concluidas: number; perdidas: number; total: number }[];
+
     return NextResponse.json({
       usersByRole,
       products: {
@@ -75,6 +124,21 @@ export async function GET(request: NextRequest) {
         revenue: Number(totals[0]?.revenue ?? 0),
         commission: Number(totals[0]?.commission ?? 0),
         newUsers30d: Number(newUsers30d[0]?.n ?? 0),
+      },
+      // Fase 6 (ponto 8)
+      usersByMonth,
+      topProducts,
+      topSellers,
+      completion: {
+        concluidas: Number(completion[0]?.concluidas ?? 0),
+        perdidas: Number(completion[0]?.perdidas ?? 0),
+        total: Number(completion[0]?.total ?? 0),
+        rate:
+          Number(completion[0]?.total ?? 0) > 0
+            ? Math.round(
+                (Number(completion[0]?.concluidas ?? 0) / Number(completion[0]?.total ?? 1)) * 100
+              )
+            : 0,
       },
     });
   } catch (error) {

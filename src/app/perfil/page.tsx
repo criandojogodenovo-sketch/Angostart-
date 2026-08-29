@@ -42,6 +42,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders } from '@/context/AuthContext';
@@ -596,6 +597,18 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  /* ── Disputas (Fase 6, ponto 7) ── */
+  const [disputes, setDisputes] = useState<{ id: number; order_id: number; status: string; resolution: string | null }[]>([]);
+  const [disputeOrderId, setDisputeOrderId] = useState<number | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/disputes', { headers: authHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { disputes?: typeof disputes } | null) => setDisputes(data?.disputes ?? []))
+      .catch(() => setDisputes([]));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -676,6 +689,38 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
       });
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  /** Abre uma disputa sobre uma encomenda paga (Fase 6, ponto 7). */
+  async function submitDispute(orderId: number) {
+    if (disputeSubmitting) return;
+    setDisputeSubmitting(true);
+    try {
+      const res = await fetch('/api/disputes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ order_id: orderId, reason: disputeReason }),
+      });
+      const data = (await res.json()) as { ok?: boolean; dispute?: { id: number }; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível abrir a disputa', description: data.error });
+        return;
+      }
+      toast({
+        title: 'Disputa aberta ✓',
+        description: 'A equipa AngoStart vai analisar e responder por email.',
+      });
+      setDisputes((prev) => [
+        { id: data.dispute!.id, order_id: orderId, status: 'aberta', resolution: null },
+        ...prev,
+      ]);
+      setDisputeOrderId(null);
+      setDisputeReason('');
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setDisputeSubmitting(false);
     }
   }
 
@@ -799,6 +844,64 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                     <p className="mt-2 border-t border-slate-100 pt-2 text-right text-sm font-bold text-slate-900">
                       Total: {formatKz(order.total_kz)}
                     </p>
+
+                    {/* Disputas (Fase 6, ponto 7) */}
+                    {['pago', 'entregue'].includes(order.status) && (
+                      <div className="mt-2 border-t border-slate-100 pt-2">
+                        {disputes.some((d) => d.order_id === order.id) ? (
+                          <p className="text-[11px] font-semibold text-amber-700">
+                            ⚖️ Disputa {disputes.find((d) => d.order_id === order.id)?.status === 'aberta'
+                              ? 'em análise pela equipa'
+                              : disputes.find((d) => d.order_id === order.id)?.status === 'resolvida_cliente'
+                                ? 'resolvida a teu favor (reembolso na carteira)'
+                                : 'resolvida a favor do vendedor'}
+                          </p>
+                        ) : disputeOrderId === order.id ? (
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <Label htmlFor={`disputa-${order.id}`} className="text-xs font-semibold text-slate-700">
+                              Explica o problema (mín. 15 caracteres)
+                            </Label>
+                            <Textarea
+                              id={`disputa-${order.id}`}
+                              value={disputeReason}
+                              onChange={(e) => setDisputeReason(e.target.value)}
+                              maxLength={2000}
+                              rows={3}
+                              className="mt-1.5 text-sm"
+                              placeholder="Ex.: o produto chegou diferente do anunciado…"
+                            />
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => submitDispute(order.id)}
+                                disabled={disputeSubmitting || disputeReason.trim().length < 15}
+                                className="inline-flex h-8 items-center rounded-lg bg-amber-500 px-3 text-xs font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {disputeSubmitting ? 'A enviar…' : 'Enviar disputa'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDisputeOrderId(null);
+                                  setDisputeReason('');
+                                }}
+                                className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setDisputeOrderId(order.id)}
+                            className="text-[11px] font-semibold text-slate-400 transition-colors hover:text-amber-600"
+                          >
+                            ⚖️ Abrir disputa
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

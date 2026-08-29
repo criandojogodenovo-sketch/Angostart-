@@ -110,7 +110,14 @@ export async function POST(request: NextRequest) {
       : null;
 
   /* ── KWiK / carteira: método de pagamento + comprovativo (opcional) ── */
-  const rawMethod = body.payment_method === 'whatsapp' ? 'whatsapp' : body.payment_method === 'carteira' ? 'carteira' : 'kwik';
+  const rawMethod =
+    body.payment_method === 'whatsapp'
+      ? 'whatsapp'
+      : body.payment_method === 'carteira'
+        ? 'carteira'
+        : body.payment_method === 'momenu'
+          ? 'momenu' // Fase 6 (ponto 9): pagamento automático — validado depois pelo gateway
+          : 'kwik';
   const paymentMethod = rawMethod;
 
   // Pagamento com a carteira exige sessão autenticada — saldo é pessoal.

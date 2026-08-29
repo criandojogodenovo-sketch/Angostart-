@@ -20,7 +20,6 @@ import {
   Package,
   Search,
   SearchX,
-  Send,
   Star,
   Wrench,
 } from 'lucide-react';
@@ -38,7 +37,6 @@ interface Prestador {
   especialidade: string | null;
   bio: string | null;
   portfolio_image: string | null;
-  telefone: string | null;
   produtos: number;
   media_avaliacoes: number | null;
   total_avaliacoes: number;
@@ -222,10 +220,6 @@ export default function PrestadoresPage() {
             </p>
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {prestadores.map((p) => {
-                const waNumber = (p.telefone ?? '').replace(/\D/g, '');
-                const waText = encodeURIComponent(
-                  `Olá ${p.name}! Encontrei o teu perfil na AngoStart e quero pedir um orçamento.`
-                );
                 return (
                   <li
                     key={p.id}
@@ -293,7 +287,7 @@ export default function PrestadoresPage() {
                       </p>
                     )}
 
-                    {/* Ações */}
+                    {/* Ações — 🔒 Fase 6 (ponto 2): contacto apenas dentro da plataforma */}
                     <div className="mt-auto flex gap-2 p-5 pt-4">
                       <Button
                         asChild
@@ -303,22 +297,6 @@ export default function PrestadoresPage() {
                           Ver portfólio
                         </Link>
                       </Button>
-                      {waNumber.length >= 9 && (
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="h-10 border-[#25D366] px-3 text-[#1da851] hover:bg-[#25D366]/10"
-                          aria-label={`Contactar ${p.name} via WhatsApp`}
-                        >
-                          <a
-                            href={`https://wa.me/${waNumber}?text=${waText}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Send className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
                     </div>
                   </li>
                 );

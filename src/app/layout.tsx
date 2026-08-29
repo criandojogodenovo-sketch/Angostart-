@@ -7,6 +7,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import BottomNav from "@/components/BottomNav";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -44,6 +46,7 @@ export const viewport: Viewport = {
   themeColor: "#0F172A",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -54,7 +57,7 @@ export default function RootLayout({
   return (
     <html lang="pt-AO" suppressHydrationWarning>
       <body
-        className={`${poppins.variable} flex min-h-screen flex-col antialiased bg-background text-foreground`}
+        className={`${poppins.variable} flex min-h-screen flex-col antialiased bg-background text-foreground pb-[68px] md:pb-0`}
       >
         <AuthProvider>
           <StoreProvider>
@@ -62,6 +65,10 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
             <WhatsAppButton />
+            {/* Barra de navegação mobile (Fase 6, ponto 4) */}
+            <BottomNav />
+            {/* PWA (Fase 6, ponto 10) */}
+            <ServiceWorkerRegister />
           </StoreProvider>
         </AuthProvider>
         <Toaster />

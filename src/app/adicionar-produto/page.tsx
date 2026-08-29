@@ -10,7 +10,7 @@
  * - ?edit=<id> carrega o produto para edição (PUT em vez de POST).
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -115,11 +115,14 @@ function AdicionarProdutoContent() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
 
-  /* ── Fase 5: PDF de infoproduto + KYC opcional ── */
+  /* ── Fase 5: PDF de infoproduto + KYC ── */
+  /* Fase 6 (ponto 12): BI é OBRIGATÓRIO para publicar; NIF opcional. */
   const [pdfUploading, setPdfUploading] = useState(false);
   const [kycBi, setKycBi] = useState('');
   const [kycNif, setKycNif] = useState('');
   const [kycSaving, setKycSaving] = useState(false);
+  const [kycOpen, setKycOpen] = useState(false);
+  const kycRef = useRef<HTMLDetailsElement>(null);
 
   // Carrega o produto em modo de edição
   const loadProduct = useCallback(async () => {
@@ -320,8 +323,15 @@ function AdicionarProdutoContent() {
           body: JSON.stringify(payload),
         }
       );
-      const data = (await res.json()) as { product?: Product; error?: string };
-      if (!res.ok) throw new Error(data.error || 'Não foi possível guardar.');
+      const data = (await res.json()) as { product?: Product; error?: string; code?: string };
+      if (!res.ok) {
+        // 🔒 KYC (Fase 6, ponto 12): sem BI confirmado, abre o cartão de verificação
+        if (data.code === 'KYC_REQUIRED') {
+          setKycOpen(true);
+          kycRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        throw new Error(data.error || 'Não foi possível guardar.');
+      }
 
       toast({
         title: editId ? 'Alterações guardadas!' : 'Produto publicado!',
@@ -545,21 +555,28 @@ function AdicionarProdutoContent() {
               </div>
             )}
 
-            {/* Verificação de identidade opcional (Fase 5 — KYC simples) */}
-            <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            {/* Verificação de identidade — BI obrigatório para publicar (Fase 6) */}
+            <details
+              ref={kycRef}
+              open={kycOpen}
+              onToggle={(e) => setKycOpen(e.currentTarget.open)}
+              className="rounded-2xl border border-amber-300 bg-amber-50 p-4"
+            >
               <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                 <BadgeCheck className="mr-1.5 inline h-4 w-4 text-emerald-600" />
-                Verificação de identidade (opcional — aumenta a confiança dos clientes)
+                Verificação de identidade — BI obrigatório para publicar
               </summary>
               <p className="mt-2 text-xs text-slate-500">
-                Guardamos apenas o número do documento — nunca a imagem. Vendedores verificados
-                recebem mais compras. Podes preencher agora ou depois, no teu perfil.
+                Guardamos apenas o número do documento — nunca a imagem. Sem o
+                BI confirmado não é possível publicar produtos; o NIF é
+                opcional e aumenta a confiança dos clientes.
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="kyc-bi">Nº do BI</Label>
+                  <Label htmlFor="kyc-bi">Nº do BI (obrigatório)</Label>
                   <Input
                     id="kyc-bi"
+                    required
                     value={kycBi}
                     onChange={(e) => setKycBi(e.target.value.toUpperCase())}
                     placeholder="Ex.: 004587896LA038"
@@ -567,7 +584,7 @@ function AdicionarProdutoContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="kyc-nif">NIF</Label>
+                  <Label htmlFor="kyc-nif">NIF (opcional)</Label>
                   <Input
                     id="kyc-nif"
                     value={kycNif}
