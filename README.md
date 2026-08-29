@@ -1,8 +1,8 @@
 # 🚀 AngoStart — Marketplace Empresarial Angolano
 
-**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamentos Multicaixa Express, mapas escuros e duplo painel de administração com 2FA.**
+**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência instantânea manual), mapas escuros e duplo painel de administração com 2FA.**
 
-> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **PayPay AO** · **otplib (TOTP 2FA)**
+> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **KWiK manual** · **otplib (TOTP 2FA)**
 
 ---
 
@@ -12,7 +12,7 @@
 2. [Arquitetura de segurança](#-arquitetura-de-segurança)
 3. [Perfis de utilizador](#-perfis-de-utilizador)
 4. [Rotas ocultas de administração](#-rotas-ocultas-de-administração)
-5. [Pagamentos Multicaixa Express](#-pagamentos-multicaixa-express)
+5. [Pagamento KWiK (manual)](#-pagamento-kwik-manual)
 6. [Mapa de serviços ao domicílio](#-mapa-de-serviços-ao-domicílio)
 7. [Notificações por email (Resend)](#-notificações-por-email-resend)
 8. [Referência da API](#-referência-da-api)
@@ -39,7 +39,7 @@
 | 🗺️ Mapa | Leaflet + tiles **Esri Dark Gray** (tema escuro, sem API key), geolocalização, marcador do prestador e escolha do ponto de serviço |
 | 📊 Painel de vendas | Cartões de métricas, receita por mês (BarChart), produtos mais vendidos (PieChart), encomendas recebidas — **Recharts** |
 | 📧 Emails | Resend — confirmação ao cliente + aviso aos vendedores em cada encomenda; alertas de pagamento |
-| 💳 Pagamentos | **Multicaixa Express** via `paypay-ao-sdk` (webhook com verificação HMAC timing-safe; modo sandbox sem chaves) |
+| 💳 Pagamentos | **KWiK (Kwanza Instantâneo)** — transferência manual para `+244 958 176 915`, upload de comprovativo (foto/PDF) validado e **aprovação no painel admin** |
 | ⭐ Avaliações | 1–5 estrelas + comentário, **apenas após compra confirmada** (`pago`/`entregue`), média recalculada no produto |
 | 👤 Portfólio | Página pública `/portfolio/[username]` com bio, galeria de trabalhos, produtos e CTA WhatsApp + editor em `/dashboard/vendedor/portfolio` |
 | 🔐 Admin | Dois painéis ocultos com **login + 2FA TOTP obrigatório**: `/admin` (total) e `/admin-limitado` (só validação de comprovativos) |
@@ -55,8 +55,8 @@ src/lib/db.ts         → import 'server-only' (DATABASE_URL nunca no cliente)
 src/lib/auth.ts       → import 'server-only' (JWT_SECRET, bcrypt, roles BD)
 src/lib/security.ts   → import 'server-only' (sanitização, rate limit, guards)
 src/lib/email.ts      → import 'server-only' (RESEND_API_KEY)
-src/lib/paypay.ts     → import 'server-only' (chaves RSA PayPay)
 src/lib/admin-session.ts → import 'server-only' (assinatura do cookie 2FA)
+src/lib/kwik.ts       → partilhado client-safe (constantes KWiK, SEM segredos)
 ```
 O pacote [`server-only`](https://www.npmjs.com/package/server-only) **quebra o build** se qualquer Client Component tentar importar estes módulos — segredos nunca chegam ao bundle.
 
@@ -69,8 +69,9 @@ O pacote [`server-only`](https://www.npmjs.com/package/server-only) **quebra o b
 | XSS de URLs | `isSafeHttpUrl` rejeita `javascript:` / `data:` / credenciais no URL |
 | SQL Injection | 100% queries parametrizadas (tagged templates do driver Neon) |
 | Preços falsos | Encomendas recalculam nome/preço/vendedor **na base de dados**; o corpo do cliente só envia `id` + `quantity` |
-| Força-bruta | Rate limiting por IP: login 10/5min, 2FA 8/5min, registo 10/min, pagamentos 6/min, encomendas 10/min |
-| Webhook falso | HMAC-SHA256 timing-safe (`crypto.timingSafeEqual`); sem segredo configurado, apenas transações de SIMULAÇÃO podem ser atualizadas |
+| Força-bruta | Rate limiting por IP: login 10/5min, 2FA 8/5min, registo 10/min, upload de comprovativo 6/min, encomendas 10/min |
+| Upload malicioso | Comprovativo KWiK validado em 4 camadas: MIME whitelist (JPG/PNG/WebP/PDF), 2 MB máx., **magic bytes** verificados no servidor, nome sanitizado |
+| Comprovativo exposto | Guardado como base64 na BD; servido APENAS via `/api/admin/orders/[id]/proof` com **Bearer/cookie 2FA** — nunca num URL público (`no-store`, `nosniff`) |
 | Contas comprometidas | Bloqueio por admin → `getAuthUser` rejeita contas `blocked` imediatamente |
 | Clickjacking / sniffing | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, CSP `frame-ancestors 'none'`, `Permissions-Policy`, `Referrer-Policy` |
 | Fingerprinting | `poweredByHeader: false` |
@@ -124,23 +125,49 @@ Depois: abrir `/admin` → entrar → o gate mostra o QR → ler na app autentic
 
 ---
 
-## 💳 Pagamentos Multicaixa Express
+## 💳 Pagamento KWiK (manual)
+
+O **KWiK (Kwanza Instantâneo)** é uma transferência instantânea manual:
+sem gateway externo, sem chaves de API e sem webhooks — o cliente transfere
+para o número KWiK da AngoStart e a equipa valida o comprovativo no painel.
 
 ```
-Cliente (carrinho)                Servidor                      PayPay
-──────────────────                ────────                      ──────
-POST /api/orders  ──────────────► encomenda 'pendente'
-POST /api/payments ─────────────► valida telefone (2449XXXXXXXX)
-                                  createMulticaixaPayment() ───► push Multicaixa
-cliente confirma com PIN ◄───────────────────────────────────── pagamento
-POST /api/payments/webhook ◄─────────────────────────────────── callback
-  (HMAC x-paypay-signature)      → payments.status = pago
-                                 → orders.status = pago
-                                 → email vendedor + admin
+Cliente (carrinho)                 Servidor                        Admin
+──────────────────                 ────────                        ─────
+POST /api/orders ────────────────► encomenda criada
+  payment_method: 'kwik'           status: 'pendente' (sem comprovativo)
+  payment_proof (opcional)                 │ com comprovativo:
+  (data URL base64)                        ▼ 'aguardando_validacao'
+
+Instruções no ecrã de confirmação:
+  • Número KWiK: +244 958 176 915   (copiar)
+  • Valor exato: formatKz(total)    (copiar)
+  • Referência:  AngoStart-ORD-00042 (copiar — indicar na transferência)
+
+POST /api/orders/[id]/proof ─────► valida (MIME + 2MB + magic bytes)
+                                   status = 'aguardando_validacao'
+                                   comprovativo guardado (base64 BD)
+
+GET /api/admin/orders/[id]/proof ◄─ admin vê imagem/PDF (blob autenticado)
+PATCH /api/admin/orders/[id] ────► Aprovar → status 'pago' + email cliente
+                                   Rejeitar → status 'rejeitado' + email
+                                   + admin_note + validated_at/by (auditoria)
 ```
 
-- **Produção**: definir `PAYPAY_PARTNER_ID` + `PAYPAY_PRIVATE_KEY` (RSA PEM) → o SDK `paypay-ao-sdk` assina e envia ao gateway real.
-- **Sandbox (sem chaves)**: o pedido é registado localmente com `simulated: true` e referência `ASSIM-<orderId>-<hex>`; o webhook só aceita estados para transações simuladas (`trade_status: "SIMULATED"`). Nenhum dinheiro é movimentado.
+### Estados de uma encomenda KWiK
+| Estado | Significado |
+|---|---|
+| `pendente` | encomenda registada, comprovativo ainda não anexado |
+| `aguardando_validacao` | comprovativo recebido, à espera de um admin |
+| `pago` | comprovativo **aprovado** no painel — entrega preparada |
+| `rejeitado` | comprovativo recusado — cliente contactado |
+| `entregue` | pedido entregue |
+
+### Fluxo no carrinho
+1. Cliente escolhe **KWiK (Transferência Instantânea)** (recomendado) ou **Combinar pelo WhatsApp** (método manual existente).
+2. Pode anexar o comprovativo já no carrinho ou depois, no ecrã de confirmação (onde a referência já é visível).
+3. Encomendas de convidado validam o telefone no re-upload (últimos 9 dígitos têm de coincidir).
+4. Ambos os painéis (`/admin` e `/admin-limitado`) têm a secção **Comprovativos KWiK** com filtros por estado, visualizador (imagem/PDF + download) e campo de observações internas.
 
 ---
 
@@ -158,8 +185,7 @@ POST /api/payments/webhook ◄────────────────�
 
 | Evento | Emails |
 |---|---|
-| Encomenda criada | cliente (confirmação com itens/total) + vendedores envolvidos (novo pedido) |
-| Webhook de pagamento | vendedor(es) + `ADMIN_EMAIL` (pago/falhou) |
+| Encomenda criada | cliente (confirmação + **instruções KWiK** com número/valor/referência) + vendedores envolvidos (novo pedido) |
 | Validação de comprovativo | cliente (aprovado/rejeitado) |
 
 Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunca falha por causa do email**. Em produção usar um domínio verificado na variável `EMAIL_FROM`.
@@ -188,11 +214,9 @@ Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunc
 ### Encomendas, pagamentos e avaliações
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| POST | `/api/orders` | opcional | cria encomenda (preços validados na BD, itens com `seller_id`, `comprovativo_url` opcional) |
+| POST | `/api/orders` | opcional | cria encomenda (preços validados na BD; `payment_method: kwik\|whatsapp`; `payment_proof` data URL opcional) |
 | GET | `/api/orders?mine=1` | cliente | histórico próprio · **sem `mine` → só admins** |
-| POST | `/api/payments` | sessão | inicia Multicaixa Express `{order_id, phone}` |
-| GET | `/api/payments?order_id` | sessão | estado do pagamento |
-| POST | `/api/payments/webhook` | HMAC | callback PayPay (produção) / SIMULATED (sandbox) |
+| POST | `/api/orders/[id]/proof` | dono ou convidado+telefone | anexa comprovativo KWiK → `aguardando_validacao` |
 | POST | `/api/reviews` | sessão | avaliação (1–5) **só com compra `pago`/`entregue`** |
 | GET | `/api/reviews?product_id` | — | lista + média |
 
@@ -210,8 +234,9 @@ Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunc
 |---|---|---|---|
 | GET | `/api/admin/users` | admin | lista utilizadores |
 | PATCH | `/api/admin/users/[id]` | admin | `{blocked: true/false}` (não pode bloquear-se) |
-| GET | `/api/admin/orders?status=` | admin, admin_limitado | encomendas (pendente por omissão) |
-| PATCH | `/api/admin/orders/[id]` | admin, admin_limitado | `{status: pago|entregue|rejeitado|falhou}` |
+| GET | `/api/admin/orders?status=` | admin, admin_limitado | fila de validação (`aguardando_validacao` por omissão; sem base64 do comprovativo) |
+| GET | `/api/admin/orders/[id]/proof` | admin, admin_limitado | comprovativo em binário (imagem/PDF, `no-store`) |
+| PATCH | `/api/admin/orders/[id]` | admin, admin_limitado | `{status: pago\|entregue\|rejeitado\|falhou, admin_note?}` + auditoria |
 | POST | `/api/admin/limited` | admin | cria conta `admin_limitado` |
 
 ---
@@ -226,18 +251,24 @@ users     id, name, email, password_hash, phone, telefone, role※, username※U
 products  id, name, description, price_kz, type, icon, gradient, image_url,
           user_id→users, featured, rating, stock, service_lat※, service_lng※, created_at
 orders    id, customer_name, customer_phone, customer_email, items(jsonb: seller_id),
-          total_kz, status(pendente|pago|entregue|rejeitado|falhou), delivery_type,
-          notes, user_id→users, comprovativo_url※, created_at
+          total_kz, status(pendente|aguardando_validacao|pago|entregue|rejeitado|falhou),
+          delivery_type, notes, user_id→users, comprovativo_url,
+          payment_method(kwik|whatsapp)※, payment_proof※(base64),
+          payment_proof_name※, payment_proof_type※, admin_note※,
+          validated_at※, validated_by→users※, created_at
 reviews※  id, user_id→users, product_id→products, rating 1-5, comment,
           UNIQUE(user_id, product_id), created_at
-payments※ id, order_id→orders, user_id, amount_kz, phone, method,
-          out_trade_no UNIQUE, paypay_trade_no, status(pendente|pago|falhou|expirado),
-          simulated, raw_response(jsonb), created_at, updated_at
 portfolio_items※ id, user_id→users, title, description, image_url, position, created_at
 ```
-※ = adicionado na Fase 3 · `role CHECK (cliente, criador, prestador_domicilio, prestador_remoto, admin, admin_limitado)` · FKs com `ON DELETE CASCADE` nas tabelas novas.
+※ = colunas da Fase 3/KWiK · `role CHECK (cliente, criador, prestador_domicilio, prestador_remoto, admin, admin_limitado)` · FKs com `ON DELETE CASCADE`.
 
-Migração: `env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js`
+Migrações:
+```bash
+# Fase 3 (roles/2FA/portfolio/mapa)
+env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js
+# KWiK (pagamento manual; remove a tabela do gateway antigo)
+DATABASE_URL='postgres://…' node scripts/migrate-kwik.js
+```
 
 ---
 
@@ -256,11 +287,10 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 |---|---|
 | `RESEND_API_KEY` | envio real de emails (sem ela: modo log) |
 | `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
-| `PAYPAY_PARTNER_ID` + `PAYPAY_PRIVATE_KEY` | Multicaixa real (sem elas: sandbox simulado) |
-| `PAYPAY_PUBLIC_KEY` | verificação de respostas do gateway |
-| `PAYPAY_WEBHOOK_SECRET` | assinatura HMAC do webhook |
-| `ADMIN_EMAIL` | alertas de pagamento ao administrador |
+| `ADMIN_EMAIL` | (reservado para futuros alertas ao administrador) |
 | `NEXT_PUBLIC_APP_URL` | URL público (links em emails) |
+
+> 💡 **Pagamentos não exigem variáveis**: o KWiK é uma transferência manual para o número da empresa — sem gateway, sem chaves RSA, sem webhooks.
 
 > 🔒 **Nunca** commits de `.env.local` (já no `.gitignore`). Na Vercel, definir todas em *Settings → Environment Variables*.
 
@@ -282,10 +312,13 @@ bash scripts/security-tests.sh https://angostart.vercel.app
 | 3 | SQL Injection (`' OR 1=1`, `UNION SELECT`, `DROP TABLE`) | ✔ 401/200 sem efeito |
 | 4 | Acesso não autorizado (admin/dashboard/orders sem token; cliente a publicar; avaliar sem compra) | ✔ 401/403 |
 | 5 | Price tampering (preço 1 Kz no corpo) | ✔ recalculado para 5 000 Kz na BD |
-| 6 | Webhook sem assinatura | ✔ 401 |
+| 6 | Comprovativo falso (PDF inválido disfarçado) | ✔ 400 (magic bytes) |
 | 7 | Força-bruta no login (12 tentativas) | ✔ 429 |
 | 8 | `/admin` e `/admin-limitado` sem 2FA | ✔ redirect ao gate |
 | 9 | `image_url: javascript:` | ✔ 400 |
+| 10 | Re-upload de comprovativo de convidado com telefone errado | ✔ 403 |
+
+Testes E2E KWiK (`bash scripts/test-kwik.sh`, servidor standalone): pedido com comprovativo → `aguardando_validacao`; referência `AngoStart-ORD-XXXXX` gerada; guards 401/403/400; sanitização XSS; limpeza automática dos dados de teste.
 
 Auditoria estática: `npx next-secure-check scan .` + `npx next-secret-guard scan` + `npm audit --omit=dev` — metodologia e triagem em [SECURITY.md](SECURITY.md).
 
@@ -315,4 +348,5 @@ npm run build        # produção (38 rotas)
 |---|---|---|
 | 1 | `76afdbf` | Site completo + Neon + carrinho + WhatsApp |
 | 2 | `ee63d43` | Auth multi-perfil JWT, publicação de produtos, WhatsApp 244958176915 |
-| 3 | *atual* | Security hardening, maps, payments, admin panels |
+| 3 | `2cd78b0` | Security hardening, maps, payments, admin panels |
+| 4 | *atual* | **Remove o gateway anterior, implementa pagamento KWiK manual** (comprovativo + validação admin) |

@@ -1,13 +1,14 @@
 /**
- * AngoStart — Migração Fase 3 (security hardening, maps, payments, admin)
+ * AngoStart — Migração Fase 3 (security hardening, maps, admin)
  *
  * - role CHECK passa a incluir 'admin' e 'admin_limitado'
  * - users: + username (único), portfolio_bio, portfolio_image, blocked,
  *          two_factor_secret, two_factor_enabled
  * - products: + service_lat, service_lng (mapa de serviços ao domicílio)
  * - orders: + comprovativo_url (validação de comprovativos no admin)
- * - Novas tabelas: reviews, payments, portfolio_items
- * - Limpeza: produtos de exemplo e dados fictícios removidos
+ * - Novas tabelas: reviews, portfolio_items
+ * - ⚠️ Pagamentos: a tabela do antigo gateway foi removida na migração
+ *   KWiK (scripts/migrate-kwik.js) — pagamentos são agora manuais.
  *
  * Executar:  env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js
  */
@@ -84,27 +85,9 @@ async function main() {
   await sql`CREATE INDEX IF NOT EXISTS reviews_product_idx ON reviews (product_id)`;
   console.log('✓ tabela reviews criada');
 
-  /* 7. Tabela payments (Multicaixa Express / PayPay) */
-  await sql`
-    CREATE TABLE IF NOT EXISTS payments (
-      id SERIAL PRIMARY KEY,
-      order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      amount_kz NUMERIC(12,2) NOT NULL CHECK (amount_kz > 0),
-      phone TEXT NOT NULL,
-      method TEXT NOT NULL DEFAULT 'multicaixa_express',
-      out_trade_no TEXT NOT NULL UNIQUE,
-      paypay_trade_no TEXT,
-      status TEXT NOT NULL DEFAULT 'pendente'
-        CHECK (status IN ('pendente', 'pago', 'falhou', 'expirado')),
-      simulated BOOLEAN NOT NULL DEFAULT FALSE,
-      raw_response JSONB,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS payments_order_idx ON payments (order_id)`;
-  console.log('✓ tabela payments criada');
+  /* 7. Tabela do antigo gateway removida — ver scripts/migrate-kwik.js */
+  await sql`DROP TABLE IF EXISTS payments`;
+  console.log('✓ tabela do antigo gateway removida (pagamentos são manuais: KWiK)');
 
   /* 8. Tabela portfolio_items (trabalhos do portfólio público) */
   await sql`
@@ -122,7 +105,6 @@ async function main() {
   console.log('✓ tabela portfolio_items criada');
 
   /* 9. Limpeza de dados de exemplo/fictícios (preserva utilizadores reais) */
-  await sql`DELETE FROM payments`;
   await sql`DELETE FROM reviews`;
   await sql`DELETE FROM portfolio_items`;
   await sql`DELETE FROM orders`;

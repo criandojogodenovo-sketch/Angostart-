@@ -3,16 +3,20 @@
 /**
  * AngoStart — Carrinho de compras.
  * Adicionar/remover produtos, ajustar quantidades, total em Kz e
- * finalização do pedido (registado no Neon + confirmação no WhatsApp).
+ * finalização do pedido com pagamento KWiK (transferência instantânea
+ * manual) + upload de comprovativo, validado no painel admin.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
   BadgeCheck,
   CheckCircle2,
+  Copy,
   CreditCard,
+  FileText,
+  Hourglass,
   Loader2,
   Minus,
   PackageOpen,
@@ -21,6 +25,7 @@ import {
   ShoppingBag,
   Smartphone,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
 import { Button } from '@/components/ui/button';
@@ -29,21 +34,48 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '@/context/StoreContext';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
+import {
+  KWIK_PAYEE_NUMBER,
+  KWIK_PAYEE_DIGITS,
+  KWIK_PROOF_MAX_BYTES,
+  KWIK_PROOF_MIME_TYPES,
+  buildKwikReference,
+  buildKwikTransferNote,
+} from '@/lib/kwik';
 import { useToast } from '@/hooks/use-toast';
 
 interface PlacedOrder {
   id: number;
   total_kz: number;
-  whatsappUrl: string;
-  payment?: {
-    reference: string;
-    status: string;
-    simulated: boolean;
-    message: string;
-  } | null;
+  paymentMethod: 'kwik' | 'whatsapp';
+  reference: string;
+  proofAttached: boolean;
+  status: string;
 }
 
+type ProofState =
+  | { kind: 'none' }
+  | { kind: 'selected'; file: File; dataUrl: string }
+  | { kind: 'uploading' }
+  | { kind: 'sent' }
+  | { kind: 'error'; message: string };
+
 const WHATSAPP_NUMBER = '244958176915';
+
+/** URL do WhatsApp para confirmação manual do pagamento. */
+function placedWhatsAppUrl(message: string): string {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+}
+
+/** Lê um ficheiro como data URL (data:<mime>;base64,<dados>). */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function CarrinhoPage() {
   const { items, count, totalKz, isReady, setQuantity, removeItem, clearCart } =
@@ -55,9 +87,11 @@ export default function CarrinhoPage() {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [comprovativo, setComprovativo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'whatsapp' | 'multicaixa'>('whatsapp');
+  const [paymentMethod, setPaymentMethod] = useState<'kwik' | 'whatsapp'>('kwik');
+  const [proof, setProof] = useState<ProofState>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+  const proofInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
   // Pré-preenche com os dados da conta autenticada (perfil multi-perfil)
@@ -84,9 +118,45 @@ export default function CarrinhoPage() {
     );
   }, [items, totalKz]);
 
+  /** Validação local (o servidor volta a validar tudo — defesa em profundidade). */
+  function selectProofFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setProof({ kind: 'none' });
+      return;
+    }
+    if (file.size > KWIK_PROOF_MAX_BYTES) {
+      toast({
+        title: 'Ficheiro demasiado grande',
+        description: 'O comprovativo deve ter no máximo 2 MB.',
+      });
+      event.target.value = '';
+      setProof({ kind: 'none' });
+      return;
+    }
+    if (
+      file.type &&
+      !(KWIK_PROOF_MIME_TYPES as readonly string[]).includes(file.type)
+    ) {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Usa uma foto (JPG, PNG ou WebP) ou um PDF.',
+      });
+      event.target.value = '';
+      setProof({ kind: 'none' });
+      return;
+    }
+    setProof({ kind: 'selected', file, dataUrl: '' });
+    // Lê em segundo plano; o data URL é gerado no submit
+    readFileAsDataUrl(file)
+      .then((dataUrl) => setProof({ kind: 'selected', file, dataUrl }))
+      .catch(() => setProof({ kind: 'none' }));
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (items.length === 0) return;
+    if (proof.kind === 'uploading') return;
 
     setSubmitting(true);
     try {
@@ -99,7 +169,18 @@ export default function CarrinhoPage() {
           customer_email: email || undefined,
           delivery_type: 'entrega',
           notes: notes || undefined,
-          comprovativo_url: comprovativo || undefined,
+          payment_method: paymentMethod,
+          comprovativo_url:
+            paymentMethod === 'whatsapp' ? comprovativo || undefined : undefined,
+          // KWiK: comprovativo (opcional — pode anexar depois na confirmação)
+          payment_proof:
+            paymentMethod === 'kwik' && proof.kind === 'selected' && proof.dataUrl
+              ? proof.dataUrl
+              : undefined,
+          payment_proof_name:
+            paymentMethod === 'kwik' && proof.kind === 'selected'
+              ? proof.file.name
+              : undefined,
           items: items.map((i) => ({
             id: i.product.id,
             quantity: i.quantity,
@@ -109,7 +190,14 @@ export default function CarrinhoPage() {
 
       const data = (await res.json()) as {
         ok?: boolean;
-        order?: { id: number; total_kz: number };
+        order?: {
+          id: number;
+          total_kz: number;
+          status: string;
+          payment_method: string;
+          reference: string;
+          proof_attached: boolean;
+        };
         error?: string;
       };
 
@@ -121,56 +209,19 @@ export default function CarrinhoPage() {
         return;
       }
 
-      /* Multicaixa Express — inicia o pagamento na API PayPay (server-side) */
-      let payment: PlacedOrder['payment'] = null;
-      if (paymentMethod === 'multicaixa') {
-        try {
-          const payRes = await fetch('/api/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeaders() },
-            body: JSON.stringify({ order_id: data.order.id, phone }),
-          });
-          const payData = (await payRes.json()) as {
-            ok?: boolean;
-            payment?: {
-              reference: string;
-              status: string;
-              simulated: boolean;
-              message: string;
-            };
-            error?: string;
-          };
-          if (payRes.ok && payData.ok && payData.payment) {
-            payment = {
-              reference: payData.payment.reference,
-              status: payData.payment.status,
-              simulated: payData.payment.simulated,
-              message: payData.payment.message,
-            };
-          } else {
-            toast({
-              title: 'Pagamento Multicaixa não iniciado',
-              description: payData.error ?? 'Confirma pelo WhatsApp; a encomenda ficou registada.',
-            });
-          }
-        } catch {
-          toast({
-            title: 'Pagamento não iniciado',
-            description: 'A encomenda ficou registada — confirma pelo WhatsApp.',
-          });
-        }
-      }
-
       setPlaced({
         id: data.order.id,
         total_kz: data.order.total_kz,
-        whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`,
-        payment,
+        paymentMethod:
+          data.order.payment_method === 'whatsapp' ? 'whatsapp' : 'kwik',
+        reference: data.order.reference ?? buildKwikReference(data.order.id),
+        proofAttached: data.order.proof_attached,
+        status: data.order.status,
       });
       clearCart();
       toast({
         title: 'Encomenda registada!',
-        description: `Pedido n.º ${data.order.id} guardado na base de dados.`,
+        description: `Referência ${buildKwikReference(data.order.id)}.`,
       });
     } catch {
       toast({
@@ -183,8 +234,47 @@ export default function CarrinhoPage() {
     }
   }
 
+  /** Upload do comprovativo DEPOIS de criar a encomenda (com referência visível). */
+  async function uploadProofLate() {
+    if (!placed || proof.kind !== 'selected' || !proof.dataUrl) return;
+    setProof({ kind: 'uploading' });
+    try {
+      const res = await fetch(`/api/orders/${placed.id}/proof`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          payment_proof: proof.dataUrl,
+          payment_proof_name: proof.file.name,
+          phone, // usado para validar encomendas de convidado
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setProof({ kind: 'error', message: data.error ?? 'Tenta novamente.' });
+        return;
+      }
+      setProof({ kind: 'sent' });
+      setPlaced({ ...placed, proofAttached: true, status: 'aguardando_validacao' });
+      toast({
+        title: 'Comprovativo enviado!',
+        description: 'A equipa vai validar e entramos em contacto.',
+      });
+    } catch {
+      setProof({ kind: 'error', message: 'Sem resposta do servidor.' });
+    }
+  }
+
+  function copyText(value: string, label: string) {
+    navigator.clipboard
+      ?.writeText(value)
+      .then(() => toast({ title: `${label} copiado`, description: value }))
+      .catch(() => undefined);
+  }
+
   /* ─────────── Encomenda concluída ─────────── */
   if (placed) {
+    const isKwik = placed.paymentMethod === 'kwik';
+    const transferNote = buildKwikTransferNote(placed.id, name || 'Cliente');
     return (
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
         <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
@@ -195,40 +285,120 @@ export default function CarrinhoPage() {
             Encomenda confirmada!
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Pedido <strong>n.º {placed.id}</strong> registado na base de dados
-            com um total de{' '}
+            Pedido <strong>n.º {placed.id}</strong> registado com um total de{' '}
             <strong className="text-emerald-600">{formatKz(placed.total_kz)}</strong>.
           </p>
 
-          {/* Pagamento Multicaixa Express */}
-          {placed.payment && (
-            <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left">
-              <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
-                <Smartphone className="h-4 w-4" /> Multicaixa Express
+          {/* Instruções KWiK — pagamento manual */}
+          {isKwik && (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+                <Smartphone className="h-4 w-4" /> Pagamento KWiK — Transferência
+                Instantânea
               </p>
-              <p className="mt-1.5 text-xs text-sky-800">{placed.payment.message}</p>
-              <p className="mt-2 rounded-lg bg-white px-3 py-2 font-mono text-xs text-sky-900">
-                Referência: <strong>{placed.payment.reference}</strong>
-              </p>
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-sky-700">
-                <BadgeCheck className="h-3.5 w-3.5" />
-                {placed.payment.simulated
-                  ? 'Modo sandbox — adiciona as chaves PayPay na Vercel para cobranças reais.'
-                  : 'Aceita a notificação na app Multicaixa e introduz o teu PIN.'}
+              <ol className="mt-3 space-y-2 text-sm text-emerald-900">
+                <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                  <span>
+                    1. Transfere <strong>{formatKz(placed.total_kz)}</strong> para
+                  </span>
+                </li>
+                <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                  <span className="font-mono text-base font-bold text-emerald-700">
+                    {KWIK_PAYEE_NUMBER}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(KWIK_PAYEE_DIGITS, 'Número KWiK')}
+                    aria-label="Copiar número KWiK"
+                    className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </li>
+                <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                  <span className="truncate">
+                    2. Referência:{' '}
+                    <strong className="font-mono">{placed.reference}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(transferNote, 'Referência')}
+                    aria-label="Copiar referência do pedido"
+                    className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </li>
+              </ol>
+
+              {/* Estado do comprovativo */}
+              {placed.proofAttached || proof.kind === 'sent' ? (
+                <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-700">
+                  <BadgeCheck className="h-4 w-4" /> Comprovativo recebido —
+                  aguardando validação da equipa.
+                </p>
+              ) : (
+                <div className="mt-3 rounded-lg bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-700">
+                    3. Depois de transferir, anexa o comprovativo (foto ou PDF,
+                    máx. 2 MB):
+                  </p>
+                  <input
+                    ref={proofInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={selectProofFile}
+                    className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-emerald-600"
+                  />
+                  {proof.kind === 'selected' && (
+                    <p className="mt-1.5 truncate text-[11px] text-slate-500">
+                      {proof.file.name} · {Math.max(1, Math.round(proof.file.size / 1024))} KB
+                    </p>
+                  )}
+                  {proof.kind === 'error' && (
+                    <p className="mt-1.5 text-[11px] font-semibold text-rose-600">
+                      {proof.message}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={uploadProofLate}
+                    disabled={proof.kind !== 'selected' || !proof.dataUrl}
+                    className="mt-2 h-10 w-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {proof.kind === 'uploading' ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A enviar…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" /> Enviar comprovativo
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-emerald-700">
+                <Hourglass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Assim que o comprovativo for validado, o pedido passa a{' '}
+                <strong>pago</strong> e a entrega é preparada.
               </p>
             </div>
           )}
 
-          {!placed.payment && (
-            <p className="mt-2 text-sm text-slate-500">
-              A nossa equipa entra em contacto para combinar a entrega e o pagamento.
+          {!isKwik && (
+            <p className="mt-5 text-sm text-slate-500">
+              A nossa equipa entra em contacto pelo WhatsApp para combinar a
+              entrega e o pagamento.
             </p>
           )}
+
           <div className="mt-8 space-y-3">
-            {placed.payment ? (
+            {isKwik ? (
               <Button
                 asChild
-                className="h-12 w-full bg-sky-600 text-base font-semibold text-white hover:bg-sky-700"
+                className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
               >
                 <Link href="/perfil">
                   <CreditCard className="mr-2 h-5 w-5" /> Ver estado da encomenda
@@ -239,7 +409,7 @@ export default function CarrinhoPage() {
                 asChild
                 className="h-12 w-full bg-[#25D366] text-base font-semibold text-white hover:bg-[#1fb857]"
               >
-                <a href={placed.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                <a href={placedWhatsAppUrl(whatsappMessage)} target="_blank" rel="noopener noreferrer">
                   <Send className="mr-2 h-5 w-5" /> Confirmar no WhatsApp
                 </a>
               </Button>
@@ -454,18 +624,21 @@ export default function CarrinhoPage() {
                   <input
                     type="radio"
                     name="pagamento"
-                    value="whatsapp"
-                    checked={paymentMethod === 'whatsapp'}
-                    onChange={() => setPaymentMethod('whatsapp')}
+                    value="kwik"
+                    checked={paymentMethod === 'kwik'}
+                    onChange={() => setPaymentMethod('kwik')}
                     className="mt-0.5 h-4 w-4 accent-emerald-600"
                   />
                   <span className="text-sm">
                     <span className="font-semibold text-slate-900">
-                      Combinar pelo WhatsApp
+                      KWiK (Transferência Instantânea){' '}
+                      <span className="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                        RECOMENDADO
+                      </span>
                     </span>
                     <span className="block text-xs text-slate-500">
-                      Transferência, dinheiro na entrega ou Multicaixa — combinado
-                      com a equipa.
+                      Transfere para <strong>{KWIK_PAYEE_NUMBER}</strong> e anexa
+                      o comprovativo — validamos e despachamos.
                     </span>
                   </span>
                 </label>
@@ -473,21 +646,66 @@ export default function CarrinhoPage() {
                   <input
                     type="radio"
                     name="pagamento"
-                    value="multicaixa"
-                    checked={paymentMethod === 'multicaixa'}
-                    onChange={() => setPaymentMethod('multicaixa')}
-                    className="mt-0.5 h-4 w-4 accent-sky-600"
+                    value="whatsapp"
+                    checked={paymentMethod === 'whatsapp'}
+                    onChange={() => setPaymentMethod('whatsapp')}
+                    className="mt-0.5 h-4 w-4 accent-slate-600"
                   />
                   <span className="text-sm">
                     <span className="font-semibold text-slate-900">
-                      Multicaixa Express <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">PREMIUM</span>
+                      Combinar pelo WhatsApp
                     </span>
                     <span className="block text-xs text-slate-500">
-                      Recebes a notificação no teu telefone e confirmas com o PIN
-                      Multicaixa.
+                      Dinheiro na entrega ou outra forma — combinado com a
+                      equipa.
                     </span>
                   </span>
                 </label>
+
+                {/* KWiK: instruções + comprovativo */}
+                {paymentMethod === 'kwik' && (
+                  <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-bold text-emerald-900">
+                      Como funciona o KWiK:
+                    </p>
+                    <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-emerald-800">
+                      <li>
+                        Transfere <strong>{formatKz(totalKz)}</strong> para{' '}
+                        <strong>{KWIK_PAYEE_NUMBER}</strong> (KWiK — Kwanza
+                        Instantâneo).
+                      </li>
+                      <li>
+                        A referência do pedido (ex.:{' '}
+                        <span className="font-mono">AngoStart-ORD-00042</span>)
+                        aparece logo após confirmar — indica-a na descrição da
+                        transferência.
+                      </li>
+                      <li>
+                        Anexa o comprovativo (foto ou PDF, máx. 2 MB) — agora ou
+                        no ecrã seguinte.
+                      </li>
+                      <li>
+                        A equipa valida no painel e o pedido passa a{' '}
+                        <strong>pago</strong>.
+                      </li>
+                    </ol>
+                    <input
+                      ref={proofInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={selectProofFile}
+                      aria-label="Comprovativo KWiK (opcional)"
+                      className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-emerald-600"
+                    />
+                    {proof.kind === 'selected' && (
+                      <p className="truncate text-[11px] text-emerald-700">
+                        ✓ {proof.file.name} pronto ({Math.max(1, Math.round(proof.file.size / 1024))} KB)
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* WhatsApp: link de comprovativo opcional (método manual existente) */}
                 {paymentMethod === 'whatsapp' && (
                   <div className="space-y-1.5 pl-2 pt-1">
                     <Label htmlFor="cart-comprovativo" className="text-xs text-slate-500">
@@ -524,8 +742,8 @@ export default function CarrinhoPage() {
               </Button>
 
               <p className="text-center text-xs text-slate-400">
-                Pagamento por transferência, Multicaixa Express ou dinheiro na
-                entrega.
+                Pagamento por KWiK (transferência instantânea), WhatsApp ou
+                dinheiro na entrega.
               </p>
             </form>
           </div>

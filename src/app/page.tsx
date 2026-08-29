@@ -64,7 +64,7 @@ const DIFFERENTIALS = [
   {
     icon: Wallet,
     title: "Pagamento em Kwanzas",
-    text: "Paga por transferência bancária (BAI, BFA), Multicaixa Express ou dinheiro na entrega. Sem cartões internacionais nem taxas escondidas.",
+    text: "Paga por KWiK (transferência instantânea), transferência bancária (BAI, BFA) ou dinheiro na entrega. Sem cartões internacionais nem taxas escondidas.",
   },
   {
     icon: Truck,

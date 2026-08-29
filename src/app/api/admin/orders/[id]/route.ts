@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAnyAdmin } from '@/lib/security';
+import { requireAnyAdmin, sanitizeMultiline } from '@/lib/security';
 import { sendOrderValidatedEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,13 @@ const ALLOWED = new Map([
 ]);
 
 /**
- * PATCH /api/admin/orders/[id] — valida comprovativo:
- * Aprovar → status 'pago' (cliente notificado).
+ * PATCH /api/admin/orders/[id] — valida comprovativo KWiK:
+ * Aprovar → status 'pago' (cliente notificado por email).
  * Rejeitar → status 'rejeitado'.
- * 🔒 admin + admin_limitado (apenas validação).
+ * Aceita ainda `admin_note` (observação interna da validação).
+ *
+ * 🔒 admin + admin_limitado (apenas validação). Cada decisão fica
+ * auditada: validated_at + validated_by.
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const auth = await requireAnyAdmin(request);
@@ -32,7 +35,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Encomenda inválida.' }, { status: 400 });
   }
 
-  let body: { status?: string };
+  let body: { status?: string; admin_note?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -47,9 +50,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
+  const adminNote = body.admin_note
+    ? sanitizeMultiline(String(body.admin_note), 300) || null
+    : null;
+
   try {
     const updated = (await sql`
-      UPDATE orders SET status = ${nextStatus} WHERE id = ${id}
+      UPDATE orders
+      SET status = ${nextStatus},
+          admin_note = ${adminNote},
+          validated_at = now(),
+          validated_by = ${auth.user.id}
+      WHERE id = ${id}
       RETURNING id, customer_email, status
     `) as unknown as { id: number; customer_email: string | null; status: string }[];
 

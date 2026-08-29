@@ -1,5 +1,4 @@
 import 'server-only';
-import crypto from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { getAuthUser, type AuthUser } from '@/lib/auth';
 import { sql } from '@/lib/db';
@@ -13,7 +12,7 @@ import { isAdminRole, type Role } from '@/lib/roles';
  *   o React já escapa na renderização, mas nunca guardamos HTML ativo).
  * - Rate limiting em memória por chave (IP+rota).
  * - Guards de autorização para rotas API (role-based).
- * - Normalização de telefones angolanos (Multicaixa/WhatsApp).
+ * - Normalização de telefones angolanos (KWiK/WhatsApp).
  * - Verificação HMAC de webhooks (timing-safe).
  */
 
@@ -200,20 +199,4 @@ export function normalizeAngolanPhone(raw: unknown): string | null {
 
   if (!national || !/^9[1-9]\d{7}$/.test(national)) return null;
   return `244${national}`;
-}
-
-/* ──────────────────────────── Webhooks HMAC ────────────────────────── */
-
-/** Verifica assinatura HMAC-SHA256 (hex) de um webhook — timing-safe. */
-export function verifyHmacSignature(
-  rawBody: string,
-  signature: string | null,
-  secret: string
-): boolean {
-  if (!signature) return false;
-  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  const a = Buffer.from(expected, 'utf8');
-  const b = Buffer.from(signature.trim().toLowerCase().replace(/^sha256=/, ''), 'utf8');
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
 }

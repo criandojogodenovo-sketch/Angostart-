@@ -11,12 +11,12 @@ intrusão simulados e triagem dos achados. Última atualização: **Fase 3**.
 |---|---|
 | `JWT_SECRET`, `DATABASE_URL` | `src/lib/env.ts` (Zod + `server-only`); leitura apenas em `db.ts`/`auth.ts`/`admin-session.ts` — módulos com `import 'server-only'` que **falham o build** se importados por Client Components |
 | `RESEND_API_KEY` | `src/lib/email.ts` (`server-only`), lazy init, nunca no bundle |
-| Chaves RSA PayPay | `src/lib/paypay.ts` (`server-only`), SDK instanciado só em produção |
+| Comprovativos KWiK | `src/lib/kwik.ts` client-safe (só constantes) + validação server-side: MIME whitelist, 2 MB, magic bytes, nome sanitizado; guardados na BD e servidos **apenas** em `/api/admin/orders/[id]/proof` com auth admin |
 | Sessão admin | cookie `angostart_admin` HttpOnly/SameSite=Lax/Secure, HS256 (jose), 8 h, emitido **após código TOTP válido** |
 | Painéis `/admin`, `/admin-limitado` | `src/proxy.ts` valida cookie+role no edge; rotas sem link, fora do sitemap, bloqueadas no `robots.txt` |
 | APIs de escrita | rate limiting por IP + validação/sanitização de todos os campos + role guard (`requireAdmin` / `requireAnyAdmin` / `requireSeller`) |
 | Encomendas | preços, nomes e vendedor **recalculados na BD**; cliente envia apenas `id` + `quantity` |
-| Webhook pagamentos | HMAC-SHA256 timing-safe; sem segredo, apenas transações `simulated` podem mudar de estado |
+| Upload de comprovativo | 4 camadas no servidor (`parseAndValidateProof`): MIME whitelist (JPG/PNG/WebP/PDF) → 2 MB máx. → **magic bytes** → nome sanitizado; rate limit 6/min |
 
 ## 2. Auditoria automática
 
@@ -84,7 +84,7 @@ agora exige role `admin`/`admin_limitado`; clientes continuam a ter
 ## 5. Recomendações para produção
 
 1. **Rodar o token GitHub** partilhado no chat (está embutido no remote local).
-2. Definir `PAYPAY_WEBHOOK_SECRET` antes de ativar Multicaixa real (o webhook rejeita pedidos sem assinatura válida).
+2. Pagamentos KWiK são manuais (sem gateway) — se no futuro voltar a existir um gateway externo, adicionar assinatura HMAC no webhook e guardar o segredo só no servidor.
 3. Usar um domínio verificado na Resend e `EMAIL_FROM` corporativo.
 4. Rate limiting em memória é por-instância — para escala, migrar para um store partilhado (Upstash Redis) mantendo a mesma interface.
 5. Revisitar `next-secure-check` após cada release e manter o `npm audit` limpo.

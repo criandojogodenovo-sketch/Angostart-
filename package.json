@@ -67,7 +67,6 @@
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
     "otplib": "^13.5.0",
-    "paypay-ao-sdk": "^2.0.0",
     "pg": "^8.23.0",
     "prisma": "^6.11.1",
     "qrcode": "^1.5.4",

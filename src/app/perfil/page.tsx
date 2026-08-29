@@ -45,6 +45,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders } from '@/context/AuthContext';
 import { formatKz, formatDateTime } from '@/lib/format';
+import {
+  ORDER_STATUS_BADGES,
+  ORDER_STATUS_LABELS,
+} from '@/lib/kwik';
 import type { Product, ProductType } from '@/lib/products-data';
 
 type AccountKind = 'cliente' | 'vendedor';
@@ -663,8 +667,13 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                       <p className="text-sm font-semibold text-slate-900">
                         Encomenda n.º {order.id}
                       </p>
-                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                        {order.status}
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          ORDER_STATUS_BADGES[order.status] ??
+                          'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {ORDER_STATUS_LABELS[order.status] ?? order.status}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-400">

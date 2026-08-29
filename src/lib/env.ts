@@ -6,9 +6,11 @@ import { z } from 'zod';
  *
  * - `import 'server-only'` garante que este módulo NUNCA entra no bundle
  *   de um Client Component: se o fizer, o build falha imediatamente.
- * - As chaves secretas (JWT_SECRET, DATABASE_URL, RESEND_API_KEY,
- *   PAYPAY_*) vivem exclusivamente no servidor (.env.local em dev,
+ * - As chaves secretas (JWT_SECRET, DATABASE_URL, RESEND_API_KEY)
+ *   vivem exclusivamente no servidor (.env.local em dev,
  *   Environment Variables da Vercel em produção).
+ * - Pagamentos: KWiK é um pagamento MANUAL por transferência — não
+ *   existe gateway externo nem chaves de API de pagamentos.
  * - Variáveis públicas usam obrigatoriamente o prefixo NEXT_PUBLIC_
  *   (ex.: NEXT_PUBLIC_APP_URL) — tudo o resto é proibido no cliente.
  */
@@ -25,13 +27,7 @@ const serverEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(10).optional(),
   EMAIL_FROM: z.string().optional(),
 
-  /* ── PayPay / Multicaixa Express — opcionais: sem chaves, modo sandbox ── */
-  PAYPAY_PARTNER_ID: z.string().optional(),
-  PAYPAY_PRIVATE_KEY: z.string().optional(),
-  PAYPAY_PUBLIC_KEY: z.string().optional(),
-  PAYPAY_WEBHOOK_SECRET: z.string().optional(),
-  PAYPAY_API_URL: z.string().url().optional(),
-  /** Email do administrador — recebe alertas de pagamentos/webhooks. */
+  /** Email do administrador — recebe alertas de validações de pagamento. */
   ADMIN_EMAIL: z.string().email().optional(),
 
   /* ── Público ── */
@@ -55,11 +51,6 @@ export function getEnv(): ServerEnv {
     JWT_SECRET: process.env.JWT_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
     EMAIL_FROM: process.env.EMAIL_FROM || undefined,
-    PAYPAY_PARTNER_ID: process.env.PAYPAY_PARTNER_ID || undefined,
-    PAYPAY_PRIVATE_KEY: process.env.PAYPAY_PRIVATE_KEY || undefined,
-    PAYPAY_PUBLIC_KEY: process.env.PAYPAY_PUBLIC_KEY || undefined,
-    PAYPAY_WEBHOOK_SECRET: process.env.PAYPAY_WEBHOOK_SECRET || undefined,
-    PAYPAY_API_URL: process.env.PAYPAY_API_URL || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || undefined,
   });
 

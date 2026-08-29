@@ -9,6 +9,10 @@ import {
   rateLimit,
   requireAnyAdmin,
 } from '@/lib/security';
+import {
+  parseAndValidateProof,
+  buildKwikReference,
+} from '@/lib/kwik';
 import { sendOrderNotifications } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +35,11 @@ interface OrderPayload {
   delivery_type?: string;
   notes?: string;
   comprovativo_url?: string;
+  /** Método de pagamento: 'kwik' (transferência manual) ou 'whatsapp'. */
+  payment_method?: unknown;
+  /** Comprovativo KWiK como data URL (data:<mime>;base64,<dados>). */
+  payment_proof?: unknown;
+  payment_proof_name?: unknown;
 }
 
 interface DbProduct {
@@ -44,13 +53,15 @@ interface DbProduct {
 /**
  * POST /api/orders — Regista uma encomenda no Neon.
  *
- * 🔒 SEGURANÇA (Fase 3):
+ * 🔒 SEGURANÇA:
  * - Preços e nomes dos produtos são RECALCULADOS na base de dados — o
  *   cliente não pode forjar preços no corpo do pedido (anti-manipulação).
  * - Cada item fica associado ao vendedor (seller_id) para o dashboard de
  *   vendas e as notificações.
  * - Textos são sanitizados (anti-XSS armazenado) e o URL do comprovativo
  *   é validado (só http/https).
+ * - Comprovativo KWiK (upload) validado: MIME whitelist, 2 MB máx.,
+ *   magic bytes e nome sanitizado (ver lib/kwik.ts).
  * - Notificações por email (Resend): cliente + vendedores.
  */
 export async function POST(request: NextRequest) {
@@ -85,6 +96,27 @@ export async function POST(request: NextRequest) {
     body.comprovativo_url?.trim() && isSafeHttpUrl(body.comprovativo_url.trim())
       ? body.comprovativo_url.trim()
       : null;
+
+  /* ── KWiK: método de pagamento + comprovativo (opcional neste passo) ── */
+  const paymentMethod =
+    body.payment_method === 'whatsapp' ? 'whatsapp' : 'kwik';
+
+  const proof = body.payment_proof
+    ? parseAndValidateProof({
+        dataUrl: body.payment_proof,
+        fileName: body.payment_proof_name,
+      })
+    : null;
+
+  if (body.payment_proof && !proof) {
+    return NextResponse.json(
+      {
+        error:
+          'Comprovativo inválido — usa uma foto (JPG, PNG ou WebP) ou PDF até 2 MB.',
+      },
+      { status: 400 }
+    );
+  }
 
   if (body.comprovativo_url?.trim() && !comprovativoUrl) {
     return NextResponse.json(
@@ -162,20 +194,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Total da encomenda inválido.' }, { status: 400 });
   }
 
+  // Com comprovativo anexado → aguardando validação de um admin;
+  // sem comprovativo → pendente (cliente ainda pode anexar depois).
+  const initialStatus = proof ? 'aguardando_validacao' : 'pendente';
+
   try {
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type)
       VALUES (
         ${customerName},
         ${customerPhone},
         ${customerEmail},
         ${JSON.stringify(items)}::jsonb,
         ${totalKz},
-        'pendente',
+        ${initialStatus},
         ${deliveryType},
         ${notes},
         ${userId},
-        ${comprovativoUrl}
+        ${comprovativoUrl},
+        ${paymentMethod},
+        ${proof ? proof.dataUrl : null},
+        ${proof ? proof.name : null},
+        ${proof ? proof.mime : null}
       )
       RETURNING id, created_at, total_kz, status
     `);
@@ -192,6 +232,9 @@ export async function POST(request: NextRequest) {
           customerPhone,
           totalKz,
           items,
+          paymentMethod,
+          reference: buildKwikReference(order.id),
+          proofAttached: Boolean(proof),
         },
         sellerEmails
       );
@@ -207,6 +250,9 @@ export async function POST(request: NextRequest) {
           created_at: order.created_at,
           total_kz: order.total_kz,
           status: order.status,
+          payment_method: paymentMethod,
+          reference: buildKwikReference(order.id),
+          proof_attached: Boolean(proof),
         },
       },
       { status: 201 }

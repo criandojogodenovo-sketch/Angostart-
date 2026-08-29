@@ -127,8 +127,8 @@ export default function Footer() {
             </ul>
             <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
               <p className="text-xs leading-relaxed text-emerald-300">
-                Pagamento por transferência (BAI, BFA), Multicaixa Express e
-                dinheiro na entrega.
+                Pagamento por KWiK (transferência instantânea), transferência
+                bancária (BAI, BFA) e dinheiro na entrega.
               </p>
             </div>
           </div>

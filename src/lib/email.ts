@@ -96,6 +96,12 @@ interface OrderEmailPayload {
   customerPhone: string;
   totalKz: number;
   items: { name: string; quantity: number; price_kz: number }[];
+  /** 'kwik' (transferência manual) ou 'whatsapp' (combinar com a equipa). */
+  paymentMethod?: string;
+  /** Referência do pedido (ex.: AngoStart-ORD-00042). */
+  reference?: string;
+  /** true se o cliente já anexou o comprovativo KWiK. */
+  proofAttached?: boolean;
 }
 
 /** Email de confirmação para o cliente + aviso "novo pedido" aos vendedores. */
@@ -104,6 +110,26 @@ export async function sendOrderNotifications(
   sellerEmails: string[]
 ): Promise<void> {
   const linhas = orderItemsTable(order.items);
+  const isKwik = order.paymentMethod !== 'whatsapp';
+  const referencia = order.reference ?? `AngoStart-ORD-${String(order.orderId).padStart(5, '0')}`;
+
+  const instrucoesKwik = isKwik
+    ? `<div style="margin:12px 0;padding:14px;border:1px solid #10b981;border-radius:12px;background:#ecfdf5">
+         <p style="margin:0 0 8px;font-weight:bold;color:#065f46">Pagamento KWiK — Transferência Instantânea</p>
+         <p style="margin:0;font-size:14px;line-height:1.6">
+           1. Transfere <strong>${formatKz(order.totalKz)}</strong> para
+           <strong>+244 958 176 915</strong> (KWiK).<br/>
+           2. Indica na descrição a referência
+           <strong>${referencia}</strong>.<br/>
+           3. Anexa o comprovativo no site (ou responde a este email).
+         </p>
+         <p style="margin:8px 0 0;font-size:13px;color:#047857">
+           ${order.proofAttached
+             ? '✓ Comprovativo já recebido — a tua encomenda está a aguardar validação da equipa.'
+             : 'Assim que anexares o comprovativo, a equipa valida e a entrega é preparada.'}
+         </p>
+       </div>`
+    : '';
 
   if (order.customerEmail) {
     await sendMail({
@@ -113,9 +139,10 @@ export async function sendOrderNotifications(
         'Obrigado pela tua encomenda!',
         `<p>Olá ${order.customerName},</p>
          <p>A tua encomenda <strong>n.º ${order.orderId}</strong> foi registada com sucesso
-         e está <strong>pendente de pagamento/validação</strong>.</p>
+         (referência <strong>${referencia}</strong>).</p>
          ${linhas}
          <p style="margin-top:12px"><strong>Total: ${formatKz(order.totalKz)}</strong></p>
+         ${instrucoesKwik}
          <p>Iremos contactar-te pelo telefone <strong>${order.customerPhone}</strong> para combinar a entrega.</p>`
       ),
     });
@@ -129,46 +156,14 @@ export async function sendOrderNotifications(
       html: layout(
         'Tens um novo pedido!',
         `<p>Uma encomenda que inclui os teus produtos/serviços foi registada.</p>
-         <p><strong>Encomenda:</strong> n.º ${order.orderId}<br/>
-         <strong>Cliente:</strong> ${order.customerName} (${order.customerPhone})</p>
+         <p><strong>Encomenda:</strong> n.º ${order.orderId} (${referencia})<br/>
+         <strong>Cliente:</strong> ${order.customerName} (${order.customerPhone})<br/>
+         <strong>Pagamento:</strong> ${isKwik ? 'KWiK — aguarda validação do comprovativo' : 'a combinar pelo WhatsApp'}</p>
          ${linhas}
          <p style="margin-top:12px">Entra no teu <a href="${getAppUrl()}/dashboard/vendedor">painel de vendas</a> para ver os detalhes.</p>`
       ),
     });
   }
-}
-
-/** Notifica vendedor(es) + admin sobre mudança de estado de pagamento. */
-export async function sendPaymentStatusNotification(
-  orderId: number,
-  status: 'pago' | 'falhou',
-  sellerEmails: string[],
-  adminEmail?: string
-): Promise<void> {
-  const destinatarios = [
-    ...new Set(
-      [...sellerEmails, adminEmail].filter(
-        (email): email is string => Boolean(email)
-      )
-    ),
-  ];
-  if (destinatarios.length === 0) return;
-
-  const estado =
-    status === 'pago'
-      ? '✅ PAGAMENTO CONFIRMADO'
-      : '❌ PAGAMENTO FALHOU / REJEITADO';
-
-  await sendMail({
-    to: destinatarios,
-    subject: `[${status.toUpperCase()}] Pagamento da encomenda n.º ${orderId}`,
-    html: layout(
-      estado,
-      `<p>A encomenda <strong>n.º ${orderId}</strong> foi atualizada para o estado
-       <strong>${status}</strong> pelo webhook de pagamentos Multicaixa Express.</p>
-       <p><a href="${getAppUrl()}/admin">Abrir painel de administração</a></p>`
-    ),
-  });
 }
 
 /** Confirmação de aprovação de comprovativo (validação admin). */

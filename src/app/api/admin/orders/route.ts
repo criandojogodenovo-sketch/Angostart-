@@ -5,10 +5,15 @@ import { requireAnyAdmin } from '@/lib/security';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/orders?status=pendente — encomendas para validação
- * de comprovativos.
+ * GET /api/admin/orders?status=aguardando_validacao — fila de validação
+ * de comprovativos KWiK.
+ *
  * 🔒 admin + admin_limitado (o limitado vê APENAS isto — sem utilizadores
- * nem produtos). Por omissão devolve as pendentes.
+ * nem produtos). Por omissão devolve as encomendas com comprovativo à
+ * espera de validação.
+ *
+ * ⚠️ A lista NUNCA inclui o base64 do comprovativo (payment_proof) —
+ * o ficheiro é obtido separadamente em /api/admin/orders/[id]/proof.
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAnyAdmin(request);
@@ -17,14 +22,24 @@ export async function GET(request: NextRequest) {
   }
 
   const statusParam = new URL(request.url).searchParams.get('status');
-  const status = ['pendente', 'pago', 'falhou', 'rejeitado', 'entregue'].includes(statusParam ?? '')
+  const status = [
+    'aguardando_validacao',
+    'pendente',
+    'pago',
+    'falhou',
+    'rejeitado',
+    'entregue',
+  ].includes(statusParam ?? '')
     ? statusParam!
-    : 'pendente';
+    : 'aguardando_validacao';
 
   try {
     const orders = (await sql`
       SELECT id, customer_name, customer_phone, customer_email, items, total_kz,
-             status, delivery_type, notes, comprovativo_url, created_at
+             status, delivery_type, notes, comprovativo_url,
+             payment_method, payment_proof_name, payment_proof_type,
+             (payment_proof IS NOT NULL) AS has_payment_proof,
+             admin_note, validated_at, created_at
       FROM orders
       WHERE status = ${status}
       ORDER BY created_at DESC

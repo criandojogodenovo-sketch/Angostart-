@@ -16,7 +16,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
-  ExternalLink,
   FileText,
   Loader2,
   LogOut,
@@ -26,9 +25,11 @@ import {
   Trash2,
   UserPlus,
   Users,
-  XCircle,
 } from 'lucide-react';
 import AdminGate from '@/components/AdminGate';
+import ProofReviewList, {
+  type KwikAdminOrder,
+} from '@/components/ProofReviewList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,19 +59,17 @@ interface AdminProduct {
   seller_name?: string | null;
 }
 
-interface AdminOrder {
-  id: number;
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  items: { id: number; name: string; price_kz: number; quantity: number }[];
-  total_kz: number;
-  status: string;
-  comprovativo_url: string | null;
-  created_at: string;
-}
-
 type Tab = 'utilizadores' | 'produtos' | 'encomendas' | 'admins' | 'seguranca';
+
+/** Filtros de estado da fila de comprovativos. */
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: 'aguardando_validacao', label: 'Aguardando validação' },
+  { value: 'pendente', label: 'Pendentes (sem comprovativo)' },
+  { value: 'pago', label: 'Pagas' },
+  { value: 'rejeitado', label: 'Rejeitadas' },
+  { value: 'entregue', label: 'Entregues' },
+  { value: 'falhou', label: 'Falhadas' },
+];
 
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
@@ -101,9 +100,10 @@ function AdminPanel() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
 
-  /* ── Encomendas pendentes ── */
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  /* ── Encomendas / comprovativos KWiK ── */
+  const [orders, setOrders] = useState<KwikAdminOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('aguardando_validacao');
 
   /* ── Criar admin limitado ── */
   const [newName, setNewName] = useState('');
@@ -145,8 +145,10 @@ function AdminPanel() {
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
-      const res = await fetch('/api/admin/orders?status=pendente', { headers: authHeaders() });
-      const data = (await res.json()) as { orders?: AdminOrder[]; error?: string };
+      const res = await fetch(`/api/admin/orders?status=${statusFilter}`, {
+        headers: authHeaders(),
+      });
+      const data = (await res.json()) as { orders?: KwikAdminOrder[]; error?: string };
       if (!res.ok) {
         toast({ title: 'Erro', description: data.error });
         return;
@@ -155,11 +157,11 @@ function AdminPanel() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [toast]);
+  }, [toast, statusFilter]);
 
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    if (tab === 'encomendas') loadOrders();
+  }, [tab, loadOrders]);
 
   useEffect(() => {
     if (tab === 'utilizadores') loadUsers();
@@ -198,11 +200,18 @@ function AdminPanel() {
     loadProducts();
   }
 
-  async function reviewOrder(order: AdminOrder, approve: boolean) {
+  async function reviewOrder(
+    order: KwikAdminOrder,
+    approve: boolean,
+    note: string
+  ) {
     const res = await fetch(`/api/admin/orders/${order.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ status: approve ? 'pago' : 'rejeitado' }),
+      body: JSON.stringify({
+        status: approve ? 'pago' : 'rejeitado',
+        admin_note: note || undefined,
+      }),
     });
     const data = (await res.json()) as { ok?: boolean; error?: string };
     if (!res.ok || !data.ok) {
@@ -302,76 +311,36 @@ function AdminPanel() {
         ))}
       </nav>
 
-      {/* ── Comprovativos ── */}
+      {/* ── Comprovativos KWiK ── */}
       {tab === 'encomendas' && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-base font-semibold text-slate-900">
-              Encomendas pendentes de validação
-            </h2>
-            <Button variant="ghost" size="sm" onClick={loadOrders}>
-              <RefreshCw className={`mr-1.5 h-4 w-4 ${ordersLoading ? 'animate-spin' : ''}`} /> Atualizar
-            </Button>
-          </div>
-          {orders.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-slate-400">
-              Sem encomendas pendentes. Bom trabalho!
-            </p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {orders.map((order) => (
-                <li key={order.id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">
-                        #{order.id} — {order.customer_name}{' '}
-                        <span className="font-normal text-slate-400">({order.customer_phone})</span>
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {order.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ')}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {new Date(order.created_at).toLocaleString('pt-PT')}
-                      </p>
-                      {order.comprovativo_url ? (
-                        <a
-                          href={order.comprovativo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:underline"
-                        >
-                          <FileText className="h-3.5 w-3.5" /> Ver comprovativo <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <p className="mt-2 text-xs text-slate-400">Sem comprovativo anexado</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-base font-bold text-emerald-600">
-                        {formatKz(order.total_kz)}
-                      </span>
-                      <Button
-                        size="sm"
-                        onClick={() => reviewOrder(order, true)}
-                        className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
-                      >
-                        <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => reviewOrder(order, false)}
-                        variant="outline"
-                        className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
-                      >
-                        <XCircle className="mr-1 h-4 w-4" /> Rejeitar
-                      </Button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <>
+          <nav aria-label="Filtrar encomendas por estado" className="mt-6 flex flex-wrap gap-2">
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setStatusFilter(filter.value)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  statusFilter === filter.value
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </nav>
+          <ProofReviewList
+            orders={orders}
+            loading={ordersLoading}
+            emptyMessage={
+              statusFilter === 'aguardando_validacao'
+                ? 'Sem comprovativos KWiK à espera de validação. Bom trabalho!'
+                : 'Sem encomendas neste estado.'
+            }
+            onReload={loadOrders}
+            onReview={reviewOrder}
+          />
+        </>
       )}
 
       {/* ── Utilizadores ── */}

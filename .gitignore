@@ -64,3 +64,8 @@ Caddyfile
 dev-restart.log
 /examples/
 /tests/
+
+# Ambiente local (segredos — NUNCA commitar)
+.env
+.env.local
+.env*.local
