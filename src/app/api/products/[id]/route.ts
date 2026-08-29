@@ -22,7 +22,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function loadProduct(id: number): Promise<Product | null> {
   const rows = (await sql`
     SELECT id, name, description, price_kz, type, icon, gradient, image_url,
-           featured::boolean, rating::float8, stock, user_id
+           featured::boolean, is_hot::boolean, rating::float8, stock, user_id
     FROM products
     WHERE id = ${id}
     LIMIT 1
@@ -45,7 +45,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const rows = (await sql`
       SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-             p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+             p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
              p.service_lat, p.service_lng,
              u.name AS seller_name, u.role AS seller_role, u.username AS seller_username,
              u.cidade AS seller_cidade, u.especialidade AS seller_especialidade,
@@ -178,7 +178,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           service_lng = ${nextType === 'servico_domicilio' ? serviceLng : null}
       WHERE id = ${id}
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng
+                featured::boolean, is_hot::boolean, rating::float8, stock, user_id, service_lat, service_lng
     `) as unknown as Product[];
 
     return NextResponse.json({ product: updated[0] });
@@ -186,6 +186,62 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     console.error('[API products/[id]] Erro no PUT:', error);
     return NextResponse.json(
       { error: 'Não foi possível guardar as alterações agora.' },
+      { status: 503 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/products/[id] — alterna o badge "Em alta" 🔥
+ * Corpo: { is_hot: boolean } — apenas o dono do produto.
+ */
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  const user = await getAuthUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Sessão inválida ou expirada. Entra novamente.' },
+      { status: 401 }
+    );
+  }
+
+  const { id: rawId } = await context.params;
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: 'Produto inválido.' }, { status: 400 });
+  }
+
+  let body: { is_hot?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Corpo inválido (JSON esperado).' }, { status: 400 });
+  }
+  const isHot = body.is_hot === true;
+
+  try {
+    const product = await loadProduct(id);
+    if (!product) {
+      return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
+    }
+    if (product.user_id !== user.id && !isAdminRole(user.role)) {
+      return NextResponse.json(
+        { error: 'Só podes marcar os teus próprios produtos como "em alta".' },
+        { status: 403 }
+      );
+    }
+
+    const updated = (await sql`
+      UPDATE products
+      SET is_hot = ${isHot}
+      WHERE id = ${id}
+      RETURNING id, name, is_hot::boolean
+    `) as unknown as { id: number; name: string; is_hot: boolean }[];
+
+    return NextResponse.json({ ok: true, product: updated[0] });
+  } catch (error) {
+    console.error('[API products/[id]] Erro no PATCH (is_hot):', error);
+    return NextResponse.json(
+      { error: 'Não foi possível atualizar o badge agora.' },
       { status: 503 }
     );
   }

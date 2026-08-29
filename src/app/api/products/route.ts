@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { FALLBACK_PRODUCTS, isProductType, type Product } from '@/lib/products-data';
+import { isProductType, type Product } from '@/lib/products-data';
 import { getAuthUser, isSellerRole } from '@/lib/auth';
 import {
   sanitizeMultiline,
@@ -37,16 +37,17 @@ interface ProductInput {
 /**
  * GET /api/products
  * Parâmetros opcionais: ?type=infoproduto|produto_fisico|servico_domicilio|servico_remoto
- *                       ?q=texto  ?featured=1  ?meu=1 (com Bearer token)
+ *                       ?q=texto  ?featured=1  ?hot=1  ?meu=1 (com Bearer token)
  * ?meu=1 devolve apenas os produtos do vendedor autenticado.
- * Se a base de dados Neon estiver inacessível, devolve o catálogo de
- * fallback para que o site continue a funcionar.
+ * Fase 4: catálogo REAL — se o Neon estiver inacessível devolve vazio
+ * (nunca produtos de exemplo).
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const q = searchParams.get('q')?.trim();
   const featured = searchParams.get('featured');
+  const hot = searchParams.get('hot') === '1';
   const mine = searchParams.get('meu') === '1';
 
   // Catálogo do vendedor autenticado (perfil → "Os meus produtos")
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
     try {
       const rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -81,28 +82,38 @@ export async function GET(request: NextRequest) {
     if (type && isProductType(type)) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.type = ${type}
-        ORDER BY p.featured DESC, p.created_at DESC, p.id DESC
+        ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
+      `) as unknown as Product[];
+    } else if (hot) {
+      rows = (await sql`
+        SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               u.name AS seller_name, u.role AS seller_role
+        FROM products p
+        LEFT JOIN users u ON u.id = p.user_id
+        WHERE p.is_hot = TRUE
+        ORDER BY p.created_at DESC, p.id DESC
       `) as unknown as Product[];
     } else if (q) {
       const like = `%${q}%`;
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.name ILIKE ${like} OR p.description ILIKE ${like}
-        ORDER BY p.featured DESC, p.created_at DESC, p.id DESC
+        ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
     } else if (featured === '1') {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -112,11 +123,11 @@ export async function GET(request: NextRequest) {
     } else {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
-        ORDER BY p.featured DESC, p.created_at DESC, p.id DESC
+        ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
     }
 
@@ -124,25 +135,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[API /api/products] Erro no Neon:', error);
 
-    // Fallback em memória — mantém o site funcional
-    let fallback = FALLBACK_PRODUCTS;
-    if (type && isProductType(type)) {
-      fallback = fallback.filter((p) => p.type === type);
-    }
-    if (q) {
-      const needle = q.toLowerCase();
-      fallback = fallback.filter(
-        (p) =>
-          p.name.toLowerCase().includes(needle) ||
-          p.description.toLowerCase().includes(needle)
-      );
-    }
-    if (featured === '1') {
-      fallback = fallback.filter((p) => p.featured);
-    }
-
+    // BD indisponível — catálogo REAL: devolvemos vazio em vez de dados
+    // de exemplo, para nunca anunciar produtos que não existem.
     return NextResponse.json(
-      { products: fallback, source: 'fallback' },
+      { products: [], source: 'fallback' },
       { status: 200 }
     );
   }

@@ -13,17 +13,21 @@
  * - Lista: encomendas recebidas (cliente, artigo, preço, estado)
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
   Boxes,
   ClipboardList,
+  Copy,
+  Flame,
   Loader2,
   Lock,
   Package,
   PiggyBank,
   Receipt,
+  Share2,
+  Wallet,
 } from 'lucide-react';
 import {
   Bar,
@@ -63,6 +67,25 @@ interface DashboardData {
   }[];
 }
 
+interface MeuProduto {
+  id: number;
+  name: string;
+  is_hot?: boolean;
+  price_kz: number;
+}
+
+interface AffiliateData {
+  codigo_afiliado: string;
+  comissao_percentual: number;
+  total_ganho: number;
+  earnings: { id: number; order_id: number; comissao: number; status: string; created_at: string }[];
+}
+
+interface WalletSummary {
+  saldo: number;
+  saldo_bloqueado: number;
+}
+
 const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ef4444'];
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
@@ -79,6 +102,37 @@ export default function DashboardVendedorPage() {
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const { toast } = useToast();
+
+  /* ── Fase 4: produtos (hot), afiliados e carteira ── */
+  const [meusProdutos, setMeusProdutos] = useState<MeuProduto[]>([]);
+  const [affiliate, setAffiliate] = useState<AffiliateData | null>(null);
+  const [affiliateCarregado, setAffiliateCarregado] = useState(false);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  const [hotBusyId, setHotBusyId] = useState<number | null>(null);
+  const [aRegistarAfiliado, setARegistarAfiliado] = useState(false);
+
+  const loadFase4 = useCallback(async () => {
+    // Produtos do vendedor (toggle Em alta)
+    fetch('/api/products?meu=1', { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { products?: MeuProduto[] } | null) =>
+        setMeusProdutos(payload?.products ?? [])
+      )
+      .catch(() => setMeusProdutos([]));
+
+    // Carteira (saldo + escrow)
+    fetch('/api/wallet', { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: WalletSummary | null) => setWallet(payload))
+      .catch(() => setWallet(null));
+
+    // Afiliado (404 = ainda não aderiu)
+    fetch('/api/affiliate', { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: AffiliateData | null) => setAffiliate(payload))
+      .catch(() => setAffiliate(null))
+      .finally(() => setAffiliateCarregado(true));
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -104,7 +158,79 @@ export default function DashboardVendedorPage() {
         setLoading(false);
       }
     })();
-  }, [authLoading, user, isSeller, toast]);
+    loadFase4();
+  }, [authLoading, user, isSeller, toast, loadFase4]);
+
+  /** Alterna o badge "Em alta" 🔥 de um produto (PATCH /api/products/[id]). */
+  async function toggleHot(produto: MeuProduto) {
+    setHotBusyId(produto.id);
+    try {
+      const res = await fetch(`/api/products/${produto.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ is_hot: !produto.is_hot }),
+      });
+      const payload = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !payload.ok) {
+        toast({ title: 'Não foi possível', description: payload.error });
+        return;
+      }
+      setMeusProdutos((prev) =>
+        prev.map((p) => (p.id === produto.id ? { ...p, is_hot: !produto.is_hot } : p))
+      );
+      toast({
+        title: !produto.is_hot ? 'Produto em alta 🔥' : 'Badge removido',
+        description: produto.name,
+      });
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setHotBusyId(null);
+    }
+  }
+
+  /** Adere ao programa de afiliados (POST /api/affiliate/register). */
+  async function registarAfiliado() {
+    setARegistarAfiliado(true);
+    try {
+      const res = await fetch('/api/affiliate/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const payload = (await res.json()) as { ok?: boolean; codigo_afiliado?: string; error?: string };
+      if (!res.ok || !payload.ok) {
+        toast({ title: 'Não foi possível aderir', description: payload.error });
+        return;
+      }
+      toast({
+        title: 'Bem-vindo ao programa de afiliados!',
+        description: `O teu código: ${payload.codigo_afiliado}`,
+      });
+      setAffiliateCarregado(false);
+      fetch('/api/affiliate', { headers: authHeaders() })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((payload2: AffiliateData | null) => setAffiliate(payload2))
+        .catch(() => undefined)
+        .finally(() => setAffiliateCarregado(true));
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setARegistarAfiliado(false);
+    }
+  }
+
+  function copiarCodigo() {
+    if (!affiliate) return;
+    navigator.clipboard
+      ?.writeText(affiliate.codigo_afiliado)
+      .then(() =>
+        toast({
+          title: 'Código copiado',
+          description: affiliate.codigo_afiliado,
+        })
+      )
+      .catch(() => undefined);
+  }
 
   if (loading || authLoading) {
     return (
@@ -263,6 +389,128 @@ export default function DashboardVendedorPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          )}
+        </section>
+      </div>
+
+      {/* Fase 4 — Carteira / Hot / Afiliados */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        {/* Carteira */}
+        <section aria-label="Carteira" className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Wallet className="h-5 w-5" /> Carteira AngoStart
+          </h2>
+          <p className="mt-3 text-xs text-emerald-100">Saldo disponível</p>
+          <p className="text-2xl font-bold">{formatKz(wallet?.saldo ?? 0)}</p>
+          <p className="mt-2 text-xs text-emerald-100">Em escrow (até entrega)</p>
+          <p className="text-lg font-semibold">{formatKz(wallet?.saldo_bloqueado ?? 0)}</p>
+          <Button
+            asChild
+            className="mt-4 h-10 w-full bg-white font-semibold text-emerald-700 hover:bg-emerald-50"
+          >
+            <Link href="/carteira">Abrir carteira</Link>
+          </Button>
+        </section>
+
+        {/* Afiliados */}
+        <section aria-label="Programa de afiliados" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <Share2 className="h-5 w-5 text-amber-500" /> Programa de afiliados
+          </h2>
+          {!affiliateCarregado ? (
+            <p className="mt-6 text-sm text-slate-400">A carregar…</p>
+          ) : affiliate ? (
+            <>
+              <p className="mt-3 text-xs text-slate-500">
+                O teu código ({affiliate.comissao_percentual}% de comissão por venda):
+              </p>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="font-mono text-lg font-bold text-amber-700">
+                  {affiliate.codigo_afiliado}
+                </span>
+                <button
+                  onClick={copiarCodigo}
+                  aria-label="Copiar código de afiliado"
+                  className="rounded-lg p-2 text-amber-600 hover:bg-amber-100"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-3 text-sm text-slate-600">
+                Total ganho:{' '}
+                <strong className="text-emerald-600">{formatKz(affiliate.total_ganho)}</strong>
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {affiliate.earnings.length}{' '}
+                {affiliate.earnings.length === 1 ? 'comissão' : 'comissões'} registadas
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                Ganha 10% de cada venda feita com o teu código de referência.
+                A comissão entra direto na tua carteira quando o pedido é pago.
+              </p>
+              <Button
+                onClick={registarAfiliado}
+                disabled={aRegistarAfiliado}
+                className="mt-4 h-10 w-full bg-amber-500 font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+              >
+                {aRegistarAfiliado ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Tornar-me afiliado'
+                )}
+              </Button>
+            </>
+          )}
+        </section>
+
+        {/* Em alta — gestão rápida */}
+        <section aria-label="Marcar produtos em alta" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <Flame className="h-5 w-5 text-orange-500" /> Produtos em alta
+          </h2>
+          {meusProdutos.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">
+              Ainda não publicaste produtos — usa «Publicar produto».
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-xs text-slate-400">
+                Marca até 3 produtos como «em alta» para brilharem no catálogo.
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+                {meusProdutos.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                      {p.name}
+                    </span>
+                    <button
+                      onClick={() => toggleHot(p)}
+                      disabled={hotBusyId === p.id}
+                      aria-pressed={Boolean(p.is_hot)}
+                      aria-label={`Alternar «em alta» em ${p.name}`}
+                      className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                        p.is_hot
+                          ? 'bg-orange-500 text-white hover:bg-orange-600'
+                          : 'border border-orange-200 bg-white text-orange-600 hover:bg-orange-50'
+                      }`}
+                    >
+                      {hotBusyId === p.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Flame className="h-3.5 w-3.5" />
+                      )}
+                      {p.is_hot ? 'Em alta' : 'Marcar'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
       </div>

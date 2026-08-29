@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAnyAdmin, sanitizeMultiline } from '@/lib/security';
 import { sendOrderValidatedEmail } from '@/lib/email';
+import { applyOrderStatusSideEffects } from '@/lib/wallet';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     : null;
 
   try {
+    // Estado anterior — só disparamos efeitos (escrow/comissões) se mudar
+    const prevRows = (await sql`
+      SELECT status FROM orders WHERE id = ${id} LIMIT 1
+    `) as unknown as { status: string }[];
+    const prevStatus = prevRows[0]?.status;
+
     const updated = (await sql`
       UPDATE orders
       SET status = ${nextStatus},
@@ -67,6 +74,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (!updated[0]) {
       return NextResponse.json({ error: 'Encomenda não encontrada.' }, { status: 404 });
+    }
+
+    /* ── Efeitos da carteira/afiliados (escrow, comissões, reembolsos) ── */
+    if (prevStatus && prevStatus !== nextStatus) {
+      try {
+        await applyOrderStatusSideEffects(id, prevStatus, nextStatus);
+      } catch (walletError) {
+        // Não bloqueia a decisão do admin — registado para auditoria
+        console.error(
+          '[API admin/orders/[id]] Efeitos da carteira falharam:',
+          walletError
+        );
+      }
     }
 
     try {

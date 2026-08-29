@@ -1,8 +1,8 @@
 # 🚀 AngoStart — Marketplace Empresarial Angolano
 
-**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência instantânea manual), mapas escuros e duplo painel de administração com 2FA.**
+**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência manual) + carteira com escrow, programa de afiliados, pesquisa de prestadores e duplo painel de administração com 2FA.**
 
-> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **KWiK manual** · **otplib (TOTP 2FA)**
+> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
 
 ---
 
@@ -32,7 +32,7 @@
 - Catálogo com pesquisa, filtros por tipo, vendedores identificados e página pública de portfólio por vendedor.
 - Carrinho persistente, histórico de compras e **validação server-side de preços** (o cliente não consegue forjar valores).
 
-### Fase 3 (atual)
+### Fase 3
 | Módulo | Descrição |
 |---|---|
 | 🛡️ Segurança | `server-only` nos módulos com segredos, validação Zod do ambiente, sanitização anti-XSS, rate limiting, guards de role, headers de segurança |
@@ -43,6 +43,18 @@
 | ⭐ Avaliações | 1–5 estrelas + comentário, **apenas após compra confirmada** (`pago`/`entregue`), média recalculada no produto |
 | 👤 Portfólio | Página pública `/portfolio/[username]` com bio, galeria de trabalhos, produtos e CTA WhatsApp + editor em `/dashboard/vendedor/portfolio` |
 | 🔐 Admin | Dois painéis ocultos com **login + 2FA TOTP obrigatório**: `/admin` (total) e `/admin-limitado` (só validação de comprovativos) |
+
+### Fase 4 (atual)
+| Módulo | Descrição |
+|---|---|
+| 🎯 Favicon | `src/app/icon.png` (128×128) gerado por script com **sharp** — logo verde esmeralda com foguete, auto-wired pelo App Router (`node scripts/generate-icon.js`) |
+| 🔥 Hot badge | Campo `is_hot` em `products`; vendedor marca «em alta» no painel; badge de chama no cartão; filtro `?hot=1` na API e botão «Em alta» no catálogo |
+| 🔎 Prestadores | Página `/prestadores` com pesquisa **ILIKE** (nome/especialidade/bio/cidade), filtro domicílio/remoto, ordenação por reputação; cartões ligam ao portfólio + WhatsApp |
+| ⭐ Reputação | Média ponderada do vendedor no portfólio público e média por prestador na pesquisa |
+| 💰 Carteira | `/carteira` — saldo disponível + **escrow** (`saldo_bloqueado`); depósito manual **Afrimoney / UNITEL Money** com referência única (`AngoStart-DEP-…`); saque com reserva; aprovação no painel admin (separador «Carteira») |
+| 🛒 Checkout com saldo | Opção «Carteira AngoStart» no carrinho (só utilizadores autenticados, validação server-side de saldo) — pago = `pago` imediato com valor retido em escrow até `entregue`; recusa = reembolso automático |
+| 🤝 Afiliados | Código único `AFG-XXXXXX` por utilizador; campo de código no checkout; **comissão automática de 10%** creditada na carteira quando a venda é paga; dashboard do vendedor mostra código + total ganho |
+| 🧹 Catálogo real | `DELETE FROM products` — zero produtos de exemplo; sem BD o site mostra estado vazio honesto (nunca produtos fictícios) |
 
 ---
 
@@ -56,6 +68,8 @@ src/lib/auth.ts       → import 'server-only' (JWT_SECRET, bcrypt, roles BD)
 src/lib/security.ts   → import 'server-only' (sanitização, rate limit, guards)
 src/lib/email.ts      → import 'server-only' (RESEND_API_KEY)
 src/lib/admin-session.ts → import 'server-only' (assinatura do cookie 2FA)
+src/lib/wallet.ts     → import 'server-only' (escrow, saldos, movimentações)
+src/lib/affiliate.ts  → import 'server-only' (códigos AFG, comissões)
 src/lib/kwik.ts       → partilhado client-safe (constantes KWiK, SEM segredos)
 ```
 O pacote [`server-only`](https://www.npmjs.com/package/server-only) **quebra o build** se qualquer Client Component tentar importar estes módulos — segredos nunca chegam ao bundle.
@@ -279,18 +293,30 @@ users     id, name, email, password_hash, phone, telefone, role※, username※U
           portfolio_bio※, portfolio_image※, blocked※,
           two_factor_secret※, two_factor_enabled※, created_at
 products  id, name, description, price_kz, type, icon, gradient, image_url,
-          user_id→users, featured, rating, stock, service_lat※, service_lng※, created_at
+          user_id→users, featured, is_hot※F4, rating, stock,
+          service_lat※, service_lng※, created_at
 orders    id, customer_name, customer_phone, customer_email, items(jsonb: seller_id),
           total_kz, status(pendente|aguardando_validacao|pago|entregue|rejeitado|falhou),
           delivery_type, notes, user_id→users, comprovativo_url,
-          payment_method(kwik|whatsapp)※, payment_proof※(base64),
+          payment_method(kwik|whatsapp|carteira)※, payment_proof※(base64),
           payment_proof_name※, payment_proof_type※, admin_note※,
-          validated_at※, validated_by→users※, created_at
+          validated_at※, validated_by→users※, affiliate_code※F4, created_at
 reviews※  id, user_id→users, product_id→products, rating 1-5, comment,
           UNIQUE(user_id, product_id), created_at
 portfolio_items※ id, user_id→users, title, description, image_url, position, created_at
+wallets※F4   user_id PK→users, saldo, saldo_bloqueado (escrow), updated_at
+wallet_transactions※F4  id, user_id→users,
+          tipo(deposito|saque|pagamento|recebimento|comissao|liberacao|reembolso),
+          valor>0, status(pendente|concluido|rejeitado|bloqueado),
+          referencia(AngoStart-DEP-/WD-…), order_id, descricao,
+          processed_by→users, processed_at, created_at
+          · UNIQUE parcial (order_id, tipo, user_id) = movimentos idempotentes
+affiliates※F4  id, user_id UNIQUE→users, codigo_afiliado UNIQUE (AFG-XXXXXX),
+          comissao_percentual (10%), created_at
+affiliate_earnings※F4  id, affiliate_id→affiliates, order_id, comissao,
+          percentual, status(pago|cancelado), UNIQUE(affiliate_id, order_id)
 ```
-※ = colunas da Fase 3/KWiK · `role CHECK (cliente, criador, prestador_domicilio, prestador_remoto, admin, admin_limitado)` · FKs com `ON DELETE CASCADE`.
+※ = colunas/tabelas da Fase 3/KWiK · ※F4 = Fase 4 · `role CHECK (cliente, criador, prestador_domicilio, prestador_remoto, admin, admin_limitado)` · FKs com `ON DELETE CASCADE`.
 
 Migrações:
 ```bash
@@ -298,7 +324,23 @@ Migrações:
 env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js
 # KWiK (pagamento manual; remove a tabela do gateway antigo)
 DATABASE_URL='postgres://…' node scripts/migrate-kwik.js
+# Fase 4 (is_hot, carteira, afiliados; limpa products)
+node --env-file=.env.local scripts/migrate-fase4.js
 ```
+
+### 💰 Ciclo de vida da carteira (escrow)
+```
+Depósito:  pedido → pendente → admin aprova → saldo disponível
+Compra:    checkout «Carteira» → débito atómico (BD recusa negativos)
+           → encomenda «pago» → vendedor recebe em saldo_bloqueado (escrow)
+           → afiliado (se código) recebe 10% no saldo
+Entrega:   admin marca «entregue» → saldo_bloqueado → saldo do vendedor
+Recusa:    admin marca «rejeitado/falhou» → reembolso automático ao comprador
+Saque:     pedido reserva o valor → admin envia via Afrimoney/UNITEL
+           → recusa devolve o valor ao saldo
+```
+Todos os movimentos ficam no diário `wallet_transactions` (auditoria completa,
+idempotência por encomenda — creditar 2× é impossível).
 
 ---
 
@@ -319,6 +361,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 | `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
 | `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
 | `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
+| `MOMENU_API_KEY` | placeholder para gateway de pagamentos futuro (não usada ainda) |
 | `NEXT_PUBLIC_APP_URL` | URL público (links em emails) |
 
 > 💡 **Pagamentos não exigem variáveis**: o KWiK é uma transferência manual para o número da empresa — sem gateway, sem chaves RSA, sem webhooks.
@@ -381,4 +424,19 @@ npm run build        # produção (38 rotas)
 | 1 | `76afdbf` | Site completo + Neon + carrinho + WhatsApp |
 | 2 | `ee63d43` | Auth multi-perfil JWT, publicação de produtos, WhatsApp 244958176915 |
 | 3 | `2cd78b0` | Security hardening, maps, payments, admin panels |
-| 4 | *atual* | **Remove o gateway anterior, implementa pagamento KWiK manual** (comprovativo + validação admin) |
+| 3.5 | `8451adc` | Remove PayPay, implementa pagamento KWiK manual |
+| 3.6 | `110bb6a` | Administração dinâmica: convites por email e código diário |
+| 4 | *atual* | **Fase 4: Favicon, Hot, Busca, Reputação, Carteira, Afiliados** |
+
+## 🧪 Testes da Fase 4
+
+```bash
+# com o servidor dev ligado (a base Neon)
+node --env-file=.env.local scripts/test-fase4.js
+```
+Suite E2E com 22 verificações: registo de vendedor/comprador → produto →
+afiliado (AFG-…) → depósito pendente → aprovação admin → compra com carteira →
+escrow do vendedor → comissão 10% → recusa por saldo insuficiente →
+entrega e libertação do escrow → saque reservado/recusado/devolvido →
+`is_hot` + filtro `?hot=1` → pesquisa `/api/prestadores`. Limpa os dados de
+teste no fim (cascade).

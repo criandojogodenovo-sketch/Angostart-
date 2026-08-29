@@ -189,6 +189,73 @@ export async function sendOrderValidatedEmail(
   });
 }
 
+/* ──────────────────────────── Carteira (Fase 4) ────────────────────── */
+
+/**
+ * Alerta ao ADMIN quando um utilizador pede depósito ou saque.
+ * Melhor-esforço: falha de envio nunca bloqueia a operação.
+ */
+export async function sendWalletRequestAlert(
+  tipo: 'deposito' | 'saque',
+  referencia: string,
+  valorKz: number,
+  userName: string | null,
+  userEmail: string | null
+): Promise<boolean> {
+  let to: string | undefined;
+  try {
+    to = getEnv().ADMIN_EMAIL;
+  } catch {
+    return false;
+  }
+  if (!to) return false;
+
+  const label = tipo === 'deposito' ? 'Depósito' : 'Saque';
+  return sendMail({
+    to,
+    subject: `${label} ${referencia} pendente — AngoStart`,
+    html: layout(
+      `Novo pedido de ${label.toLowerCase()} na carteira`,
+      `<p><strong>${userName ?? userEmail ?? 'Utilizador'}</strong> pediu um
+       ${label.toLowerCase()} de <strong>${formatKz(valorKz)}</strong>
+       (referência <strong>${referencia}</strong>).</p>
+       <p>Aprova ou rejeita no painel de administração → separador
+       <strong>Carteira</strong>.</p>`
+    ),
+  });
+}
+
+/** Resultado da decisão do admin sobre depósito/saque (para o utilizador). */
+export async function sendWalletDecisionEmail(
+  to: string,
+  tipo: 'deposito' | 'saque',
+  approved: boolean,
+  valorKz: number,
+  referencia: string
+): Promise<boolean> {
+  const label = tipo === 'deposito' ? 'Depósito' : 'Saque';
+  const title = approved
+    ? `${label} aprovado — AngoStart`
+    : `${label} recusado — AngoStart`;
+  const body = approved
+    ? tipo === 'deposito'
+      ? `<p>O teu depósito <strong>${referencia}</strong> de
+         <strong>${formatKz(valorKz)}</strong> foi confirmado — o valor já está
+         disponível no saldo da tua carteira.</p>`
+      : `<p>O teu saque <strong>${referencia}</strong> de
+         <strong>${formatKz(valorKz)}</strong> foi aprovado. O valor será enviado
+         para o teu número via Afrimoney / UNITEL Money em breve.</p>`
+    : tipo === 'deposito'
+      ? `<p>O depósito <strong>${referencia}</strong> de
+         <strong>${formatKz(valorKz)}</strong> não foi confirmado. Se transferiste,
+         responde a este email com o comprovativo.</p>`
+      : `<p>O pedido de saque <strong>${referencia}</strong> de
+         <strong>${formatKz(valorKz)}</strong> foi recusado — o valor já foi
+         devolvido ao teu saldo disponível.</p>`;
+
+  return sendMail({ to, subject: title, html: layout(title, body) });
+}
+
 /* ─────────────────────── Administração dinâmica ────────────────────── */
 
 /**

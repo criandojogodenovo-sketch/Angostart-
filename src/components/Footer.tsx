@@ -19,6 +19,8 @@ import {
 const QUICK_LINKS = [
   { href: '/', label: 'Início' },
   { href: '/produtos', label: 'Produtos' },
+  { href: '/prestadores', label: 'Prestadores de serviços' },
+  { href: '/carteira', label: 'Carteira' },
   { href: '/perfil', label: 'Perfil' },
   { href: '/carrinho', label: 'Carrinho' },
 ];
@@ -127,8 +129,9 @@ export default function Footer() {
             </ul>
             <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
               <p className="text-xs leading-relaxed text-emerald-300">
-                Pagamento por KWiK (transferência instantânea), transferência
-                bancária (BAI, BFA) e dinheiro na entrega.
+                Pagamento por KWiK (transferência instantânea), carteira
+                AngoStart com escrow, transferência bancária (BAI, BFA) e
+                dinheiro na entrega.
               </p>
             </div>
           </div>

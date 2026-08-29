@@ -17,6 +17,8 @@ import {
   ShoppingBag,
   ShoppingCart,
   User,
+  Wallet,
+  Wrench,
   X,
   Home,
 } from 'lucide-react';
@@ -26,7 +28,9 @@ import { useAuth } from '@/context/AuthContext';
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/produtos', label: 'Produtos', icon: ShoppingBag },
+  { href: '/prestadores', label: 'Prestadores', icon: Wrench },
   { href: '/perfil', label: 'Perfil', icon: User },
+  { href: '/carteira', label: 'Carteira', icon: Wallet },
   { href: '/carrinho', label: 'Carrinho', icon: ShoppingCart },
 ];
 

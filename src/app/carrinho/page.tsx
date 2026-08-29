@@ -26,6 +26,7 @@ import {
   Smartphone,
   Trash2,
   Upload,
+  Wallet,
 } from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,7 @@ import { useToast } from '@/hooks/use-toast';
 interface PlacedOrder {
   id: number;
   total_kz: number;
-  paymentMethod: 'kwik' | 'whatsapp';
+  paymentMethod: 'kwik' | 'whatsapp' | 'carteira';
   reference: string;
   proofAttached: boolean;
   status: string;
@@ -87,12 +88,32 @@ export default function CarrinhoPage() {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [comprovativo, setComprovativo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'kwik' | 'whatsapp'>('kwik');
+  const [paymentMethod, setPaymentMethod] = useState<'kwik' | 'whatsapp' | 'carteira'>(
+    'kwik'
+  );
   const [proof, setProof] = useState<ProofState>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const proofInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  /* ── Carteira (Fase 4): saldo consultado à API — nunca no bundle ── */
+  const [walletSaldo, setWalletSaldo] = useState<number | null>(null);
+  /* ── Afiliado (Fase 4): código opcional no checkout ── */
+  const [codigoAfiliado, setCodigoAfiliado] = useState('');
+
+  useEffect(() => {
+    if (!user) {
+      setWalletSaldo(null);
+      return;
+    }
+    fetch('/api/wallet', { headers: authHeaders(), cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { saldo?: number } | null) => {
+        setWalletSaldo(typeof data?.saldo === 'number' ? data.saldo : null);
+      })
+      .catch(() => setWalletSaldo(null));
+  }, [user]);
 
   // Pré-preenche com os dados da conta autenticada (perfil multi-perfil)
   useEffect(() => {
@@ -170,6 +191,7 @@ export default function CarrinhoPage() {
           delivery_type: 'entrega',
           notes: notes || undefined,
           payment_method: paymentMethod,
+          affiliate_code: codigoAfiliado.trim() || undefined,
           comprovativo_url:
             paymentMethod === 'whatsapp' ? comprovativo || undefined : undefined,
           // KWiK: comprovativo (opcional — pode anexar depois na confirmação)
@@ -213,7 +235,11 @@ export default function CarrinhoPage() {
         id: data.order.id,
         total_kz: data.order.total_kz,
         paymentMethod:
-          data.order.payment_method === 'whatsapp' ? 'whatsapp' : 'kwik',
+          data.order.payment_method === 'whatsapp'
+            ? 'whatsapp'
+            : data.order.payment_method === 'carteira'
+              ? 'carteira'
+              : 'kwik',
         reference: data.order.reference ?? buildKwikReference(data.order.id),
         proofAttached: data.order.proof_attached,
         status: data.order.status,
@@ -221,7 +247,10 @@ export default function CarrinhoPage() {
       clearCart();
       toast({
         title: 'Encomenda registada!',
-        description: `Referência ${buildKwikReference(data.order.id)}.`,
+        description:
+          paymentMethod === 'carteira'
+            ? 'Pago com o saldo da carteira — a equipa prepara a entrega.'
+            : `Referência ${buildKwikReference(data.order.id)}.`,
       });
     } catch {
       toast({
@@ -387,7 +416,21 @@ export default function CarrinhoPage() {
             </div>
           )}
 
-          {!isKwik && (
+          {!isKwik && placed.paymentMethod === 'carteira' && (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+                <Wallet className="h-4 w-4" /> Pago com o saldo da carteira
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+                Foi debitado <strong>{formatKz(placed.total_kz)}</strong> do teu saldo
+                (referência <strong className="font-mono">{placed.reference}</strong>).
+                O valor fica retido em <strong>escrow</strong> até a entrega ser
+                concluída — só então o vendedor recebe.
+              </p>
+            </div>
+          )}
+
+          {!isKwik && placed.paymentMethod === 'whatsapp' && (
             <p className="mt-5 text-sm text-slate-500">
               A nossa equipa entra em contacto pelo WhatsApp para combinar a
               entrega e o pagamento.
@@ -662,6 +705,48 @@ export default function CarrinhoPage() {
                   </span>
                 </label>
 
+                {/* Carteira (Fase 4) — apenas utilizadores autenticados */}
+                {user && (
+                  <label
+                    className={`flex items-start gap-3 rounded-lg p-2 transition-colors ${
+                      walletSaldo !== null && walletSaldo < totalKz
+                        ? 'opacity-70'
+                        : 'cursor-pointer hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="pagamento"
+                      value="carteira"
+                      checked={paymentMethod === 'carteira'}
+                      onChange={() => setPaymentMethod('carteira')}
+                      disabled={walletSaldo !== null && walletSaldo < totalKz}
+                      className="mt-0.5 h-4 w-4 accent-emerald-600"
+                    />
+                    <span className="text-sm">
+                      <span className="font-semibold text-slate-900">
+                        Carteira AngoStart{' '}
+                        {walletSaldo !== null && (
+                          <span
+                            className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              walletSaldo >= totalKz
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-600'
+                            }`}
+                          >
+                            SALDO: {formatKz(walletSaldo)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        {walletSaldo !== null && walletSaldo < totalKz
+                          ? 'Saldo insuficiente — carrega a carteira ou usa KWiK.'
+                          : 'Paga já com o teu saldo — retido em escrow até a entrega.'}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
                 {/* KWiK: instruções + comprovativo */}
                 {paymentMethod === 'kwik' && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -723,6 +808,21 @@ export default function CarrinhoPage() {
                 )}
               </fieldset>
 
+              {/* Afiliado: código opcional (Fase A) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="cart-afiliado" className="text-xs text-slate-500">
+                  Código de afiliado (opcional — ex.: AFG-3K9PQX)
+                </Label>
+                <Input
+                  id="cart-afiliado"
+                  value={codigoAfiliado}
+                  onChange={(e) => setCodigoAfiliado(e.target.value)}
+                  placeholder="AFG-XXXXXX"
+                  className="h-10 text-sm uppercase"
+                  maxLength={20}
+                />
+              </div>
+
               <Button
                 type="submit"
                 disabled={submitting}
@@ -742,8 +842,8 @@ export default function CarrinhoPage() {
               </Button>
 
               <p className="text-center text-xs text-slate-400">
-                Pagamento por KWiK (transferência instantânea), WhatsApp ou
-                dinheiro na entrega.
+                Pagamento por KWiK (transferência instantânea), carteira
+                AngoStart, WhatsApp ou dinheiro na entrega.
               </p>
             </form>
           </div>

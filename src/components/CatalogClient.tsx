@@ -6,13 +6,13 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, PackageSearch, RotateCcw, SearchX } from 'lucide-react';
+import { Flame, Loader2, PackageSearch, RotateCcw, SearchX } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
 import ProductIcon from '@/components/ProductIcon';
 import { useSearch } from '@/context/StoreContext';
 import {
-  FALLBACK_PRODUCTS,
   PRODUCT_TYPES,
   PRODUCT_TYPE_ORDER,
   type Product,
@@ -31,6 +31,7 @@ export default function CatalogClient() {
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<'neon' | 'fallback'>('neon');
   const [filter, setFilter] = useState<Filter>('todos');
+  const [hotOnly, setHotOnly] = useState(false);
   const initialized = useRef(false);
 
   // Filtro inicial vindo do URL (?tipo=...)
@@ -43,22 +44,18 @@ export default function CatalogClient() {
     initialized.current = true;
   }, [searchParams]);
 
-  // Carrega o catálogo completo do Neon (com fallback)
+  // Carrega o catálogo REAL do Neon (Fase 4: sem produtos de exemplo)
   useEffect(() => {
     let cancelled = false;
     fetch('/api/products', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: { products?: Product[]; source?: 'neon' | 'fallback' }) => {
         if (cancelled) return;
-        setProducts(
-          data.products && data.products.length > 0
-            ? data.products
-            : FALLBACK_PRODUCTS
-        );
+        setProducts(data.products ?? []);
         if (data.source) setSource(data.source);
       })
       .catch(() => {
-        if (!cancelled) setProducts(FALLBACK_PRODUCTS);
+        if (!cancelled) setSource('fallback');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -79,6 +76,7 @@ export default function CatalogClient() {
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     let list = products;
+    if (hotOnly) list = list.filter((p) => p.is_hot);
     if (filter !== 'todos') list = list.filter((p) => p.type === filter);
     if (needle) {
       list = list.filter(
@@ -88,7 +86,7 @@ export default function CatalogClient() {
       );
     }
     return list;
-  }, [products, filter, query]);
+  }, [products, filter, query, hotOnly]);
 
   const filters: { key: Filter; label: string; icon: string }[] = [
     { key: 'todos', label: 'Todos', icon: 'package' },
@@ -119,7 +117,7 @@ export default function CatalogClient() {
 
       {/* Filtros por tipo */}
       <div
-        className="mb-8 flex gap-2 overflow-x-auto pb-2"
+        className="mb-8 flex flex-wrap items-center gap-2 overflow-x-auto pb-2"
         role="group"
         aria-label="Filtrar por tipo"
       >
@@ -141,6 +139,19 @@ export default function CatalogClient() {
             </button>
           );
         })}
+        {/* Hot badge — produtos "em alta" escolhidos pelos vendedores */}
+        <button
+          onClick={() => setHotOnly((v) => !v)}
+          aria-pressed={hotOnly}
+          className={`ml-auto flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+            hotOnly
+              ? 'border-orange-500 bg-orange-500 text-white shadow-md shadow-orange-500/25'
+              : 'border-orange-200 bg-white text-orange-600 hover:border-orange-400 hover:bg-orange-50'
+          }`}
+        >
+          <Flame className="h-4 w-4" aria-hidden="true" />
+          Em alta
+        </button>
       </div>
 
       {/* Estados */}
@@ -152,30 +163,51 @@ export default function CatalogClient() {
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-            {query.trim() || filter !== 'todos' ? (
+            {query.trim() || filter !== 'todos' || hotOnly ? (
               <SearchX className="h-8 w-8 text-slate-400" />
             ) : (
               <PackageSearch className="h-8 w-8 text-slate-400" />
             )}
           </span>
-          <p className="font-medium text-slate-700">Nada encontrado</p>
-          <p className="max-w-sm text-sm text-slate-500">
-            Não há produtos para esta pesquisa ou filtro. Tenta limpar os
-            filtros ou procurar por outro termo.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => changeFilter('todos')}
-            className="mt-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-          >
-            <RotateCcw className="mr-2 h-4 w-4" /> Limpar filtros
-          </Button>
+          {products.length === 0 && !query.trim() && filter === 'todos' && !hotOnly ? (
+            <>
+              <p className="font-medium text-slate-700">Catálogo em atualização</p>
+              <p className="max-w-sm text-sm text-slate-500">
+                Ainda não há produtos publicados — os vendedores AngoStart estão
+                a preparar novidades. Volta em breve!
+              </p>
+              <Button
+                asChild
+                className="mt-2 bg-emerald-500 text-white hover:bg-emerald-600"
+              >
+                <Link href="/perfil">Quero vender na AngoStart</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-slate-700">Nada encontrado</p>
+              <p className="max-w-sm text-sm text-slate-500">
+                Não há produtos para esta pesquisa ou filtro. Tenta limpar os
+                filtros ou procurar por outro termo.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  changeFilter('todos');
+                  setHotOnly(false);
+                }}
+                className="mt-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" /> Limpar filtros
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <>
           <p className="mb-4 text-sm text-slate-400" aria-live="polite">
             {visible.length} {visible.length === 1 ? 'resultado' : 'resultados'}
-            {source === 'fallback' && ' (modo offline temporário)'}
+            {source === 'fallback' && ' (catálogo temporariamente indisponível)'}
           </p>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visible.map((product) => (

@@ -5,7 +5,7 @@
  * Imagem ilustrativa (ícone em gradiente), nome, preço em Kz e botão comprar.
  */
 
-import { Star, ShoppingCart, Check, UserRound } from 'lucide-react';
+import { Star, ShoppingCart, Check, Flame, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import type { Product } from '@/lib/products-data';
 import { PRODUCT_TYPES } from '@/lib/products-data';
@@ -51,7 +51,13 @@ export default function ProductCard({ product }: { product: Product }) {
         >
           {typeInfo.short}
         </Badge>
-        {product.featured && (
+        {product.is_hot && (
+          <Badge className="absolute right-3 top-3 animate-pulse border-0 bg-orange-500 text-white shadow-lg">
+            <Flame className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+            Em alta
+          </Badge>
+        )}
+        {product.featured && !product.is_hot && (
           <Badge className="absolute right-3 top-3 border-0 bg-amber-400 text-amber-950">
             Destaque
           </Badge>

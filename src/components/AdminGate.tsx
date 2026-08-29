@@ -41,6 +41,7 @@ interface CodeLoginResponse {
   code?: string;
   message?: string;
   error?: string;
+  delivered?: boolean;
 }
 
 export default function AdminGate({ title, authMode = 'password', children }: AdminGateProps) {

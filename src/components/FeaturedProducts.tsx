@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
-import { FALLBACK_PRODUCTS, type Product } from '@/lib/products-data';
+import type { Product } from '@/lib/products-data';
 import { Button } from '@/components/ui/button';
 
 export default function FeaturedProducts() {
@@ -24,9 +24,8 @@ export default function FeaturedProducts() {
         setProducts(data.products ?? []);
       })
       .catch(() => {
-        if (!cancelled) {
-          setProducts(FALLBACK_PRODUCTS.filter((p) => p.featured).slice(0, 4));
-        }
+        // Catálogo REAL: sem BD não mostramos produtos de exemplo
+        if (!cancelled) setProducts([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -28,6 +28,8 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Wallet,
+  XCircle,
 } from 'lucide-react';
 import AdminGate from '@/components/AdminGate';
 import ProofReviewList, {
@@ -62,7 +64,7 @@ interface AdminProduct {
   seller_name?: string | null;
 }
 
-type Tab = 'utilizadores' | 'produtos' | 'encomendas' | 'admins' | 'seguranca';
+type Tab = 'utilizadores' | 'produtos' | 'encomendas' | 'carteira' | 'admins' | 'seguranca';
 
 interface AdminInviteRow {
   id: number;
@@ -93,6 +95,19 @@ interface DailyCodeRow {
   created_at: string;
 }
 
+interface WalletOpRow {
+  id: number;
+  tipo: 'deposito' | 'saque';
+  valor: number;
+  status: string;
+  referencia: string | null;
+  descricao: string | null;
+  created_at: string;
+  user_name: string | null;
+  user_email: string | null;
+  user_telefone: string | null;
+}
+
 /** Filtros de estado da fila de comprovativos. */
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'aguardando_validacao', label: 'Aguardando validação' },
@@ -105,6 +120,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'encomendas', label: 'Comprovativos', icon: FileText },
+  { key: 'carteira', label: 'Carteira', icon: Wallet },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
   { key: 'admins', label: 'Gerir Admins Limitados', icon: UserPlus },
@@ -136,6 +152,11 @@ function AdminPanel() {
   const [orders, setOrders] = useState<KwikAdminOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('aguardando_validacao');
+
+  /* ── Carteira: depósitos e saques pendentes (Fase 4) ── */
+  const [walletOps, setWalletOps] = useState<WalletOpRow[]>([]);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletBusyId, setWalletBusyId] = useState<number | null>(null);
 
   /* ── Gerir Admins Limitados (convites + código diário) ── */
   const [invites, setInvites] = useState<AdminInviteRow[]>([]);
@@ -195,6 +216,21 @@ function AdminPanel() {
     }
   }, [toast, statusFilter]);
 
+  const loadWalletOps = useCallback(async () => {
+    setWalletLoading(true);
+    try {
+      const res = await fetch('/api/admin/wallet', { headers: authHeaders() });
+      const data = (await res.json()) as { ops?: WalletOpRow[]; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      setWalletOps(data.ops ?? []);
+    } finally {
+      setWalletLoading(false);
+    }
+  }, [toast]);
+
   const loadAdminSecurityData = useCallback(async () => {
     setAdminDataLoading(true);
     try {
@@ -225,7 +261,8 @@ function AdminPanel() {
     if (tab === 'utilizadores') loadUsers();
     if (tab === 'produtos') loadProducts();
     if (tab === 'admins') loadAdminSecurityData();
-  }, [tab, loadUsers, loadProducts, loadAdminSecurityData]);
+    if (tab === 'carteira') loadWalletOps();
+  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps]);
 
   async function sendInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -236,7 +273,7 @@ function AdminPanel() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ name: inviteName, email: inviteEmail }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string; code?: string };
+      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string; code?: string; delivered?: boolean };
       if (!res.ok || !data.ok) {
         toast({ title: 'Não foi possível convidar', description: data.error });
         return;
@@ -357,6 +394,32 @@ function AdminPanel() {
     loadOrders();
   }
 
+  /** Aprova/recusa um depósito ou saque da carteira (Fase 4). */
+  async function decideWalletOp(op: WalletOpRow, approve: boolean) {
+    setWalletBusyId(op.id);
+    try {
+      const res = await fetch(`/api/admin/wallet/${op.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ action: approve ? 'aprovar' : 'rejeitar' }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível processar', description: data.error });
+        return;
+      }
+      toast({
+        title: approve
+          ? `${op.tipo === 'deposito' ? 'Depósito' : 'Saque'} aprovado`
+          : `${op.tipo === 'deposito' ? 'Depósito' : 'Saque'} recusado`,
+        description: op.referencia ?? `#${op.id}`,
+      });
+      loadWalletOps();
+    } finally {
+      setWalletBusyId(null);
+    }
+  }
+
 
   async function setup2FA() {
     setGenerating(true);
@@ -452,6 +515,113 @@ function AdminPanel() {
             onReview={reviewOrder}
           />
         </>
+      )}
+
+      {/* ── Carteira: depósitos e saques ── */}
+      {tab === 'carteira' && (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">
+                Carteira — depósitos e saques pendentes
+              </h2>
+              <p className="text-xs text-slate-400">
+                Depósito aprovado entra no saldo; saque recusado devolve o valor.
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={loadWalletOps}>
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${walletLoading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+          </div>
+          {walletOps.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-400">
+              Sem operações pendentes na carteira.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {walletOps.map((op) => (
+                <li key={op.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">
+                      <span
+                        className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+                          op.tipo === 'deposito'
+                            ? 'bg-sky-100 text-sky-700'
+                            : 'bg-violet-100 text-violet-700'
+                        }`}
+                      >
+                        {op.tipo === 'deposito' ? 'Depósito' : 'Saque'}
+                      </span>
+                      {op.referencia ?? `#${op.id}`}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {op.user_name ?? '—'} ({op.user_email ?? '—'})
+                      {op.user_telefone ? ` · ${op.user_telefone}` : ''}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {new Date(op.created_at).toLocaleString('pt-PT')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-emerald-600">{formatKz(op.valor)}</span>
+                    {op.tipo === 'deposito' ? (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => decideWalletOp(op, true)}
+                          disabled={walletBusyId === op.id}
+                          className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
+                        >
+                          {walletBusyId === op.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="mr-1 h-4 w-4" />
+                          )}
+                          Aprovar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => decideWalletOp(op, false)}
+                          disabled={walletBusyId === op.id}
+                          className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
+                        >
+                          <XCircle className="mr-1 h-4 w-4" /> Recusar
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Saque: o dinheiro já saiu do saldo do utilizador */}
+                        <Button
+                          size="sm"
+                          onClick={() => decideWalletOp(op, true)}
+                          disabled={walletBusyId === op.id}
+                          className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
+                        >
+                          {walletBusyId === op.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="mr-1 h-4 w-4" />
+                          )}
+                          Enviado
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => decideWalletOp(op, false)}
+                          disabled={walletBusyId === op.id}
+                          className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
+                        >
+                          <XCircle className="mr-1 h-4 w-4" /> Recusar e devolver
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       {/* ── Utilizadores ── */}

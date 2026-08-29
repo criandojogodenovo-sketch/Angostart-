@@ -13,6 +13,13 @@ import {
   parseAndValidateProof,
   buildKwikReference,
 } from '@/lib/kwik';
+import {
+  payWithWallet,
+  ensureWallet,
+  creditSellersOnPaid,
+  payAffiliateCommission,
+  InsufficientFundsError,
+} from '@/lib/wallet';
 import { sendOrderNotifications } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -35,11 +42,13 @@ interface OrderPayload {
   delivery_type?: string;
   notes?: string;
   comprovativo_url?: string;
-  /** Método de pagamento: 'kwik' (transferência manual) ou 'whatsapp'. */
+  /** Método de pagamento: 'kwik', 'whatsapp' ou 'carteira' (saldo). */
   payment_method?: unknown;
   /** Comprovativo KWiK como data URL (data:<mime>;base64,<dados>). */
   payment_proof?: unknown;
   payment_proof_name?: unknown;
+  /** Código de afiliado indicado no checkout (ex.: AFG-3K9PQX). */
+  affiliate_code?: unknown;
 }
 
 interface DbProduct {
@@ -97,9 +106,29 @@ export async function POST(request: NextRequest) {
       ? body.comprovativo_url.trim()
       : null;
 
-  /* ── KWiK: método de pagamento + comprovativo (opcional neste passo) ── */
-  const paymentMethod =
-    body.payment_method === 'whatsapp' ? 'whatsapp' : 'kwik';
+  /* ── KWiK / carteira: método de pagamento + comprovativo (opcional) ── */
+  const rawMethod = body.payment_method === 'whatsapp' ? 'whatsapp' : body.payment_method === 'carteira' ? 'carteira' : 'kwik';
+  const paymentMethod = rawMethod;
+
+  // Pagamento com a carteira exige sessão autenticada — saldo é pessoal.
+  if (paymentMethod === 'carteira' && !authUser) {
+    return NextResponse.json(
+      { error: 'Entra na tua conta para pagar com o saldo da carteira.' },
+      { status: 401 }
+    );
+  }
+
+  /* ── Código de afiliado (opcional) ── */
+  const affiliateCode =
+    typeof body.affiliate_code === 'string'
+      ? body.affiliate_code.trim().toUpperCase().slice(0, 20)
+      : null;
+  if (affiliateCode && !/^[A-Z0-9-]{4,20}$/.test(affiliateCode)) {
+    return NextResponse.json(
+      { error: 'Código de afiliado inválido — usa o formato AFG-XXXXXX.' },
+      { status: 400 }
+    );
+  }
 
   const proof = body.payment_proof
     ? parseAndValidateProof({
@@ -196,11 +225,27 @@ export async function POST(request: NextRequest) {
 
   // Com comprovativo anexado → aguardando validação de um admin;
   // sem comprovativo → pendente (cliente ainda pode anexar depois).
-  const initialStatus = proof ? 'aguardando_validacao' : 'pendente';
+  // Carteira → pago imediatamente (débito validado no servidor, escrow).
+  const initialStatus =
+    paymentMethod === 'carteira' ? 'pago' : proof ? 'aguardando_validacao' : 'pendente';
 
   try {
+    // Verificação antecipada de saldo (o débito atómico real acontece já
+    // após a criação — a BD continua a recusar saldos negativos)
+    if (paymentMethod === 'carteira' && userId !== null) {
+      const wallet = await ensureWallet(userId);
+      if (wallet.saldo < totalKz) {
+        return NextResponse.json(
+          {
+            error: `Saldo insuficiente — tens ${Math.floor(wallet.saldo)} Kz disponíveis. Escolhe KWiK ou carrega a carteira.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code)
       VALUES (
         ${customerName},
         ${customerPhone},
@@ -215,12 +260,33 @@ export async function POST(request: NextRequest) {
         ${paymentMethod},
         ${proof ? proof.dataUrl : null},
         ${proof ? proof.name : null},
-        ${proof ? proof.mime : null}
+        ${proof ? proof.mime : null},
+        ${affiliateCode}
       )
       RETURNING id, created_at, total_kz, status
     `);
 
     const order = inserted[0];
+
+    /* ── Carteira: débito + escrow + comissões (tudo server-side) ── */
+    if (paymentMethod === 'carteira' && userId !== null) {
+      try {
+        await payWithWallet(userId, order.id, totalKz);
+      } catch (walletError) {
+        if (walletError instanceof InsufficientFundsError) {
+          // Reverte a encomenda — saldo não chegou (corrida rara)
+          await sql`DELETE FROM orders WHERE id = ${order.id}`;
+          return NextResponse.json(
+            { error: 'Saldo insuficiente — carrega a carteira ou usa KWiK.' },
+            { status: 400 }
+          );
+        }
+        throw walletError;
+      }
+      // Vendedores recebem em saldo_bloqueado (escrow até entrega)
+      await creditSellersOnPaid(order.id);
+      await payAffiliateCommission(order.id, totalKz, affiliateCode);
+    }
 
     // Emails (não bloqueiam a encomenda em caso de falha)
     try {

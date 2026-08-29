@@ -35,6 +35,8 @@ interface SellerData {
   portfolio_image: string | null;
   portfolio_url: string | null;
   whatsapp: string | null;
+  media_avaliacoes?: number | null;
+  total_avaliacoes?: number | null;
 }
 
 interface PortfolioPayload {
@@ -146,6 +148,17 @@ export default function PortfolioPublicoPage() {
               {seller.especialidade && <span>{seller.especialidade}</span>}
               <span>@{seller.username}</span>
             </div>
+            {/* Reputação — média ponderada das avaliações reais (Fase R) */}
+            {typeof seller.media_avaliacoes === 'number' && seller.media_avaliacoes > 0 && (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                {seller.media_avaliacoes.toFixed(1)} de 5
+                <span className="font-normal text-amber-200/70">
+                  · {seller.total_avaliacoes ?? 0}{' '}
+                  {(seller.total_avaliacoes ?? 0) === 1 ? 'avaliação' : 'avaliações'}
+                </span>
+              </p>
+            )}
           </div>
           <Button
             asChild

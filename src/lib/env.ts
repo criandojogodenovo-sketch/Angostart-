@@ -30,6 +30,12 @@ const serverEnvSchema = z.object({
   /** Email do administrador — recebe alertas de validações de pagamento. */
   ADMIN_EMAIL: z.string().email().optional(),
 
+  /** Segredo do cron (Vercel Cron envia `Authorization: Bearer $CRON_SECRET`). */
+  CRON_SECRET: z.string().min(16).optional(),
+
+  /** Reserva para gateway de pagamentos futuro (placeholder na Fase 4). */
+  MOMENU_API_KEY: z.string().min(1).optional(),
+
   /* ── Público ── */
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 });
@@ -51,6 +57,9 @@ export function getEnv(): ServerEnv {
     JWT_SECRET: process.env.JWT_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
     EMAIL_FROM: process.env.EMAIL_FROM || undefined,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || undefined,
+    CRON_SECRET: process.env.CRON_SECRET || undefined,
+    MOMENU_API_KEY: process.env.MOMENU_API_KEY || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || undefined,
   });
 

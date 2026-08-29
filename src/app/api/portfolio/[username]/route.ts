@@ -57,11 +57,21 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const products = (await sql`
       SELECT id, name, description, price_kz, type, icon, gradient, image_url,
-             rating::float8
+             rating::float8, is_hot::boolean
       FROM products WHERE user_id = ${seller.id}
-      ORDER BY featured DESC, created_at DESC
+      ORDER BY is_hot DESC, featured DESC, created_at DESC
       LIMIT 12
     `) as unknown as Record<string, unknown>[];
+
+    /* Reputação do vendedor (média ponderada = média das avaliações reais
+       recebidas nos produtos dele — Fase R) */
+    const reputation = (await sql`
+      SELECT COALESCE(AVG(r.rating), 0)::float8 AS media,
+             count(*)::int AS total
+      FROM reviews r
+      JOIN products p ON p.id = r.product_id
+      WHERE p.user_id = ${seller.id}
+    `) as unknown as { media: number; total: number }[];
 
     return NextResponse.json({
       seller: {
@@ -75,6 +85,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         portfolio_bio: seller.portfolio_bio,
         portfolio_image: seller.portfolio_image,
         portfolio_url: seller.portfolio_url,
+        // Reputação (média das avaliações dos produtos + nº de avaliações)
+        media_avaliacoes: Math.round(Number(reputation[0]?.media ?? 0) * 10) / 10,
+        total_avaliacoes: Number(reputation[0]?.total ?? 0),
         // Número apenas para contacto de negócio (CTA WhatsApp)
         whatsapp: seller.telefone,
       },
