@@ -1,11 +1,14 @@
 import 'server-only';
 import { sql } from '@/lib/db';
+import { getBusinessConfig } from '@/lib/config';
 
 /**
- * AngoStart — Afiliados (Fase A) — server-side.
+ * AngoStart — Afiliados (Fase A + Fase 5) — server-side.
  *
- * Código único por utilizador (ex.: AFG-3K9PQX), comissão automática de
- * 10% creditada na carteira quando a encomenda indicada é paga.
+ * Código único por utilizador (ex.: AFG-3K9PQX), comissão automática
+ * creditada na carteira quando a encomenda indicada é paga. O percentual
+ * de novos afiliados vem de AFFILIATE_COMMISSION_PERCENT (lib/config.ts,
+ * default 10 %) — sem valores hardcoded.
  */
 
 export interface AffiliateRow {
@@ -62,16 +65,18 @@ export async function getAffiliateByUserId(
 
 /**
  * Cria (ou devolve) o registo de afiliado do utilizador autenticado.
- * Idempotente — chamar 2× devolve o mesmo código.
+ * Idempotente — chamar 2× devolve o mesmo código. O percentual inicial
+ * vem da configuração central (AFFILIATE_COMMISSION_PERCENT).
  */
 export async function getOrCreateAffiliate(userId: number): Promise<AffiliateRow> {
   const existing = await getAffiliateByUserId(userId);
   if (existing) return existing;
 
   const code = await generateAffiliateCode();
+  const percent = getBusinessConfig().affiliateCommissionPercent;
   const inserted = (await sql`
     INSERT INTO affiliates (user_id, codigo_afiliado, comissao_percentual)
-    VALUES (${userId}, ${code}, 10.00)
+    VALUES (${userId}, ${code}, ${percent})
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id, user_id, codigo_afiliado, comissao_percentual::float8, created_at
   `) as unknown as AffiliateRow[];

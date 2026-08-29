@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   requestWithdraw,
-  WALLET_MIN_WITHDRAW,
-  WALLET_MAX_WITHDRAW,
+  dailyTransactionTotal,
+  walletLimits,
   InsufficientFundsError,
 } from '@/lib/wallet';
 import { requireRole, clientKey, rateLimit } from '@/lib/security';
 import { sendWalletRequestAlert } from '@/lib/email';
+import { checkDepositWithdrawLoop } from '@/lib/antifraud';
+import { getBusinessConfig, validateAmount } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +18,9 @@ export const dynamic = 'force-dynamic';
  * O valor é RESERVADO imediatamente (débito atómico) e enviado manualmente
  * pela equipa via Afrimoney / UNITEL Money para o telefone da conta.
  * Se o admin recusar, o valor volta ao saldo.
+ *
+ * Fase 5: limites por operação + limite DIÁRIO da configuração central
+ * (lib/config.ts) + verificação anti-burla (ciclos depósito→saque).
  */
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request);
@@ -38,19 +43,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Corpo do pedido inválido.' }, { status: 400 });
   }
 
+  const config = getBusinessConfig();
   const valor = Math.round(Number(body.valor));
-  if (!Number.isFinite(valor) || valor < WALLET_MIN_WITHDRAW) {
-    return NextResponse.json(
-      { error: `O saque mínimo é ${WALLET_MIN_WITHDRAW} Kz.` },
-      { status: 400 }
-    );
+  const check = validateAmount('saque', valor, config);
+  if (!check.ok) {
+    return NextResponse.json({ error: check.error }, { status: 400 });
   }
-  if (valor > WALLET_MAX_WITHDRAW) {
-    return NextResponse.json(
-      { error: `O saque máximo por pedido é ${WALLET_MAX_WITHDRAW} Kz.` },
-      { status: 400 }
-    );
-  }
+
   if (!auth.user.telefone || auth.user.telefone.replace(/\D/g, '').length < 9) {
     return NextResponse.json(
       {
@@ -62,6 +61,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    /* Limite DIÁRIO: soma dos saques de hoje + este pedido ≤ MAX_DAILY_WITHDRAW */
+    const hoje = await dailyTransactionTotal(auth.user.id, 'saque');
+    if (hoje + valor > config.maxDailyWithdraw) {
+      const restante = Math.max(config.maxDailyWithdraw - hoje, 0);
+      return NextResponse.json(
+        {
+          error:
+            `Limite diário de saque (${config.maxDailyWithdraw} Kz) excedido — ` +
+            `ainda podes sacar ${restante} Kz hoje. Tenta novamente amanhã.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const withdraw = await requestWithdraw(auth.user.id, valor);
 
     try {
@@ -76,6 +89,9 @@ export async function POST(request: NextRequest) {
       console.error('[API wallet/withdraw] Alerta falhou (não crítico):', emailError);
     }
 
+    // Anti-burla: ciclos depósito→saque idênticos em 24 h
+    checkDepositWithdrawLoop(auth.user.id).catch(() => {});
+
     return NextResponse.json(
       {
         ok: true,
@@ -85,6 +101,7 @@ export async function POST(request: NextRequest) {
           valor,
           status: 'pendente',
         },
+        limites: walletLimits(),
       },
       { status: 201 }
     );
@@ -101,4 +118,9 @@ export async function POST(request: NextRequest) {
       { status: 503 }
     );
   }
+}
+
+/** GET — limites atuais da carteira (validação em tempo real no cliente). */
+export async function GET() {
+  return NextResponse.json({ limites: walletLimits() });
 }

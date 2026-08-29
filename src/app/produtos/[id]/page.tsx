@@ -18,9 +18,11 @@ import {
   CheckCircle2,
   Loader2,
   MapPin,
+  MessageCircle,
   Send,
   ShoppingCart,
   Star,
+  Timer,
   UserRound,
 } from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
@@ -87,6 +89,55 @@ export default function ProdutoDetalhePage() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [sendingReview, setSendingReview] = useState(false);
+
+  /* ── Fase 5: chat interno + tempo estimado de chegada ── */
+  const [chatStarting, setChatStarting] = useState(false);
+
+  /** Distância haversine em km. */
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  const isDomicilio = product?.type === 'servico_domicilio';
+  const etaMinutes = (() => {
+    if (!isDomicilio || !picked || product?.service_lat == null || product?.service_lng == null)
+      return null;
+    const km = haversineKm(picked.lat, picked.lng, product.service_lat, product.service_lng);
+    // média urbana ~25 km/h + 5 min de preparação
+    return Math.max(Math.round((km / 25) * 60) + 5, 10);
+  })();
+
+  /** Inicia (ou recupera) a conversa e abre o chat. */
+  async function startChat() {
+    if (!user) {
+      toast({ title: 'Entra na tua conta', description: 'Precisas de sessão para usar o chat.' });
+      return;
+    }
+    setChatStarting(true);
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ product_id: productId }),
+      });
+      const data = (await res.json()) as { ok?: boolean; conversation?: { id: number }; error?: string };
+      if (!res.ok || !data.ok || !data.conversation) {
+        toast({ title: 'Não foi possível abrir o chat', description: data.error });
+        return;
+      }
+      window.location.href = `/chat?c=${data.conversation.id}`;
+    } finally {
+      setChatStarting(false);
+    }
+  }
 
   const loadReviews = useCallback(async () => {
     if (!Number.isInteger(productId)) return;
@@ -180,7 +231,6 @@ export default function ProdutoDetalhePage() {
     );
   }
 
-  const isDomicilio = product.type === 'servico_domicilio';
   const typeInfo = PRODUCT_TYPES[product.type as ProductType];
   const waNumber = (product.seller_telefone ?? '').replace(/\D/g, '');
   const waTarget = waNumber.length >= 9 ? waNumber : WHATSAPP_NUMBER;
@@ -253,12 +303,24 @@ export default function ProdutoDetalhePage() {
                   <ShoppingCart className="mr-2 h-5 w-5" /> Adicionar ao carrinho
                 </Button>
                 <Button
+                  onClick={startChat}
+                  disabled={chatStarting}
+                  className="h-12 border border-emerald-500 bg-white px-6 font-semibold text-emerald-600 hover:bg-emerald-50"
+                >
+                  {chatStarting ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <MessageCircle className="mr-2 h-5 w-5" />
+                  )}
+                  Falar no chat da AngoStart
+                </Button>
+                <Button
                   asChild
                   variant="outline"
                   className="h-12 border-[#25D366] px-6 font-semibold text-[#128C4A] hover:bg-[#25D366]/10"
                 >
                   <a href={`https://wa.me/${waTarget}?text=${waText}`} target="_blank" rel="noopener noreferrer">
-                    <Send className="mr-2 h-5 w-5" /> Falar com o vendedor
+                    <Send className="mr-2 h-5 w-5" /> WhatsApp
                   </a>
                 </Button>
               </div>
@@ -293,6 +355,16 @@ export default function ProdutoDetalhePage() {
                   <CheckCircle2 className="h-4 w-4" /> Ponto escolhido: {picked.lat.toFixed(5)},{' '}
                   {picked.lng.toFixed(5)} — menciona-o na conversa com o vendedor.
                 </p>
+              )}
+              {/* Tempo estimado de chegada (Fase 5) */}
+              {etaMinutes !== null && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm text-orange-900">
+                  <Timer className="h-5 w-5 text-orange-500" />
+                  <span>
+                    <strong>Tempo estimado de chegada:</strong> ~{etaMinutes} minutos{' '}
+                    <span className="text-xs text-orange-700">(a partir do ponto escolhido no mapa)</span>
+                  </span>
+                </div>
               )}
             </section>
           )}

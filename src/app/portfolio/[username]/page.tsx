@@ -201,7 +201,7 @@ export default function PortfolioPublicoPage() {
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                 { }
-                <img src={item.image_url} alt={item.title} className="h-44 w-full object-cover" />
+                <img loading="lazy" src={item.image_url} alt={item.title} className="h-44 w-full object-cover" />
                 <div className="p-4">
                   <h3 className="text-sm font-semibold text-slate-900">{item.title}</h3>
                   {item.description && (

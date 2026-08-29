@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Menu, Plus, Rocket, ShoppingCart } from 'lucide-react';
 import HamburgerMenu from '@/components/HamburgerMenu';
 import SearchBar from '@/components/SearchBar';
+import NotificationBell from '@/components/NotificationBell';
 import { useCart } from '@/context/StoreContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -18,6 +19,7 @@ const LINKS = [
   { href: '/', label: 'Início' },
   { href: '/produtos', label: 'Produtos' },
   { href: '/prestadores', label: 'Prestadores' },
+  { href: '/chat', label: 'Chat' },
   { href: '/perfil', label: 'Perfil' },
 ];
 
@@ -92,6 +94,9 @@ export default function Navbar() {
         <div className="hidden w-72 lg:block">
           <SearchBar />
         </div>
+
+        {/* Sino de notificações (Fase 5) */}
+        <NotificationBell />
 
         {/* Carrinho */}
         <Link

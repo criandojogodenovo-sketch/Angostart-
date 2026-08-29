@@ -1,8 +1,9 @@
 import 'server-only';
 import { sql } from '@/lib/db';
+import { getBusinessConfig, commissionPercentForRole } from '@/lib/config';
 
 /**
- * AngoStart — Carteira (Fase W) — TODA a lógica no servidor.
+ * AngoStart — Carteira (Fase W + Fase 5) — TODA a lógica no servidor.
  *
  * 🔒 SEGURANÇA:
  * - `server-only` garante que saldos e movimentações NUNCA entram no
@@ -19,13 +20,31 @@ import { sql } from '@/lib/db';
 
 /* ───────────────────────── Limites operacionais ─────────────────────── */
 
-export const WALLET_MIN_DEPOSIT = 500; // Kz
-export const WALLET_MAX_DEPOSIT = 500_000; // Kz
-export const WALLET_MIN_WITHDRAW = 1_000; // Kz
-export const WALLET_MAX_WITHDRAW = 1_000_000; // Kz
+/**
+ * Fase 5 — os limites vivem em `lib/config.ts` (env-configuráveis).
+ * Estas funções são a porta de entrada server-side; os valores por defeito
+ * ficam no config (1.000–200.000 Kz depósito; 5.000–100.000 Kz saque).
+ */
+export function walletLimits() {
+  const c = getBusinessConfig();
+  return {
+    minDeposit: c.minDepositAmount,
+    maxDeposit: c.maxDepositAmount,
+    minWithdraw: c.minWithdrawAmount,
+    maxWithdraw: c.maxWithdrawAmount,
+    maxDailyDeposit: c.maxDailyDeposit,
+    maxDailyWithdraw: c.maxDailyWithdraw,
+  };
+}
 
-/** Comissão da plataforma paga a afiliados (Fase A). */
-export const AFFILIATE_DEFAULT_PERCENT = 10;
+/** @deprecated legado — usa `walletLimits()` (valores reais do config). */
+export const WALLET_MIN_DEPOSIT = 1_000; // Kz
+/** @deprecated legado — usa `walletLimits()`. */
+export const WALLET_MAX_DEPOSIT = 200_000; // Kz
+/** @deprecated legado — usa `walletLimits()`. */
+export const WALLET_MIN_WITHDRAW = 5_000; // Kz
+/** @deprecated legado — usa `walletLimits()`. */
+export const WALLET_MAX_WITHDRAW = 100_000; // Kz
 
 export type WalletTxTipo =
   | 'deposito'
@@ -336,13 +355,15 @@ async function insertOrderTxOnce(input: {
   status: WalletTx['status'];
   orderId: number;
   descricao: string;
+  commissionKz?: number;
 }): Promise<boolean> {
   const rows = (await sql`
     INSERT INTO wallet_transactions
-      (user_id, tipo, valor, status, order_id, descricao, referencia)
+      (user_id, tipo, valor, status, order_id, descricao, referencia, commission_kz)
     SELECT ${input.userId}, ${input.tipo}, ${input.valor}, ${input.status},
            ${input.orderId}, ${input.descricao},
-           ${'AngoStart-ORD-' + String(input.orderId).padStart(5, '0')}
+           ${'AngoStart-ORD-' + String(input.orderId).padStart(5, '0')},
+           ${input.commissionKz ?? 0}
     WHERE NOT EXISTS (
       SELECT 1 FROM wallet_transactions
       WHERE order_id = ${input.orderId}
@@ -355,35 +376,65 @@ async function insertOrderTxOnce(input: {
 }
 
 /**
- * Crédito em ESCROW: quando a encomenda passa a `pago`, cada vendedor
- * recebe a sua parte em `saldo_bloqueado` (retida até `entregue`).
+ * Crédito em ESCROW com COMISSÃO DA ANGOSTART (Fase 5): quando a encomenda
+ * passa a `pago`, cada vendedor recebe a sua parte LÍQUIDA em
+ * `saldo_bloqueado` (retida até `entregue`). A comissão (5 % criadores,
+ * 10 % domicílio, 6,5 % freelancers — ver lib/config.ts) fica registada
+ * em `wallet_transactions.commission_kz` e em `orders.platform_commission_kz`.
  */
 export async function creditSellersOnPaid(orderId: number): Promise<void> {
   const shares = await sellerSharesOfOrder(orderId);
+  if (shares.length === 0) return;
+
+  const sellerIds = shares.map((s) => s.sellerId);
+  const roleRows = (await sql`
+    SELECT id, role FROM users
+    WHERE id = ANY(string_to_array(${sellerIds.join(',')}, ',')::int[])
+  `) as unknown as { id: number; role: string }[];
+  const roleById = new Map(roleRows.map((r) => [Number(r.id), r.role]));
+
+  let orderCommission = 0;
+
   for (const share of shares) {
+    const percent = commissionPercentForRole(roleById.get(share.sellerId), getBusinessConfig());
+    const commissionKz = Math.floor((share.total * percent) / 100);
+    const net = Math.max(share.total - commissionKz, 0);
+    orderCommission += commissionKz;
+
     await ensureWallet(share.sellerId);
     const inserted = await insertOrderTxOnce({
       userId: share.sellerId,
       tipo: 'recebimento',
-      valor: share.total,
+      valor: net,
       status: 'bloqueado',
       orderId,
-      descricao: 'Venda confirmada — valor retido até entrega',
+      descricao:
+        commissionKz > 0
+          ? `Venda confirmada — comissão ${percent}% (${commissionKz} Kz) retida até entrega`
+          : 'Venda confirmada — valor retido até entrega',
+      commissionKz,
     });
     if (inserted) {
       await sql`
         UPDATE wallets
-        SET saldo_bloqueado = saldo_bloqueado + ${share.total}, updated_at = now()
+        SET saldo_bloqueado = saldo_bloqueado + ${net}, updated_at = now()
         WHERE user_id = ${share.sellerId}
       `;
     }
   }
+
+  if (orderCommission > 0) {
+    await sql`
+      UPDATE orders SET platform_commission_kz = ${orderCommission}
+      WHERE id = ${orderId} AND platform_commission_kz = 0
+    `;
+  }
 }
 
 /**
- * Comissão de afiliado (Fase A): paga automaticamente quando a venda é
- * `pago`. Idempotente — a tabela affiliate_earnings é UNIQUE
- * (affiliate_id, order_id).
+ * Comissão de afiliado (Fase A + Fase 5): paga automaticamente quando a
+ * venda é `pago`, com percentual configurável (AFFILIATE_COMMISSION_PERCENT
+ * ou o percentual guardado no registo do afiliado). Idempotente.
  */
 export async function payAffiliateCommission(
   orderId: number,
@@ -513,4 +564,25 @@ export async function applyOrderStatusSideEffects(
   if (nextStatus === 'rejeitado' || nextStatus === 'falhou') {
     await refundWalletPayment(orderId);
   }
+}
+
+/* ─────────────────────── Limites diários (Fase 5) ───────────────────── */
+
+/**
+ * Soma das operações concluídas/pendentes do dia (00:00 UTC) por tipo —
+ * usada para validar MAX_DAILY_DEPOSIT / MAX_DAILY_WITHDRAW.
+ */
+export async function dailyTransactionTotal(
+  userId: number,
+  tipo: 'deposito' | 'saque'
+): Promise<number> {
+  const rows = (await sql`
+    SELECT COALESCE(SUM(valor), 0)::float8 AS total
+    FROM wallet_transactions
+    WHERE user_id = ${userId}
+      AND tipo = ${tipo}
+      AND status IN ('pendente', 'concluido')
+      AND created_at >= date_trunc('day', now())
+  `) as unknown as { total: number }[];
+  return toNumber(rows[0]?.total);
 }

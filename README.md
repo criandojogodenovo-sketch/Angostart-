@@ -1,8 +1,8 @@
 # 🚀 AngoStart — Marketplace Empresarial Angolano
 
-**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência manual) + carteira com escrow, programa de afiliados, pesquisa de prestadores e duplo painel de administração com 2FA.**
+**Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência manual) + carteira com escrow, comissões configuráveis, programa de afiliados, chat interno, anúncios, sistema anti-burla, configuração central de negócio e duplo painel de administração com 2FA.**
 
-> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
+> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **Vercel Blob** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
 
 ---
 
@@ -44,7 +44,7 @@
 | 👤 Portfólio | Página pública `/portfolio/[username]` com bio, galeria de trabalhos, produtos e CTA WhatsApp + editor em `/dashboard/vendedor/portfolio` |
 | 🔐 Admin | Dois painéis ocultos com **login + 2FA TOTP obrigatório**: `/admin` (total) e `/admin-limitado` (só validação de comprovativos) |
 
-### Fase 4 (atual)
+### Fase 4
 | Módulo | Descrição |
 |---|---|
 | 🎯 Favicon | `src/app/icon.png` (128×128) gerado por script com **sharp** — logo verde esmeralda com foguete, auto-wired pelo App Router (`node scripts/generate-icon.js`) |
@@ -53,8 +53,27 @@
 | ⭐ Reputação | Média ponderada do vendedor no portfólio público e média por prestador na pesquisa |
 | 💰 Carteira | `/carteira` — saldo disponível + **escrow** (`saldo_bloqueado`); depósito manual **Afrimoney / UNITEL Money** com referência única (`AngoStart-DEP-…`); saque com reserva; aprovação no painel admin (separador «Carteira») |
 | 🛒 Checkout com saldo | Opção «Carteira AngoStart» no carrinho (só utilizadores autenticados, validação server-side de saldo) — pago = `pago` imediato com valor retido em escrow até `entregue`; recusa = reembolso automático |
-| 🤝 Afiliados | Código único `AFG-XXXXXX` por utilizador; campo de código no checkout; **comissão automática de 10%** creditada na carteira quando a venda é paga; dashboard do vendedor mostra código + total ganho |
+| 🤝 Afiliados | Código único `AFG-XXXXXX` por utilizador; campo de código no checkout; **comissão automática** creditada na carteira quando a venda é paga; dashboard do vendedor mostra código + total ganho |
 | 🧹 Catálogo real | `DELETE FROM products` — zero produtos de exemplo; sem BD o site mostra estado vazio honesto (nunca produtos fictícios) |
+
+### Fase 5 (atual)
+| Módulo | Descrição |
+|---|---|
+| ⚙️ Configuração central | `src/lib/config.ts` — comissões e limites da carteira carregados de variáveis de ambiente com defaults seguros; validação partilhada cliente/servidor (`validateAmount`) |
+| 💸 Comissões AngoStart | **5% criadores · 10% prestadores ao domicílio · 6,5% freelancers** — descontadas automaticamente no escrow quando a venda é paga; registadas em `wallet_transactions.commission_kz` e `orders.platform_commission_kz`; dashboard mostra receita bruta, líquida e comissão retida |
+| 💰 Limites da carteira | Mín/Máx por operação **+ limites DIÁRIOS** (soma das transações do dia validada no servidor) — anti-lavagem; limites exibidos no formulário |
+| 📄 PDF de infoprodutos | Upload para **Vercel Blob** (`/api/products/upload`, MIME + magic bytes `%PDF-` + 20 MB); download protegido `/api/products/[id]/download` (só comprador com pedido pago, vendedor ou admin); secção «Histórico» no perfil com botão «Descarregar» |
+| 📢 Anúncios | Tabela `announcements` (promo / destaque / novidade / **exclusivo** só para admin total); visibilidade por perfil (`target_role`); banner na página inicial (dispensável); secção completa no painel admin |
+| 💬 Chat interno | `/chat` — conversas cliente ↔ vendedor a partir de um produto; isolamento estrito (só as 2 partes); email de notificação (Resend) + sino no site; polling 5 s |
+| 🛡️ Anti-burla | Regras automáticas: **tentativa_fora** (partilha de contactos no chat), **ciclo_deposito_saque** (3+3 idênticos em 24 h), **reclamacoes_cliente** (2 avaliações ≤ 2★); 2 atividades abertas → **conta bloqueada automaticamente** + alerta ao admin; secção «Monitorização» no painel (desbloquear / banir / ignorar) |
+| 🗺️ Mapa + disponibilidade | Botão «Estou disponível» do prestador (geolocalização, expira em 2 h); **tempo estimado de chegada** no produto (haversine ≈ 25 km/h + 5 min); localização do cliente capturada no checkout de serviços ao domicílio (`orders.latitude/longitude`) |
+| 📊 Dashboard pro | KPIs: vendas, receita bruta, **receita líquida**, comissão retida, clientes distintos, avaliação média real, mensagens do chat (7 d); últimas avaliações; alertas de reclamações/suspeitas |
+| 🔔 Notificações | Sino na Navbar com contador de não lidas (`/api/notifications`); eventos: chat, bloqueios, alertas |
+| 🔑 Recuperar senha | `/recuperar-senha` → token SHA-256 de uso único (1 h) → `/redefinir-senha?token=…`; resposta anti-enumerção |
+| 🪪 KYC simples | BI/NIF opcional no formulário de publicação e guardados em `users.bi_number/nif_number/kyc_status` — aumenta a confiança dos clientes |
+| 📜 Termos e privacidade | Páginas `/termos` e `/privacidade` + links no footer |
+| 📈 Relatórios admin | `/api/admin/report` — receita mensal, utilizadores por perfil, encomendas por estado, comissões da plataforma (tab «Relatórios») |
+| 🍽️ MoMenu (estrutura) | `src/lib/momenu.ts` com `createPayment()` placeholder — **não ativado**; checkout mostra nota «Pagamento automático em breve» |
 
 ---
 
@@ -68,8 +87,12 @@ src/lib/auth.ts       → import 'server-only' (JWT_SECRET, bcrypt, roles BD)
 src/lib/security.ts   → import 'server-only' (sanitização, rate limit, guards)
 src/lib/email.ts      → import 'server-only' (RESEND_API_KEY)
 src/lib/admin-session.ts → import 'server-only' (assinatura do cookie 2FA)
-src/lib/wallet.ts     → import 'server-only' (escrow, saldos, movimentações)
+src/lib/wallet.ts     → import 'server-only' (escrow, saldos, movimentações, comissões)
 src/lib/affiliate.ts  → import 'server-only' (códigos AFG, comissões)
+src/lib/antifraud.ts  → import 'server-only' (regras anti-burla, bloqueio automático)
+src/lib/notifications.ts → import 'server-only' (sino do site)
+src/lib/momenu.ts     → import 'server-only' (placeholder gateway futuro)
+src/lib/config.ts     → partilhado client-safe (DEFAULTS no cliente; getBusinessConfig() lê env no servidor)
 src/lib/kwik.ts       → partilhado client-safe (constantes KWiK, SEM segredos)
 ```
 O pacote [`server-only`](https://www.npmjs.com/package/server-only) **quebra o build** se qualquer Client Component tentar importar estes módulos — segredos nunca chegam ao bundle.
@@ -281,7 +304,27 @@ Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunc
 | GET | `/api/admin/orders?status=` | admin, admin_limitado | fila de validação (`aguardando_validacao` por omissão; sem base64 do comprovativo) |
 | GET | `/api/admin/orders/[id]/proof` | admin, admin_limitado | comprovativo em binário (imagem/PDF, `no-store`) |
 | PATCH | `/api/admin/orders/[id]` | admin, admin_limitado | `{status: pago\|entregue\|rejeitado\|falhou, admin_note?}` + auditoria |
-| POST | `/api/admin/limited` | admin | cria conta `admin_limitado` |
+| GET/POST | `/api/admin/announcements` | admin, admin_limitado* | lista/cria anúncios (*limitado sem `exclusivo`) |
+| PATCH/DELETE | `/api/admin/announcements/[id]` | admin, admin_limitado* | edita/ativa/remove (*limitado sem `exclusivo`) |
+| GET/POST | `/api/admin/monitorizacao` | admin | atividades suspeitas + ações (desbloquear/banir/ignorar/resolver) |
+| GET | `/api/admin/report` | admin | relatório de desempenho (receita, utilizadores, comissões) |
+| PATCH | `/api/admin/limited-admins/[id]` | admin | `{whatsapp_contact}` — contacto para envio MANUAL do código diário |
+
+### Chat, notificações e conta (Fase 5)
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| GET/POST | `/api/chat/conversations` | sessão | lista conversas · inicia por `{product_id}` |
+| GET | `/api/chat/conversations/[id]` | partes | mensagens da conversa (isolamento estrito) |
+| POST | `/api/chat/conversations/[id]/messages` | partes | envia mensagem + anti-burla + notificações |
+| GET/POST | `/api/notifications` | sessão | sino: lista + marca lidas |
+| POST | `/api/perfil/kyc` | sessão | guarda BI/NIF (opcional) |
+| POST | `/api/perfil/location` | sessão | disponibilidade prestador `{latitude, longitude}` ou `{clear}` |
+| POST | `/api/auth/forgot-password` | público (5/15min) | envia link de recuperação (1 h, uso único) |
+| POST | `/api/auth/reset-password` | público (10/15min) | redefine senha com token |
+| GET/POST | `/api/announcements` | — | anúncios ativos visíveis ao utilizador |
+| GET | `/api/wallet/deposit` · `/api/wallet/withdraw` | — | limites atuais da carteira (config) |
+| POST | `/api/products/upload` | vendedor | upload PDF (Vercel Blob, 20 MB) |
+| GET | `/api/products/[id]/download` | comprador pago / dono / admin | download do PDF do infoproduto |
 
 ---
 
@@ -326,18 +369,24 @@ env -u DATABASE_URL node --env-file=.env.local scripts/migrate-phase3.js
 DATABASE_URL='postgres://…' node scripts/migrate-kwik.js
 # Fase 4 (is_hot, carteira, afiliados; limpa products)
 node --env-file=.env.local scripts/migrate-fase4.js
+# Fase 5 (file_url, whatsapp_contact, lat/lng, KYC, chat, anúncios, anti-burla,
+#          password_resets, notifications, commission_kz)
+node --env-file=.env scripts/migrate-fase5.js
 ```
 
-### 💰 Ciclo de vida da carteira (escrow)
+### 💰 Ciclo de vida da carteira (escrow + comissões)
 ```
 Depósito:  pedido → pendente → admin aprova → saldo disponível
+           (limites por operação + DIÁRIO da lib/config.ts)
 Compra:    checkout «Carteira» → débito atómico (BD recusa negativos)
-           → encomenda «pago» → vendedor recebe em saldo_bloqueado (escrow)
-           → afiliado (se código) recebe 10% no saldo
+           → encomenda «pago» → vendedor recebe LÍQUIDO em saldo_bloqueado
+             (comissão AngoStart: 5% criador · 10% domicílio · 6,5% remoto)
+           → afiliado (se código) recebe AFFILIATE_COMMISSION_PERCENT no saldo
 Entrega:   admin marca «entregue» → saldo_bloqueado → saldo do vendedor
 Recusa:    admin marca «rejeitado/falhou» → reembolso automático ao comprador
 Saque:     pedido reserva o valor → admin envia via Afrimoney/UNITEL
            → recusa devolve o valor ao saldo
+Anti-burla: 3 depósitos + 3 saques idênticos em 24 h → atividade suspeita
 ```
 Todos os movimentos ficam no diário `wallet_transactions` (auditoria completa,
 idempotência por encomenda — creditar 2× é impossível).
@@ -361,8 +410,21 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 | `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
 | `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
 | `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
+| `BLOB_READ_WRITE_TOKEN` | **Fase 5** — upload de PDFs de infoprodutos (Vercel Blob Store); sem ela o upload responde com instrução clara |
 | `MOMENU_API_KEY` | placeholder para gateway de pagamentos futuro (não usada ainda) |
 | `NEXT_PUBLIC_APP_URL` | URL público (links em emails) |
+
+**Configuração central de negócio (Fase 5)** — todas opcionais com defaults:
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `AFFILIATE_COMMISSION_PERCENT` | `10` | comissão de novos afiliados (%) |
+| `MIN_DEPOSIT_AMOUNT` / `MAX_DEPOSIT_AMOUNT` | `1000` / `200000` | limites por operação de depósito (Kz) |
+| `MIN_WITHDRAW_AMOUNT` / `MAX_WITHDRAW_AMOUNT` | `5000` / `100000` | limites por operação de saque (Kz) |
+| `MAX_DAILY_DEPOSIT` / `MAX_DAILY_WITHDRAW` | `500000` / `300000` | limites diários por utilizador (Kz) |
+| `COMMISSION_PRODUCT` | `5` | comissão AngoStart para criadores (%) |
+| `COMMISSION_SERVICE_DOMICILIO` | `10` | comissão para prestadores ao domicílio (%) |
+| `COMMISSION_FREELANCER` | `6.5` | comissão para freelancers remotos (%) |
 
 > 💡 **Pagamentos não exigem variáveis**: o KWiK é uma transferência manual para o número da empresa — sem gateway, sem chaves RSA, sem webhooks.
 
@@ -410,10 +472,11 @@ npm run build        # produção (38 rotas)
 
 **Vercel** (repo `criandojogodenovo-sketch/Angostart-`):
 1. Importar o repositório (framework Next.js detetado automaticamente).
-2. Environment Variables: `DATABASE_URL`, `JWT_SECRET` (obrigatórias) + opcionais do topo.
+2. Environment Variables: `DATABASE_URL`, `JWT_SECRET` (obrigatórias) + opcionais do topo (incluindo `BLOB_READ_WRITE_TOKEN` para PDFs e as variáveis de negócio da Fase 5).
 3. Deploy — as rotas API correm no runtime Node (driver Neon usa HTTPS:443).
 4. Definir o admin total com `scripts/migrate-admin-dynamic.js` (credenciais apenas por variáveis de ambiente) e ativar 2FA no painel.
 5. Na Vercel: definir `CRON_SECRET` (aleatória, 32+ caracteres) para o cron dos códigos diários funcionar.
+6. **Fase 5**: criar um Blob Store (Storage → Blob) para os PDFs de infoprodutos e ligar `BLOB_READ_WRITE_TOKEN`; ajustar comissões/limites adicionando as variáveis de negócio sem redeploy de código.
 
 ---
 
@@ -426,17 +489,16 @@ npm run build        # produção (38 rotas)
 | 3 | `2cd78b0` | Security hardening, maps, payments, admin panels |
 | 3.5 | `8451adc` | Remove PayPay, implementa pagamento KWiK manual |
 | 3.6 | `110bb6a` | Administração dinâmica: convites por email e código diário |
-| 4 | *atual* | **Fase 4: Favicon, Hot, Busca, Reputação, Carteira, Afiliados** |
+| 4 | `d2146cd` | **Fase 4: Favicon, Hot, Busca, Reputação, Carteira, Afiliados** |
+| 5 | *atual* | **feat: comissões, anúncios, chat, anti-burla, mapa, dashboard pro, UX, business config** |
 
-## 🧪 Testes da Fase 4
+## 🧪 Testes da Fase 5
 
 ```bash
-# com o servidor dev ligado (a base Neon)
-node --env-file=.env.local scripts/test-fase4.js
+node --env-file=.env scripts/test-fase5.js
 ```
-Suite E2E com 22 verificações: registo de vendedor/comprador → produto →
-afiliado (AFG-…) → depósito pendente → aprovação admin → compra com carteira →
-escrow do vendedor → comissão 10% → recusa por saldo insuficiente →
-entrega e libertação do escrow → saque reservado/recusado/devolvido →
-`is_hot` + filtro `?hot=1` → pesquisa `/api/prestadores`. Limpa os dados de
-teste no fim (cascade).
+Suite com 38 verificações: estrutura da BD (tabelas/colunas) → anúncios
+(criação + visibilidade por perfil) → chat (conversa, mensagem, isolamento,
+cascade) → anti-burla (regra dos 2 avisos: bloqueio automático + limpeza) →
+regressão da Fase 4 (is_hot, catálogo real, carteiras, afiliados, escrow,
+prestadores, avaliações). Limpa os dados de teste no fim.

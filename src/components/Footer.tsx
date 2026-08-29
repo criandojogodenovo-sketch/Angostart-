@@ -20,6 +20,7 @@ const QUICK_LINKS = [
   { href: '/', label: 'Início' },
   { href: '/produtos', label: 'Produtos' },
   { href: '/prestadores', label: 'Prestadores de serviços' },
+  { href: '/chat', label: 'Chat' },
   { href: '/carteira', label: 'Carteira' },
   { href: '/perfil', label: 'Perfil' },
   { href: '/carrinho', label: 'Carrinho' },
@@ -139,7 +140,15 @@ export default function Footer() {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400 sm:flex-row">
           <p>© {new Date().getFullYear()} AngoStart. Todos os direitos reservados.</p>
-          <p>Feito em Luanda, para Angola.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/termos" className="transition-colors hover:text-emerald-400">
+              Termos de Uso
+            </Link>
+            <Link href="/privacidade" className="transition-colors hover:text-emerald-400">
+              Política de Privacidade
+            </Link>
+            <p>Feito em Luanda, para Angola.</p>
+          </div>
         </div>
       </div>
     </footer>

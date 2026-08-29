@@ -17,16 +17,21 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Boxes,
   ClipboardList,
   Copy,
   Flame,
   Loader2,
   Lock,
+  MapPin,
+  MessageCircle,
   Package,
   PiggyBank,
   Receipt,
   Share2,
+  ShieldAlert,
+  Star,
+  TrendingUp,
+  Users,
   Wallet,
 } from 'lucide-react';
 import {
@@ -53,11 +58,28 @@ interface DashboardData {
     totalOrders: number;
     itemsSold: number;
     revenueConfirmed: number;
+    revenueNet: number;
+    commissionRetained: number;
+    commissionPercent: number;
     revenuePending: number;
     productsPublished: number;
+    clients: number;
+    ratingAverage: number;
+    ratingCount: number;
+    chatMessages7d: number;
+    complaints: number;
+    suspicious: number;
   };
   revenueByMonth: { month: string; revenue: number }[];
   topProducts: { name: string; vendas: number; receita: number }[];
+  recentReviews: {
+    rating: number;
+    comment: string | null;
+    created_at: string;
+    product_name: string;
+    client_name: string | null;
+  }[];
+  alerts: { complaints: boolean; suspicious: boolean; message: string | null };
   orders: {
     id: number;
     customer_name: string;
@@ -232,6 +254,55 @@ export default function DashboardVendedorPage() {
       .catch(() => undefined);
   }
 
+  /* ── Fase 5: disponibilidade do prestador ao domicílio ── */
+  const [aAtualizarLocal, setAAtualizarLocal] = useState(false);
+
+  function marcarDisponivel() {
+    if (!navigator.geolocation) {
+      toast({ title: 'Geolocalização indisponível', description: 'O teu navegador não suporta partilha de localização.' });
+      return;
+    }
+    setAAtualizarLocal(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch('/api/perfil/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          });
+          const payload = (await res.json()) as { ok?: boolean; error?: string };
+          if (!res.ok || !payload.ok) {
+            toast({ title: 'Não foi possível', description: payload.error });
+            return;
+          }
+          toast({ title: 'Estás disponível por 2 horas! 📍', description: 'Clientes próximos já te podem encontrar.' });
+        } finally {
+          setAAtualizarLocal(false);
+        }
+      },
+      () => {
+        setAAtualizarLocal(false);
+        toast({ title: 'Permissão recusada', description: 'Autoriza a localização no navegador para ficar disponível.' });
+      },
+      { enableHighAccuracy: false, timeout: 10_000 }
+    );
+  }
+
+  async function ficarIndisponivel() {
+    setAAtualizarLocal(true);
+    try {
+      await fetch('/api/perfil/location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ clear: true }),
+      });
+      toast({ title: 'Pausado — já não apareces como disponível.' });
+    } finally {
+      setAAtualizarLocal(false);
+    }
+  }
+
   if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
@@ -288,7 +359,15 @@ export default function DashboardVendedorPage() {
         </div>
       </div>
 
-      {/* Cartões de métricas */}
+      {/* Alertas (Fase 5) */}
+      {data?.alerts.message && (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p>{data.alerts.message}</p>
+        </div>
+      )}
+
+      {/* Cartões de métricas — linha 1 */}
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
@@ -300,10 +379,20 @@ export default function DashboardVendedorPage() {
           },
           {
             icon: PiggyBank,
-            label: 'Receita confirmada',
+            label: 'Receita bruta confirmada',
             value: formatKz(cards?.revenueConfirmed ?? 0),
             hint: 'pagamentos validados',
             tone: 'bg-sky-50 text-sky-600',
+          },
+          {
+            icon: TrendingUp,
+            label: 'Receita líquida (após comissão)',
+            value: formatKz(cards?.revenueNet ?? 0),
+            hint:
+              cards && cards.commissionRetained > 0
+                ? `comissão AngoStart ${cards.commissionPercent}%: ${formatKz(cards.commissionRetained)}`
+                : 'sem comissões retidas',
+            tone: 'bg-teal-50 text-teal-600',
           },
           {
             icon: ClipboardList,
@@ -311,13 +400,6 @@ export default function DashboardVendedorPage() {
             value: formatKz(cards?.revenuePending ?? 0),
             hint: 'à espera de validação',
             tone: 'bg-amber-50 text-amber-600',
-          },
-          {
-            icon: Boxes,
-            label: 'Produtos publicados',
-            value: String(cards?.productsPublished ?? 0),
-            hint: 'no catálogo ativo',
-            tone: 'bg-violet-50 text-violet-600',
           },
         ].map(({ icon: Icon, label, value, hint, tone }) => (
           <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -329,6 +411,49 @@ export default function DashboardVendedorPage() {
             <p className="mt-3 text-2xl font-bold text-slate-900">{value}</p>
             <p className="text-sm font-medium text-slate-600">{label}</p>
             <p className="text-xs text-slate-400">{hint}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Cartões de métricas — linha 2 (Fase 5) */}
+      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          {
+            icon: Users,
+            label: 'Clientes',
+            value: String(cards?.clients ?? 0),
+            hint: 'clientes distintos servidos',
+            tone: 'bg-violet-50 text-violet-600',
+          },
+          {
+            icon: Star,
+            label: 'Avaliação média',
+            value: cards && cards.ratingCount > 0 ? `${cards.ratingAverage} ★` : '—',
+            hint: `${cards?.ratingCount ?? 0} avaliações recebidas`,
+            tone: 'bg-amber-50 text-amber-600',
+          },
+          {
+            icon: MessageCircle,
+            label: 'Mensagens no chat (7d)',
+            value: String(cards?.chatMessages7d ?? 0),
+            hint: 'responde rápido para vender mais',
+            tone: 'bg-sky-50 text-sky-600',
+          },
+          {
+            icon: Package,
+            label: 'Produtos publicados',
+            value: String(cards?.productsPublished ?? 0),
+            hint: 'no catálogo ativo',
+            tone: 'bg-emerald-50 text-emerald-600',
+          },
+        ].map(({ icon: Icon, label, value, hint, tone }) => (
+          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
+              <Icon className="h-4 w-4" />
+            </span>
+            <p className="mt-2 text-xl font-bold text-slate-900">{value}</p>
+            <p className="text-xs font-medium text-slate-600">{label}</p>
+            <p className="text-[11px] text-slate-400">{hint}</p>
           </div>
         ))}
       </div>
@@ -393,7 +518,7 @@ export default function DashboardVendedorPage() {
         </section>
       </div>
 
-      {/* Fase 4 — Carteira / Hot / Afiliados */}
+      {/* Fase 4/5 — Carteira / Afiliados / Em alta + Disponibilidade */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Carteira */}
         <section aria-label="Carteira" className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-sm">
@@ -513,6 +638,75 @@ export default function DashboardVendedorPage() {
             </>
           )}
         </section>
+      </div>
+
+      {/* Fase 5 — Atividade recente: avaliações + disponibilidade (domicílio) */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        {/* Últimas avaliações recebidas */}
+        <section aria-label="Avaliações recentes" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <Star className="h-5 w-5 text-amber-500" /> Avaliações recentes
+          </h2>
+          {(data?.recentReviews?.length ?? 0) === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">
+              Ainda sem avaliações — clientes com compra confirmada podem avaliar os teus produtos.
+            </p>
+          ) : (
+            <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1">
+              {data!.recentReviews.map((r, i) => (
+                <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <span className="text-amber-500">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                    {r.product_name}
+                    <span className="ml-auto font-normal text-slate-400">
+                      {new Date(r.created_at).toLocaleDateString('pt-PT')}
+                    </span>
+                  </p>
+                  {r.comment && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{r.comment}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Estou disponível — prestadores ao domicílio (Fase 5, mapa) */}
+        {user?.role === 'prestador_domicilio' && (
+          <section
+            aria-label="Disponibilidade de serviço"
+            className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500 p-5 text-white shadow-sm"
+          >
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <MapPin className="h-5 w-5" /> Disponibilidade ao domicílio
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-orange-50">
+              Partilha a tua localização aproximada (expira em 2 h) para apareceres como
+              disponível. Clientes veem apenas a área — a localização exata só é revelada
+              após pagamento.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button
+                onClick={marcarDisponivel}
+                disabled={aAtualizarLocal}
+                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-50"
+              >
+                {aAtualizarLocal ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <MapPin className="mr-2 h-4 w-4" />
+                )}
+                Estou disponível
+              </Button>
+              <Button
+                onClick={ficarIndisponivel}
+                disabled={aAtualizarLocal}
+                variant="outline"
+                className="h-10 border-white/40 text-white hover:bg-white/10"
+              >
+                Pausar
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Encomendas recebidas */}

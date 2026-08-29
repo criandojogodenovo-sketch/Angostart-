@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import FeaturedProducts from "@/components/FeaturedProducts";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { PRODUCT_TYPES, PRODUCT_TYPE_ORDER } from "@/lib/products-data";
 import type { LucideIcon } from "lucide-react";
 
@@ -81,6 +82,9 @@ const DIFFERENTIALS = [
 export default function HomePage() {
   return (
     <>
+      {/* Anúncios / promoções ativas (Fase 5) */}
+      <AnnouncementBanner />
+
       {/* ─────────────────────── Hero ─────────────────────── */}
       <section className="relative overflow-hidden bg-brand-dark text-white">
         {/* Brilhos decorativos */}

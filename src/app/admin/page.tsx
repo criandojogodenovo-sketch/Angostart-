@@ -15,16 +15,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Ban,
+  BarChart3,
   CalendarClock,
   CheckCircle2,
+  Eye,
   FileText,
   Loader2,
   LogOut,
   Mail,
+  Megaphone,
   Package,
   RefreshCw,
   Send,
   ShieldCheck,
+  ShieldAlert,
   Trash2,
   UserPlus,
   Users,
@@ -64,7 +68,16 @@ interface AdminProduct {
   seller_name?: string | null;
 }
 
-type Tab = 'utilizadores' | 'produtos' | 'encomendas' | 'carteira' | 'admins' | 'seguranca';
+type Tab =
+  | 'utilizadores'
+  | 'produtos'
+  | 'encomendas'
+  | 'carteira'
+  | 'admins'
+  | 'anuncios'
+  | 'monitorizacao'
+  | 'relatorios'
+  | 'seguranca';
 
 interface AdminInviteRow {
   id: number;
@@ -82,7 +95,40 @@ interface LimitedAdminRow {
   email: string;
   blocked: boolean;
   two_factor_enabled: boolean;
+  whatsapp_contact: string | null;
   created_at: string;
+}
+
+interface AnnouncementRow {
+  id: number;
+  title: string;
+  content: string;
+  type: string;
+  target_role: string | null;
+  active: boolean;
+  created_at: string;
+  created_by_name: string | null;
+}
+
+interface SuspiciousRow {
+  id: number;
+  user_id: number;
+  action: string;
+  details: string | null;
+  severity: string;
+  status: string;
+  created_at: string;
+  user_name: string | null;
+  user_email: string | null;
+  user_blocked: boolean | null;
+}
+
+interface AdminReport {
+  usersByRole: { role: string; n: number }[];
+  products: { total: number; hot: number; activeSellers: number };
+  ordersByStatus: { status: string; n: number; volume: number }[];
+  monthly: { month: string; orders: number; revenue: number; commission: number }[];
+  totals: { revenue: number; commission: number; newUsers30d: number };
 }
 
 interface DailyCodeRow {
@@ -123,8 +169,27 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'carteira', label: 'Carteira', icon: Wallet },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
+  { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
+  { key: 'monitorizacao', label: 'Monitorização', icon: Eye },
+  { key: 'relatorios', label: 'Relatórios', icon: BarChart3 },
   { key: 'admins', label: 'Gerir Admins Limitados', icon: UserPlus },
   { key: 'seguranca', label: 'Segurança 2FA', icon: ShieldCheck },
+];
+
+const ANNOUNCEMENT_TYPES = [
+  { value: 'promo', label: 'Promoção' },
+  { value: 'destaque', label: 'Destaque' },
+  { value: 'novidade', label: 'Novidade' },
+  { value: 'exclusivo', label: 'Exclusivo (só equipa)' },
+];
+
+const TARGET_ROLE_OPTIONS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'cliente', label: 'Clientes' },
+  { value: 'criador', label: 'Criadores' },
+  { value: 'prestador_domicilio', label: 'Prestadores ao Domicílio' },
+  { value: 'prestador_remoto', label: 'Freelancers Remotos' },
+  { value: 'admin_limitado', label: 'Admins Limitados' },
 ];
 
 export default function AdminPage() {
@@ -167,6 +232,25 @@ function AdminPanel() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [busyAdminId, setBusyAdminId] = useState<number | null>(null);
+  const [whatsappDraft, setWhatsappDraft] = useState<Record<number, string>>({});
+
+  /* ── Anúncios (Fase 5) ── */
+  const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [annTitle, setAnnTitle] = useState('');
+  const [annContent, setAnnContent] = useState('');
+  const [annType, setAnnType] = useState('promo');
+  const [annTarget, setAnnTarget] = useState('todos');
+  const [annCreating, setAnnCreating] = useState(false);
+
+  /* ── Monitorização anti-burla (Fase 5) ── */
+  const [suspicious, setSuspicious] = useState<SuspiciousRow[]>([]);
+  const [suspiciousLoading, setSuspiciousLoading] = useState(false);
+  const [suspiciousStatus, setSuspiciousStatus] = useState('aberta');
+
+  /* ── Relatórios (Fase 5) ── */
+  const [report, setReport] = useState<AdminReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   /* ── 2FA setup ── */
   const [qr, setQr] = useState<string | null>(null);
@@ -253,6 +337,50 @@ function AdminPanel() {
     }
   }, [toast]);
 
+  /* ── Anúncios (Fase 5) ── */
+  const loadAnnouncements = useCallback(async () => {
+    setAnnouncementsLoading(true);
+    try {
+      const res = await fetch('/api/admin/announcements', { headers: authHeaders() });
+      const data = (await res.json()) as { announcements?: AnnouncementRow[] };
+      setAnnouncements(data.announcements ?? []);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  }, []);
+
+  /* ── Monitorização anti-burla (Fase 5) ── */
+  const loadSuspicious = useCallback(async () => {
+    setSuspiciousLoading(true);
+    try {
+      const res = await fetch(`/api/admin/monitorizacao?status=${suspiciousStatus}`, {
+        headers: authHeaders(),
+      });
+      const data = (await res.json()) as { activities?: SuspiciousRow[] };
+      setSuspicious(data.activities ?? []);
+    } finally {
+      setSuspiciousLoading(false);
+    }
+  }, [suspiciousStatus]);
+
+  /* ── Relatórios (Fase 5) ── */
+  const loadReport = useCallback(async () => {
+    setReportLoading(true);
+    try {
+      const res = await fetch('/api/admin/report', { headers: authHeaders() });
+      const data = (await res.json()) as { error?: string } & Partial<AdminReport>;
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      if (data.usersByRole && data.products && data.ordersByStatus && data.monthly && data.totals) {
+        setReport(data as AdminReport);
+      }
+    } finally {
+      setReportLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     if (tab === 'encomendas') loadOrders();
   }, [tab, loadOrders]);
@@ -262,7 +390,10 @@ function AdminPanel() {
     if (tab === 'produtos') loadProducts();
     if (tab === 'admins') loadAdminSecurityData();
     if (tab === 'carteira') loadWalletOps();
-  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps]);
+    if (tab === 'anuncios') loadAnnouncements();
+    if (tab === 'monitorizacao') loadSuspicious();
+    if (tab === 'relatorios') loadReport();
+  }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport]);
 
   async function sendInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -418,6 +549,113 @@ function AdminPanel() {
     } finally {
       setWalletBusyId(null);
     }
+  }
+
+  /* ── WhatsApp do admin limitado (Fase 5 — código enviado manualmente) ── */
+  async function saveWhatsapp(admin: LimitedAdminRow) {
+    setBusyAdminId(admin.id);
+    try {
+      const res = await fetch(`/api/admin/limited-admins/${admin.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ whatsapp_contact: whatsappDraft[admin.id] ?? admin.whatsapp_contact ?? '' }),
+      });
+      const data = (await res.json()) as { ok?: boolean; whatsapp_contact?: string; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível guardar', description: data.error });
+        return;
+      }
+      toast({
+        title: 'WhatsApp guardado',
+        description: `${admin.name}: ${data.whatsapp_contact ?? 'removido'}`,
+      });
+      loadAdminSecurityData();
+    } finally {
+      setBusyAdminId(null);
+    }
+  }
+
+  /* ── Anúncios (Fase 5) ── */
+  async function createAnnouncement(event: React.FormEvent) {
+    event.preventDefault();
+    setAnnCreating(true);
+    try {
+      const res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          title: annTitle,
+          content: annContent,
+          type: annType,
+          target_role: annTarget === 'todos' ? null : annTarget,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível criar', description: data.error });
+        return;
+      }
+      toast({ title: 'Anúncio criado', description: 'Já está visível no site.' });
+      setAnnTitle('');
+      setAnnContent('');
+      loadAnnouncements();
+    } finally {
+      setAnnCreating(false);
+    }
+  }
+
+  async function toggleAnnouncement(a: AnnouncementRow) {
+    const res = await fetch(`/api/admin/announcements/${a.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ active: !a.active }),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      toast({ title: 'Não foi possível atualizar', description: data.error });
+      return;
+    }
+    loadAnnouncements();
+  }
+
+  async function deleteAnnouncement(a: AnnouncementRow) {
+    const res = await fetch(`/api/admin/announcements/${a.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      toast({ title: 'Não foi possível remover', description: data.error });
+      return;
+    }
+    toast({ title: 'Anúncio removido' });
+    loadAnnouncements();
+  }
+
+  /* ── Monitorização: decidir atividade suspeita (Fase 5) ── */
+  async function suspiciousAction(row: SuspiciousRow, acao: string) {
+    const res = await fetch('/api/admin/monitorizacao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ id: row.id, acao }),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      toast({ title: 'Não foi possível aplicar', description: data.error });
+      return;
+    }
+    toast({
+      title:
+        acao === 'desbloquear'
+          ? 'Conta desbloqueada'
+          : acao === 'banir'
+            ? 'Banimento aplicado'
+            : acao === 'ignorar'
+              ? 'Atividade ignorada'
+              : 'Atividade resolvida',
+      description: `${row.user_name ?? row.user_email ?? '#' + row.user_id}`,
+    });
+    loadSuspicious();
   }
 
 
@@ -772,35 +1010,66 @@ function AdminPanel() {
                 ) : (
                   <ul className="divide-y divide-slate-100">
                     {limitedAdmins.map((a) => (
-                      <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">{a.name}</p>
-                          <p className="truncate text-xs text-slate-500">{a.email}</p>
-                          <p className="mt-0.5 flex gap-1.5 text-[11px]">
-                            <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                              {a.two_factor_enabled ? '2FA ativa' : '2FA pendente'}
-                            </span>
-                            {a.blocked && <span className="rounded-full bg-rose-50 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
-                          </p>
+                      <li key={a.id} className="py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">{a.name}</p>
+                            <p className="truncate text-xs text-slate-500">{a.email}</p>
+                            <p className="mt-0.5 flex gap-1.5 text-[11px]">
+                              <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                {a.two_factor_enabled ? '2FA ativa' : '2FA pendente'}
+                              </span>
+                              {a.blocked && <span className="rounded-full bg-rose-50 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
+                              {a.whatsapp_contact && (
+                                <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-600">
+                                  WhatsApp: {a.whatsapp_contact}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => sendDailyCode(a)}
+                              disabled={busyAdminId === a.id}
+                              className="h-8 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                            >
+                              {busyAdminId === a.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
+                              Código diário
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeLimitedAdmin(a)}
+                              className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        {/* Contacto WhatsApp (Fase 5): envio MANUAL do código */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            value={whatsappDraft[a.id] ?? a.whatsapp_contact ?? ''}
+                            onChange={(e) => setWhatsappDraft((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                            placeholder="9XX XXX XXX (para envio manual do código)"
+                            inputMode="tel"
+                            className="h-8 flex-1 text-xs"
+                            aria-label={`WhatsApp de ${a.name}`}
+                          />
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => sendDailyCode(a)}
+                            onClick={() => saveWhatsapp(a)}
                             disabled={busyAdminId === a.id}
-                            className="h-8 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                            className="h-8 shrink-0 border-sky-300 text-sky-600 hover:bg-sky-50"
                           >
-                            {busyAdminId === a.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
-                            Código diário
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => removeLimitedAdmin(a)}
-                            className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            {busyAdminId === a.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              'Guardar WhatsApp'
+                            )}
                           </Button>
                         </div>
                       </li>
@@ -886,6 +1155,364 @@ function AdminPanel() {
               </div>
             </div>
           </section>
+        </div>
+      )}
+
+      {/* ── Anúncios (Fase 5) ── */}
+      {tab === 'anuncios' && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-[380px_1fr]">
+          {/* Criar anúncio */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <Megaphone className="h-4 w-4" /> Criar anúncio
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Promoções, destaques e novidades aparecem no topo do site. Como administrador
+              total também podes criar anúncios <strong>exclusivos</strong> (visíveis só à equipa).
+              Admins limitados não têm acesso ao tipo exclusivo.
+            </p>
+            <form onSubmit={createAnnouncement} className="mt-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ann-titulo">Título</Label>
+                <Input
+                  id="ann-titulo"
+                  value={annTitle}
+                  onChange={(e) => setAnnTitle(e.target.value)}
+                  placeholder="Ex.: -20% em infoprodutos até sexta"
+                  required
+                  minLength={3}
+                  maxLength={100}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ann-conteudo">Conteúdo</Label>
+                <textarea
+                  id="ann-conteudo"
+                  value={annContent}
+                  onChange={(e) => setAnnContent(e.target.value)}
+                  rows={3}
+                  placeholder="Detalhes do anúncio…"
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  required
+                  minLength={5}
+                  maxLength={800}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ann-tipo">Tipo</Label>
+                  <select
+                    id="ann-tipo"
+                    value={annType}
+                    onChange={(e) => setAnnType(e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  >
+                    {ANNOUNCEMENT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ann-target">Destinatários</Label>
+                  <select
+                    id="ann-target"
+                    value={annTarget}
+                    onChange={(e) => setAnnTarget(e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  >
+                    {TARGET_ROLE_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                disabled={annCreating}
+                className="h-11 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+              >
+                {annCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Send className="mr-2 h-4 w-4" /> Publicar anúncio
+              </Button>
+            </form>
+          </section>
+
+          {/* Lista de anúncios */}
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">
+                Anúncios ({announcements.length})
+              </h2>
+              <Button variant="ghost" size="sm" onClick={loadAnnouncements}>
+                <RefreshCw className={`mr-1.5 h-4 w-4 ${announcementsLoading ? 'animate-spin' : ''}`} /> Atualizar
+              </Button>
+            </div>
+            {announcements.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-slate-400">
+                Sem anúncios — cria o primeiro no formulário ao lado.
+              </p>
+            ) : (
+              <ul className="max-h-[480px] divide-y divide-slate-100 overflow-y-auto">
+                {announcements.map((a) => (
+                  <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {a.title}{' '}
+                        <span
+                          className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+                            a.type === 'exclusivo'
+                              ? 'bg-slate-800 text-white'
+                              : a.type === 'promo'
+                                ? 'bg-amber-100 text-amber-700'
+                                : a.type === 'destaque'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-sky-100 text-sky-700'
+                          }`}
+                        >
+                          {a.type}
+                        </span>
+                        {!a.active && (
+                          <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                            inativo
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{a.content}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {a.target_role ? `para ${a.target_role} · ` : 'para todos · '}
+                        {new Date(a.created_at).toLocaleDateString('pt-PT')} · {a.created_by_name ?? '—'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => toggleAnnouncement(a)}
+                        className="h-8"
+                      >
+                        {a.active ? 'Desativar' : 'Ativar'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteAnnouncement(a)}
+                        className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ── Monitorização anti-burla (Fase 5) ── */}
+      {tab === 'monitorizacao' && (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                <Eye className="h-4 w-4" /> Monitorização anti-burla
+              </h2>
+              <p className="text-xs text-slate-400">
+                2 atividades abertas bloqueiam a conta automaticamente — desbloqueia ou bane aqui.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {['aberta', 'resolvida', 'ignorada'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSuspiciousStatus(s)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    suspiciousStatus === s
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+              <Button variant="ghost" size="sm" onClick={loadSuspicious}>
+                <RefreshCw className={`mr-1.5 h-4 w-4 ${suspiciousLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+          {suspicious.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-400">
+              {suspiciousStatus === 'aberta'
+                ? 'Sem atividades suspeitas abertas — a plataforma está tranquila. 🎉'
+                : 'Sem atividades neste estado.'}
+            </p>
+          ) : (
+            <ul className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
+              {suspicious.map((row) => (
+                <li key={row.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+                          row.severity === 'alta'
+                            ? 'bg-rose-100 text-rose-700'
+                            : row.severity === 'media'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {row.severity}
+                      </span>
+                      <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">{row.action}</code>
+                      <span className="font-normal text-slate-500">
+                        {row.user_name ?? '—'} ({row.user_email ?? `#${row.user_id}`})
+                      </span>
+                      {row.user_blocked && (
+                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+                          conta bloqueada
+                        </span>
+                      )}
+                    </p>
+                    {row.details && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{row.details}</p>}
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {new Date(row.created_at).toLocaleString('pt-PT')}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {row.user_blocked && (
+                      <Button
+                        size="sm"
+                        onClick={() => suspiciousAction(row, 'desbloquear')}
+                        className="h-8 bg-emerald-500 text-white hover:bg-emerald-600"
+                      >
+                        <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Desbloquear
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => suspiciousAction(row, 'banir')}
+                      className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                    >
+                      <Ban className="mr-1 h-3.5 w-3.5" /> Banir
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => suspiciousAction(row, 'ignorar')}
+                      className="h-8"
+                    >
+                      <XCircle className="mr-1 h-3.5 w-3.5" /> Ignorar
+                    </Button>
+                    {suspiciousStatus !== 'aberta' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => suspiciousAction(row, 'resolver')}
+                        className="h-8"
+                      >
+                        Resolver
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* ── Relatórios (Fase 5) ── */}
+      {tab === 'relatorios' && (
+        <div className="mt-6 space-y-6">
+          {reportLoading && !report ? (
+            <p className="flex items-center justify-center py-10 text-sm text-slate-400">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A gerar relatório…
+            </p>
+          ) : !report ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-400">Sem dados de relatório.</p>
+          ) : (
+            <>
+              {/* KPIs gerais */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Receita confirmada</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-600">{formatKz(report.totals.revenue)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Comissões AngoStart</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{formatKz(report.totals.commission)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Novos utilizadores (30d)</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{report.totals.newUsers30d}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Produtos ativos</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {report.products.total}{' '}
+                    <span className="text-sm font-semibold text-amber-500">({report.products.hot} em alta)</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Receita mensal */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Receita mensal (pagas + entregues)</h3>
+                  <div className="mt-4 flex h-44 items-end gap-3">
+                    {report.monthly.map((m) => {
+                      const max = Math.max(...report.monthly.map((x) => x.revenue), 1);
+                      return (
+                        <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+                          <span className="text-[10px] font-semibold text-slate-500">
+                            {m.revenue > 0 ? formatKz(m.revenue).replace(' Kz', '') : '0'}
+                          </span>
+                          <div
+                            className="w-full rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all"
+                            style={{ height: `${Math.max((m.revenue / max) * 130, 4)}px` }}
+                            title={`${m.orders} encomendas — ${formatKz(m.revenue)}`}
+                          />
+                          <span className="text-[10px] text-slate-400">{m.month.slice(5)}/{m.month.slice(2, 4)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {report.monthly.length === 0 && (
+                    <p className="text-center text-xs text-slate-400">Ainda sem vendas confirmadas.</p>
+                  )}
+                </section>
+
+                {/* Utilizadores por perfil + encomendas por estado */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Utilizadores por perfil</h3>
+                  <ul className="mt-3 space-y-2">
+                    {report.usersByRole.map((r) => (
+                      <li key={r.role} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">{ROLE_LABELS[r.role as Role] ?? r.role}</span>
+                        <span className="font-bold text-slate-900">{r.n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <h3 className="mt-5 text-sm font-bold text-slate-900">Encomendas por estado</h3>
+                  <ul className="mt-3 space-y-2">
+                    {report.ordersByStatus.length === 0 ? (
+                      <li className="text-sm text-slate-400">Sem encomendas registadas.</li>
+                    ) : (
+                      report.ordersByStatus.map((r) => (
+                        <li key={r.status} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-600">{r.status}</span>
+                          <span className="font-bold text-slate-900">
+                            {r.n} <span className="text-xs font-normal text-slate-400">({formatKz(r.volume)})</span>
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </section>
+              </div>
+            </>
+          )}
         </div>
       )}
 

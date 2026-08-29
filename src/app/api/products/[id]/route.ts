@@ -22,7 +22,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function loadProduct(id: number): Promise<Product | null> {
   const rows = (await sql`
     SELECT id, name, description, price_kz, type, icon, gradient, image_url,
-           featured::boolean, is_hot::boolean, rating::float8, stock, user_id
+           featured::boolean, is_hot::boolean, rating::float8, stock, user_id, file_url
     FROM products
     WHERE id = ${id}
     LIMIT 1
@@ -46,7 +46,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const rows = (await sql`
       SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
              p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
-             p.service_lat, p.service_lng,
+             p.service_lat, p.service_lng, p.file_url,
              u.name AS seller_name, u.role AS seller_role, u.username AS seller_username,
              u.cidade AS seller_cidade, u.especialidade AS seller_especialidade,
              u.telefone AS seller_telefone, u.portfolio_image AS seller_portfolio_image
@@ -97,6 +97,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     image_url?: string;
     service_lat?: number | string | null;
     service_lng?: number | string | null;
+    file_url?: string | null;
   };
   try {
     body = await request.json();
@@ -135,6 +136,29 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       body.service_lat !== undefined || body.service_lng !== undefined
         ? parseCoord(body.service_lng, ANGOLA_LNG)
         : (product as unknown as { service_lng?: number | null }).service_lng ?? null;
+
+    /* PDF do infoproduto (Fase 5) — mantém o atual se não vier novo */
+    let fileUrl: string | null =
+      (product as unknown as { file_url?: string | null }).file_url ?? null;
+    if (body.file_url !== undefined) {
+      const candidate = typeof body.file_url === 'string' ? body.file_url.trim() : '';
+      if (candidate.length === 0) {
+        fileUrl = null;
+      } else if (!isSafeHttpUrl(candidate)) {
+        return NextResponse.json(
+          { error: 'O link do ficheiro PDF deve começar por https://.' },
+          { status: 400 }
+        );
+      } else if (!candidate.includes(`/ebooks/${user.id}/`)) {
+        return NextResponse.json(
+          { error: 'PDF inválido — envia o ficheiro primeiro em /api/products/upload.' },
+          { status: 400 }
+        );
+      } else {
+        fileUrl = candidate;
+      }
+    }
+    if (nextType !== 'infoproduto') fileUrl = null;
 
     if (name.length < 3) {
       return NextResponse.json(
@@ -175,10 +199,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       SET name = ${name}, description = ${description}, price_kz = ${priceKz},
           type = ${type}, image_url = ${imageUrl},
           service_lat = ${nextType === 'servico_domicilio' ? serviceLat : null},
-          service_lng = ${nextType === 'servico_domicilio' ? serviceLng : null}
+          service_lng = ${nextType === 'servico_domicilio' ? serviceLng : null},
+          file_url = ${fileUrl}
       WHERE id = ${id}
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, is_hot::boolean, rating::float8, stock, user_id, service_lat, service_lng
+                featured::boolean, is_hot::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url
     `) as unknown as Product[];
 
     return NextResponse.json({ product: updated[0] });

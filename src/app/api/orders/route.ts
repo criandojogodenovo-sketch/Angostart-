@@ -49,6 +49,9 @@ interface OrderPayload {
   payment_proof_name?: unknown;
   /** Código de afiliado indicado no checkout (ex.: AFG-3K9PQX). */
   affiliate_code?: unknown;
+  /** Localização do cliente (serviços ao domicílio — opcional, validada). */
+  latitude?: unknown;
+  longitude?: unknown;
 }
 
 interface DbProduct {
@@ -129,6 +132,17 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  /* ── Localização do cliente (Fase 5 — serviços ao domicílio, opcional) ── */
+  const ANGOLA_LAT = [-18.5, -4.5] as const;
+  const ANGOLA_LNG = [11.0, 25.0] as const;
+  const parseCoord = (value: unknown, range: readonly [number, number]): number | null => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < range[0] || num > range[1]) return null;
+    return Math.round(num * 1e6) / 1e6;
+  };
+  const clientLat = parseCoord(body.latitude, ANGOLA_LAT);
+  const clientLng = parseCoord(body.longitude, ANGOLA_LNG);
 
   const proof = body.payment_proof
     ? parseAndValidateProof({
@@ -245,7 +259,7 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude)
       VALUES (
         ${customerName},
         ${customerPhone},
@@ -261,7 +275,9 @@ export async function POST(request: NextRequest) {
         ${proof ? proof.dataUrl : null},
         ${proof ? proof.name : null},
         ${proof ? proof.mime : null},
-        ${affiliateCode}
+        ${affiliateCode},
+        ${clientLat},
+        ${clientLng}
       )
       RETURNING id, created_at, total_kz, status
     `);
@@ -348,14 +364,46 @@ export async function GET(request: NextRequest) {
       );
     }
     try {
-      const myOrders = await sql`
+      const myOrders = (await sql`
         SELECT id, items, total_kz, status, delivery_type, created_at
         FROM orders
         WHERE user_id = ${user.id}
         ORDER BY created_at DESC
         LIMIT 50
-      `;
-      return NextResponse.json({ orders: myOrders });
+      `) as unknown as {
+        id: number;
+        items: { id: number; name: string; price_kz: number; quantity: number }[];
+        total_kz: number;
+        status: string;
+        delivery_type: string;
+        created_at: string;
+      }[];
+
+      /* Enriquece os itens com type + file_url (download de infoprodutos — Fase 5) */
+      const productIds = [
+        ...new Set(myOrders.flatMap((o) => o.items.map((i) => Number(i.id)).filter(Boolean))),
+      ];
+      const fileMap = new Map<number, { type: string; file_url: string | null }>();
+      if (productIds.length > 0) {
+        const rows = (await sql`
+          SELECT id, type, file_url FROM products
+          WHERE id = ANY(string_to_array(${productIds.join(',')}, ',')::int[])
+        `) as unknown as { id: number; type: string; file_url: string | null }[];
+        for (const r of rows) {
+          fileMap.set(Number(r.id), { type: r.type, file_url: r.file_url });
+        }
+      }
+
+      const orders = myOrders.map((o) => ({
+        ...o,
+        items: o.items.map((i) => ({
+          ...i,
+          type: fileMap.get(Number(i.id))?.type ?? null,
+          file_url: fileMap.get(Number(i.id))?.file_url ?? null,
+        })),
+      }));
+
+      return NextResponse.json({ orders });
     } catch (error) {
       console.error('[API /api/orders] Erro ao listar (mine):', error);
       return NextResponse.json({ orders: [] }, { status: 200 });

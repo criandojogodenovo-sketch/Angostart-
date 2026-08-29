@@ -105,6 +105,15 @@ function LimitedPanel({ expectedRole }: { expectedRole: 'admin' | 'admin_limitad
         </Button>
       </div>
 
+      {/* Nota: código diário via WhatsApp (Fase 5) */}
+      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <p className="font-semibold">Receberás o código diário via WhatsApp no número registado.</p>
+        <p className="mt-0.5 text-xs text-sky-700">
+          O administrador total envia o código manualmente para o contacto guardado no teu perfil
+          (e também por email). Não partilhes este código com ninguém.
+        </p>
+      </div>
+
       {loading ? (
         <p className="mt-10 flex items-center justify-center text-sm text-slate-400">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar comprovativos…

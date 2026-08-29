@@ -29,6 +29,10 @@ export interface Product {
   image_url?: string | null;
   seller_name?: string | null;
   seller_role?: string | null;
+  /** PDF do infoproduto (Vercel Blob) — download só após compra paga. */
+  file_url?: string | null;
+  service_lat?: number | null;
+  service_lng?: number | null;
 }
 
 export const PRODUCT_TYPES: Record<

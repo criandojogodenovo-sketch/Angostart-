@@ -329,7 +329,7 @@ export default function PortfolioEditorPage() {
             {data!.items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 { }
-                <img src={item.image_url} alt={item.title} className="h-40 w-full object-cover" />
+                <img loading="lazy" src={item.image_url} alt={item.title} className="h-40 w-full object-cover" />
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900">{item.title}</h3>

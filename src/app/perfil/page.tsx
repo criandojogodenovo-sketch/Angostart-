@@ -19,6 +19,7 @@ import {
   BarChart3,
   Briefcase,
   CircleDollarSign,
+  Download,
   ExternalLink,
   GraduationCap,
   History,
@@ -90,7 +91,14 @@ const ROLE_BADGE: Record<string, string> = {
 
 interface OrderRecord {
   id: number;
-  items: { id: number; name: string; price_kz: number; quantity: number }[];
+  items: {
+    id: number;
+    name: string;
+    price_kz: number;
+    quantity: number;
+    type?: string | null;
+    file_url?: string | null;
+  }[];
   total_kz: number;
   status: string;
   delivery_type?: string;
@@ -379,6 +387,14 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
               className="h-11"
               required
             />
+            {mode === 'login' && (
+              <Link
+                href="/recuperar-senha"
+                className="inline-block text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+              >
+                Esqueci a senha — recuperar por email
+              </Link>
+            )}
           </div>
 
           {mode === 'registo' && (
@@ -681,17 +697,45 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                       {order.delivery_type === 'domicilio' ? 'Entrega ao domicílio' : 'Retirada'}
                     </p>
                     <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                      {order.items.map((item, index) => (
-                        <li key={`${order.id}-${index}`} className="flex justify-between gap-3">
-                          <span className="truncate">
-                            {item.quantity}× {item.name}
-                          </span>
-                          <span className="shrink-0 font-medium">
-                            {formatKz(item.price_kz * item.quantity)}
-                          </span>
-                        </li>
-                      ))}
+                      {order.items.map((item, index) => {
+                        const canDownload =
+                          item.type === 'infoproduto' &&
+                          item.file_url &&
+                          ['pago', 'entregue'].includes(order.status);
+                        return (
+                          <li
+                            key={`${order.id}-${index}`}
+                            className="flex flex-wrap items-center justify-between gap-2"
+                          >
+                            <span className="truncate">
+                              {item.quantity}× {item.name}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              {canDownload && (
+                                <a
+                                  href={`/api/products/${item.id}/download`}
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> Descarregar
+                                </a>
+                              )}
+                              <span className="font-medium">
+                                {formatKz(item.price_kz * item.quantity)}
+                              </span>
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
+                    {order.items.some(
+                      (i) => i.type === 'infoproduto' && i.file_url
+                    ) &&
+                      !['pago', 'entregue'].includes(order.status) && (
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          O download dos teus infoprodutos fica disponível assim que o
+                          pagamento for confirmado.
+                        </p>
+                      )}
                     <p className="mt-2 border-t border-slate-100 pt-2 text-right text-sm font-bold text-slate-900">
                       Total: {formatKz(order.total_kz)}
                     </p>

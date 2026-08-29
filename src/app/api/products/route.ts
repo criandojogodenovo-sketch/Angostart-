@@ -32,6 +32,8 @@ interface ProductInput {
   image_url?: string;
   service_lat?: number | string | null;
   service_lng?: number | string | null;
+  /** URL do PDF do infoproduto (devolvido por /api/products/upload). */
+  file_url?: string;
 }
 
 /**
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
     try {
       const rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -82,7 +84,7 @@ export async function GET(request: NextRequest) {
     if (type && isProductType(type)) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -92,7 +94,7 @@ export async function GET(request: NextRequest) {
     } else if (hot) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -103,7 +105,7 @@ export async function GET(request: NextRequest) {
       const like = `%${q}%`;
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -113,7 +115,7 @@ export async function GET(request: NextRequest) {
     } else if (featured === '1') {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -123,7 +125,7 @@ export async function GET(request: NextRequest) {
     } else {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
                u.name AS seller_name, u.role AS seller_role
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
@@ -191,6 +193,31 @@ export async function POST(request: NextRequest) {
   const serviceLat = parseCoord(body.service_lat, ANGOLA_LAT);
   const serviceLng = parseCoord(body.service_lng, ANGOLA_LNG);
 
+  /* PDF do infoproduto (Fase 5): URL do Vercel Blob deste vendedor */
+  let fileUrl: string | null = null;
+  if (typeof body.file_url === 'string' && body.file_url.trim().length > 0) {
+    const candidate = body.file_url.trim();
+    if (!isSafeHttpUrl(candidate)) {
+      return NextResponse.json(
+        { error: 'O link do ficheiro PDF deve começar por https://.' },
+        { status: 400 }
+      );
+    }
+    if (!candidate.includes(`/ebooks/${user.id}/`)) {
+      return NextResponse.json(
+        { error: 'PDF inválido — envia o ficheiro primeiro em /api/products/upload.' },
+        { status: 400 }
+      );
+    }
+    fileUrl = candidate;
+  }
+  if (fileUrl && type !== 'infoproduto') {
+    return NextResponse.json(
+      { error: 'Só os infoprodutos podem ter PDF anexado.' },
+      { status: 400 }
+    );
+  }
+
   if (name.length < 3) {
     return NextResponse.json(
       { error: 'O nome deve ter pelo menos 3 letras.' },
@@ -230,17 +257,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const inserted = (await sql`
-      INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng)
+      INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng, file_url)
       VALUES (
         ${name}, ${description}, ${priceKz}, ${type},
         ${defaultIconFor(type)}, ${defaultGradientFor(type)},
         ${imageUrl}, ${user.id}, FALSE, 4.5,
         ${type === 'produto_fisico' ? 1 : -1},
         ${type === 'servico_domicilio' ? serviceLat : null},
-        ${type === 'servico_domicilio' ? serviceLng : null}
+        ${type === 'servico_domicilio' ? serviceLng : null},
+        ${type === 'infoproduto' ? fileUrl : null}
       )
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng
+                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url
     `) as unknown as Product[];
 
     return NextResponse.json({ product: inserted[0] }, { status: 201 });

@@ -17,7 +17,12 @@ import { neon, NeonQueryFunction } from '@neondatabase/serverless';
  */
 
 function createSqlConnection(): NeonQueryFunction<false, false> {
-  const databaseUrl = process.env.DATABASE_URL;
+  // NEON_DATABASE_URL tem prioridade (permite override em sandboxes que
+  // exportam DATABASE_URL com outro formato); na Vercel basta DATABASE_URL.
+  const databaseUrl =
+    (process.env.NEON_DATABASE_URL && process.env.NEON_DATABASE_URL.startsWith('postgres')
+      ? process.env.NEON_DATABASE_URL
+      : undefined) || process.env.DATABASE_URL;
 
   if (!databaseUrl || !databaseUrl.startsWith('postgres')) {
     throw new Error(

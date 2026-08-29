@@ -335,11 +335,20 @@ export async function listInvites(): Promise<InviteRow[]> {
 
 /** Contas admin_limitado ativas (para "Gerir Admins Limitados"). */
 export async function listLimitedAdmins(): Promise<
-  { id: number; name: string; email: string; blocked: boolean; two_factor_enabled: boolean; created_at: string }[]
+  {
+    id: number;
+    name: string;
+    email: string;
+    blocked: boolean;
+    two_factor_enabled: boolean;
+    whatsapp_contact: string | null;
+    created_at: string;
+  }[]
 > {
   return (await sql`
     SELECT id, name, email, blocked::boolean AS blocked,
-           two_factor_enabled::boolean AS two_factor_enabled, created_at
+           two_factor_enabled::boolean AS two_factor_enabled,
+           whatsapp_contact, created_at
     FROM users WHERE role = 'admin_limitado'
     ORDER BY created_at DESC
   `) as unknown as {
@@ -348,6 +357,7 @@ export async function listLimitedAdmins(): Promise<
     email: string;
     blocked: boolean;
     two_factor_enabled: boolean;
+    whatsapp_contact: string | null;
     created_at: string;
   }[];
 }

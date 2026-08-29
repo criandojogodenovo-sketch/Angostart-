@@ -6,6 +6,7 @@ import {
   requireRole,
   sanitizeMultiline,
 } from '@/lib/security';
+import { checkSellerComplaints } from '@/lib/antifraud';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,17 @@ export async function POST(request: NextRequest) {
       SET rating = (SELECT COALESCE(AVG(rating), 4.5) FROM reviews WHERE product_id = ${productId})
       WHERE id = ${productId}
     `;
+
+    /* ── Anti-burla (Fase 5): reclamações repetidas → supervisão ── */
+    if (rating <= 2) {
+      const sellerRows = (await sql`
+        SELECT user_id FROM products WHERE id = ${productId} AND user_id IS NOT NULL LIMIT 1
+      `) as unknown as { user_id: number }[];
+      const sellerId = sellerRows[0]?.user_id;
+      if (sellerId && sellerId !== auth.user.id) {
+        checkSellerComplaints(sellerId).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ ok: true, message: 'Avaliação registada. Obrigado!' }, { status: 201 });
   } catch (error) {

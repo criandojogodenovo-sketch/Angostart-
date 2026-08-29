@@ -18,6 +18,7 @@ import {
   FileText,
   Hourglass,
   Loader2,
+  MapPin,
   Minus,
   PackageOpen,
   Plus,
@@ -101,6 +102,34 @@ export default function CarrinhoPage() {
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null);
   /* ── Afiliado (Fase 4): código opcional no checkout ── */
   const [codigoAfiliado, setCodigoAfiliado] = useState('');
+  /* ── Fase 5: localização do cliente para serviços ao domicílio ── */
+  const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  const hasDomicilio = items.some((i) => i.product.type === 'servico_domicilio');
+
+  function captureLocation() {
+    if (!navigator.geolocation) {
+      toast({ title: 'Geolocalização indisponível no teu navegador.' });
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setClientLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+        toast({
+          title: 'Localização partilhada ✓',
+          description: 'O prestador sabe aproximadamente onde prestar o serviço.',
+        });
+      },
+      () => {
+        setLocating(false);
+        toast({ title: 'Não foi possível obter a localização', description: 'Autoriza a localização no navegador e tenta de novo.' });
+      },
+      { enableHighAccuracy: false, timeout: 10_000 }
+    );
+  }
 
   useEffect(() => {
     if (!user) {
@@ -192,6 +221,8 @@ export default function CarrinhoPage() {
           notes: notes || undefined,
           payment_method: paymentMethod,
           affiliate_code: codigoAfiliado.trim() || undefined,
+          latitude: hasDomicilio && clientLocation ? clientLocation.lat : undefined,
+          longitude: hasDomicilio && clientLocation ? clientLocation.lng : undefined,
           comprovativo_url:
             paymentMethod === 'whatsapp' ? comprovativo || undefined : undefined,
           // KWiK: comprovativo (opcional — pode anexar depois na confirmação)
@@ -705,6 +736,12 @@ export default function CarrinhoPage() {
                   </span>
                 </label>
 
+                {/* Pagamento automático MoMenu — em breve (Fase 5, estrutura preparada) */}
+                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  🔒 Pagamento automático (MoMenu) <strong>em breve</strong> — por agora o KWiK
+                  manual é o método principal e mais seguro.
+                </p>
+
                 {/* Carteira (Fase 4) — apenas utilizadores autenticados */}
                 {user && (
                   <label
@@ -745,6 +782,38 @@ export default function CarrinhoPage() {
                       </span>
                     </span>
                   </label>
+                )}
+
+                {/* Localização para serviços ao domicílio (Fase 5) */}
+                {hasDomicilio && paymentMethod !== 'whatsapp' && (
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                    <p className="text-xs font-bold text-orange-900">
+                      Serviço ao domicílio no carrinho — partilha a tua localização (opcional)
+                    </p>
+                    <p className="mt-1 text-[11px] text-orange-800">
+                      Ajuda o prestador a chegar mais rápido. Só é partilhada com o vendedor da tua
+                      encomenda.
+                    </p>
+                    {clientLocation ? (
+                      <p className="mt-2 text-xs font-semibold text-emerald-700">
+                        ✓ Localização registada ({clientLocation.lat.toFixed(4)}, {clientLocation.lng.toFixed(4)})
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={captureLocation}
+                        disabled={locating}
+                        className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg bg-orange-500 px-4 text-xs font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
+                      >
+                        {locating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MapPin className="h-4 w-4" />
+                        )}
+                        Partilhar localização
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* KWiK: instruções + comprovativo */}

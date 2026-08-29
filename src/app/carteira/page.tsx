@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { KWIK_PAYEE_NUMBER, KWIK_PAYEE_DIGITS } from '@/lib/kwik';
+import { BUSINESS_DEFAULTS } from '@/lib/config';
 import { useToast } from '@/hooks/use-toast';
 
 interface WalletTx {
@@ -113,6 +114,25 @@ export default function CarteiraPage() {
   const [busy, setBusy] = useState<'deposito' | 'saque' | null>(null);
   const [ultimaReferencia, setUltimaReferencia] = useState<string | null>(null);
 
+  /* ── Fase 5: limites reais vindos da configuração central (env-configuráveis) ── */
+  const [limites, setLimites] = useState({
+    minDeposit: BUSINESS_DEFAULTS.minDepositAmount,
+    maxDeposit: BUSINESS_DEFAULTS.maxDepositAmount,
+    minWithdraw: BUSINESS_DEFAULTS.minWithdrawAmount,
+    maxWithdraw: BUSINESS_DEFAULTS.maxWithdrawAmount,
+    maxDailyDeposit: BUSINESS_DEFAULTS.maxDailyDeposit,
+    maxDailyWithdraw: BUSINESS_DEFAULTS.maxDailyWithdraw,
+  });
+
+  useEffect(() => {
+    fetch('/api/wallet/deposit')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { limites?: typeof limites } | null) => {
+        if (d?.limites) setLimites(d.limites);
+      })
+      .catch(() => undefined);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/wallet', { headers: authHeaders(), cache: 'no-store' });
@@ -139,8 +159,12 @@ export default function CarteiraPage() {
   async function pedirDeposito(event: React.FormEvent) {
     event.preventDefault();
     const valor = Math.round(Number(depositoValor));
-    if (!Number.isFinite(valor) || valor < 500) {
-      toast({ title: 'Valor inválido', description: 'O depósito mínimo é 500 Kz.' });
+    if (!Number.isFinite(valor) || valor < limites.minDeposit) {
+      toast({ title: 'Valor inválido', description: `O depósito mínimo é ${limites.minDeposit} Kz.` });
+      return;
+    }
+    if (valor > limites.maxDeposit) {
+      toast({ title: 'Valor acima do limite', description: `O depósito máximo por operação é ${limites.maxDeposit} Kz.` });
       return;
     }
     setBusy('deposito');
@@ -176,8 +200,12 @@ export default function CarteiraPage() {
   async function pedirSaque(event: React.FormEvent) {
     event.preventDefault();
     const valor = Math.round(Number(saqueValor));
-    if (!Number.isFinite(valor) || valor < 1000) {
-      toast({ title: 'Valor inválido', description: 'O saque mínimo é 1.000 Kz.' });
+    if (!Number.isFinite(valor) || valor < limites.minWithdraw) {
+      toast({ title: 'Valor inválido', description: `O saque mínimo é ${limites.minWithdraw} Kz.` });
+      return;
+    }
+    if (valor > limites.maxWithdraw) {
+      toast({ title: 'Valor acima do limite', description: `O saque máximo por operação é ${limites.maxWithdraw} Kz.` });
       return;
     }
     setBusy('saque');
@@ -299,14 +327,20 @@ export default function CarteiraPage() {
               <Input
                 id="deposito-valor"
                 type="number"
-                min={500}
+                min={limites.minDeposit}
+                max={limites.maxDeposit}
                 step={100}
+                inputMode="numeric"
                 value={depositoValor}
                 onChange={(e) => setDepositoValor(e.target.value)}
-                placeholder="Valor em Kz (mín. 500)"
+                placeholder={`Valor em Kz (mín. ${limites.minDeposit})`}
                 className="h-11"
                 required
               />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Mín {formatKz(limites.minDeposit)} · Máx {formatKz(limites.maxDeposit)} por operação ·
+                limite diário {formatKz(limites.maxDailyDeposit)}
+              </p>
             </div>
             <Button
               type="submit"
@@ -364,7 +398,7 @@ export default function CarteiraPage() {
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
             O valor é reservado do teu saldo e enviado para o telefone da tua
             conta via <strong>Afrimoney</strong> / <strong>UNITEL Money</strong>.
-            Mínimo 1.000 Kz. Se a equipa recusar, o valor volta ao saldo.
+            Se a equipa recusar, o valor volta ao saldo.
           </p>
           <form onSubmit={pedirSaque} className="mt-4 flex gap-2">
             <div className="flex-1">
@@ -372,14 +406,20 @@ export default function CarteiraPage() {
               <Input
                 id="saque-valor"
                 type="number"
-                min={1000}
+                min={limites.minWithdraw}
+                max={limites.maxWithdraw}
                 step={100}
+                inputMode="numeric"
                 value={saqueValor}
                 onChange={(e) => setSaqueValor(e.target.value)}
-                placeholder="Valor em Kz (mín. 1.000)"
+                placeholder={`Valor em Kz (mín. ${limites.minWithdraw})`}
                 className="h-11"
                 required
               />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Mín {formatKz(limites.minWithdraw)} · Máx {formatKz(limites.maxWithdraw)} por operação ·
+                limite diário {formatKz(limites.maxDailyWithdraw)}
+              </p>
             </div>
             <Button
               type="submit"

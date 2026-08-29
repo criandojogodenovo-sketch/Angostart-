@@ -256,6 +256,68 @@ export async function sendWalletDecisionEmail(
   return sendMail({ to, subject: title, html: layout(title, body) });
 }
 
+/** Alerta genérico ao ADMIN (anti-burla, monitorização, sistema). */
+export async function sendAdminAlertEmail(
+  subject: string,
+  htmlBody: string
+): Promise<boolean> {
+  let to: string | undefined;
+  try {
+    to = getEnv().ADMIN_EMAIL;
+  } catch {
+    return false;
+  }
+  if (!to) return false;
+  return sendMail({ to, subject: `${subject} — AngoStart`, html: layout(subject, htmlBody) });
+}
+
+/* ────────────────────────────── Chat (Fase 5) ────────────────────────── */
+
+/** Notifica um utilizador que recebeu uma nova mensagem no chat. */
+export async function sendChatNotificationEmail(
+  to: string,
+  senderName: string,
+  preview: string,
+  link: string
+): Promise<boolean> {
+  return sendMail({
+    to,
+    subject: `${senderName} enviou-te uma mensagem — AngoStart`,
+    html: layout(
+      'Tens uma nova mensagem',
+      `<p><strong>${senderName}</strong> escreveu-te no chat da AngoStart:</p>
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+         ${preview.slice(0, 300)}
+       </div>
+       <p><a href="${link}" style="color:#059669;font-weight:bold">Responde no chat →</a></p>
+       <p style="font-size:13px;color:#64748b">Mantém toda a negociação dentro da plataforma
+       — é o que garante a tua proteção na AngoStart.</p>`
+    ),
+  });
+}
+
+/* ──────────────────────── Recuperação de senha (Fase 5) ──────────────── */
+
+/** Email com link de redefinição de senha (token de 1 h). */
+export async function sendPasswordResetEmail(
+  to: string,
+  resetLink: string
+): Promise<boolean> {
+  return sendMail({
+    to,
+    subject: 'Recuperação de senha — AngoStart',
+    html: layout(
+      'Recupera a tua senha',
+      `<p>Recebemos um pedido para redefinir a senha da tua conta.</p>
+       <p><a href="${resetLink}" style="display:inline-block;background:#10b981;color:#fff;
+          padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">
+          Redefinir senha</a></p>
+       <p style="font-size:13px;color:#64748b">O link expira em 1 hora e só funciona uma vez.
+       Se não foste tu, ignora este email — a tua senha continua igual.</p>`
+    ),
+  });
+}
+
 /* ─────────────────────── Administração dinâmica ────────────────────── */
 
 /**
