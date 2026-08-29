@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { get, issueSignedToken, presignUrl } from '@vercel/blob';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { clientKey, rateLimit } from '@/lib/security';
@@ -13,9 +14,40 @@ export const dynamic = 'force-dynamic';
  *  - O próprio vendedor do produto; ou
  *  - Administradores.
  *
- * Devolve o ficheiro com `Content-Disposition: attachment` para que o
- * browser faça o download em vez de abrir no separador.
+ * 🔐 FIX Blob privado: o store Vercel Blob é PRIVATE — o `file_url`
+ * guardado na BD NÃO é acessível publicamente e NUNCA é devolvido ao
+ * cliente. O acesso autorizado segue uma de duas vias:
+ *
+ *  1) (Primária) Gera um **URL temporário assinado** (presigned, expira em
+ *     3600 s) com `issueSignedToken` + `presignUrl`, scoped ao pathname do
+ *     blob e à operação `get`, e redireciona (307) o browser para ele.
+ *  2) (Fallback) Se a presignagem falhar, faz **stream autenticado
+ *     server-side** com `get(url, { access: 'private' })` — o conteúdo
+ *     passa pelo servidor e nenhum URL do Blob é exposto.
  */
+
+const TEMP_URL_TTL_SECONDS = 3600; // URL temporário válido 1 hora
+
+/** Extrai o pathname do blob (ex: 'ebooks/3/1700000-guia.pdf') de um URL ou pathname. */
+function blobPathnameFrom(urlOrPathname: string): string {
+  try {
+    const u = new URL(urlOrPathname);
+    return decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+  } catch {
+    // Já é um pathname puro
+    return urlOrPathname.replace(/^\/+/, '');
+  }
+}
+
+/** Nome de ficheiro seguro a partir do pathname do blob (fallback: nome do produto). */
+function safeFileName(pathname: string, productName: string): string {
+  const base = pathname.split('/').pop() || '';
+  const cleaned = base.replace(/[^a-zA-Z0-9._ -]+/g, '').trim();
+  if (cleaned.toLowerCase().endsWith('.pdf')) return cleaned;
+  const fromProduct = `${productName.replace(/[^a-zA-Z0-9._ -]+/g, '').trim() || 'infoproduto'}.pdf`;
+  return cleaned || fromProduct;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -77,21 +109,69 @@ export async function GET(
       );
     }
 
-    // Busca o PDF (URL opaco do Vercel Blob)
-    const fileRes = await fetch(product.file_url);
-    if (!fileRes.ok) {
-      console.error('[API download] Blob devolveu', fileRes.status);
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      return NextResponse.json(
+        {
+          error:
+            'Armazenamento de PDFs ainda não configurado. O administrador deve definir BLOB_READ_WRITE_TOKEN na Vercel.',
+        },
+        { status: 503 }
+      );
+    }
+
+    /* ---------- Autorizado: aceder ao blob PRIVADO ---------- */
+
+    const pathname = blobPathnameFrom(product.file_url);
+    const fileName = safeFileName(pathname, product.name);
+
+    // `?mode=stream` — cliente pede stream direto (ex.: fallback se o follow
+    // do redirect 307 falhar por CORS no browser). Nunca expõe o URL do Blob.
+    const forceStream = request.nextUrl.searchParams.get('mode') === 'stream';
+
+    // (1) Primária — URL temporário assinado, expira em TEMP_URL_TTL_SECONDS
+    if (!forceStream) {
+      try {
+        const validUntil = Date.now() + TEMP_URL_TTL_SECONDS * 1000;
+
+        const signed = await issueSignedToken({
+          token: blobToken,
+          pathname, // escopo: apenas este ficheiro
+          operations: ['get'], // apenas leitura
+          validUntil,
+        });
+
+        const { presignedUrl } = await presignUrl(signed, {
+          operation: 'get',
+          pathname,
+          access: 'private',
+          validUntil,
+        });
+
+        // download=1 força Content-Disposition: attachment (param não assinado, permitido pelo CDN)
+        const redirectUrl = `${presignedUrl}${presignedUrl.includes('?') ? '&' : '?'}download=1`;
+        return NextResponse.redirect(redirectUrl, 307);
+      } catch (presignError) {
+        console.error(
+          '[API download] Presign falhou — fallback para stream privado:',
+          presignError instanceof Error ? presignError.message : presignError
+        );
+      }
+    }
+
+    // (2) Fallback — stream autenticado server-side; nenhum URL do Blob é exposto
+    const result = await get(product.file_url, { access: 'private', token: blobToken });
+
+    if (!result || result.statusCode !== 200) {
+      console.error('[API download] Blob não encontrado ou não modificado:', result?.statusCode);
       return NextResponse.json({ error: 'Ficheiro indisponível no momento.' }, { status: 502 });
     }
 
-    const buffer = await fileRes.arrayBuffer();
-    const safeName = `${product.name.replace(/[^a-zA-Z0-9._ -]+/g, '').trim() || 'infoproduto'}.pdf`;
-
-    return new NextResponse(buffer, {
+    return new NextResponse(result.stream, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(safeName)}"`,
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
         'Cache-Control': 'private, no-store',
       },
     });

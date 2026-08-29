@@ -595,6 +595,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -620,6 +621,62 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
   function handleLogout() {
     onLogout();
     toast({ title: 'Sessão terminada', description: 'Volta sempre à AngoStart!' });
+  }
+
+  /**
+   * Download de infoproduto com autenticação Bearer (o token está em
+   * localStorage, logo um <a href> simples devolvia sempre 401).
+   *
+   * Fluxo: GET /api/products/{id}/download → 307 para URL temporário do Blob
+   * (expira em 1h) → fetch segue o redirect e devolve o PDF. Se o follow do
+   * redirect falhar (CORS), repete em modo stream (same-origin). O URL do
+   * Blob nunca é conhecido pelo browser sem autorização prévia.
+   */
+  async function handleDownload(productId: number, productName: string) {
+    if (downloadingId !== null) return;
+    setDownloadingId(productId);
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`/api/products/${productId}/download`, {
+          headers: authHeaders(),
+        });
+      } catch {
+        // Redirect cross-origin bloqueado — força stream autenticado server-side
+        res = await fetch(`/api/products/${productId}/download?mode=stream`, {
+          headers: authHeaders(),
+        });
+      }
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        toast({
+          title: 'Download indisponível',
+          description: data?.error ?? 'Tenta novamente dentro de momentos.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `${productName.replace(/[^a-zA-Z0-9._ -]+/g, '').trim() || 'infoproduto'}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast({ title: 'Download concluído', description: productName });
+    } catch {
+      toast({
+        title: 'Download indisponível',
+        description: 'Não foi possível descarregar agora. Tenta novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   return (
@@ -712,12 +769,15 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                             </span>
                             <span className="flex shrink-0 items-center gap-2">
                               {canDownload && (
-                                <a
-                                  href={`/api/products/${item.id}/download`}
-                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownload(item.id, item.name)}
+                                  disabled={downloadingId === item.id}
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                  <Download className="h-3.5 w-3.5" /> Descarregar
-                                </a>
+                                  <Download className="h-3.5 w-3.5" />
+                                  {downloadingId === item.id ? 'A descarregar…' : 'Descarregar'}
+                                </button>
                               )}
                               <span className="font-medium">
                                 {formatKz(item.price_kz * item.quantity)}

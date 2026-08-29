@@ -10,8 +10,13 @@ export const maxDuration = 60;
  *
  * - 🔒 Apenas vendedores autenticados.
  * - Valida MIME (application/pdf) + magic bytes (%PDF-) + tamanho (20 MB).
- * - Guarda no Vercel Blob com path aleatório.
+ * - Guarda no Vercel Blob **PRIVADO** com path aleatório.
  * - Devolve { url } — guardado em products.file_url ao publicar.
+ *
+ * ⚠️ O store é PRIVATE: o `url` devolvido NÃO é acessível publicamente.
+ * O download só acontece via /api/products/[id]/download, que valida a
+ * compra paga e gera um URL temporário assinado (1h) ou faz stream
+ * autenticado server-side.
  *
  * ⚠️ Requer BLOB_READ_WRITE_TOKEN (Vercel Blob Store). Sem o token,
  * devolve 503 com instrução clara (não quebra a app).
@@ -84,7 +89,7 @@ export async function POST(request: NextRequest) {
     const pathname = `ebooks/${auth.user.id}/${Date.now()}-${safeName}`;
 
     const blob = await put(pathname, file, {
-      access: 'public', // URL opaco (hash aleatório); a venda valida-se na rota de download
+      access: 'private', // ⬅️ FIX: store privado — 'public' causava "Cannot use public access on a private store"
       addRandomSuffix: true,
       token: blobToken,
       contentType: 'application/pdf',
