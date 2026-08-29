@@ -30,7 +30,8 @@ export default function Navbar() {
   const { isSeller, user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-slate-900/95 text-white shadow-lg backdrop-blur supports-[backdrop-filter]:bg-slate-900/85">
+    <>
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-slate-900/95 text-white shadow-lg backdrop-blur supports-[backdrop-filter]:bg-slate-900/85">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="AngoStart — Página inicial">
@@ -128,7 +129,11 @@ export default function Navbar() {
         </button>
       </div>
 
+      </header>
+
+      {/* Fora do <header>: backdrop-blur do header cria um containing block
+          que partiria o posicionamento fixed do menu (painel com 64px). */}
       <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-    </header>
+    </>
   );
 }

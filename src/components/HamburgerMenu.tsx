@@ -52,7 +52,7 @@ export default function HamburgerMenu({
       <div
         onClick={onClose}
         aria-hidden="true"
-        className={`fixed inset-0 z-[60] bg-black/50 transition-opacity duration-300 md:hidden ${
+        className={`fixed inset-0 z-[60] bg-black/60 transition-opacity duration-300 md:hidden ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
@@ -61,11 +61,11 @@ export default function HamburgerMenu({
       <aside
         id="menu-mobile"
         aria-hidden={!open}
-        className={`fixed right-0 top-0 z-[70] flex h-full w-[86%] max-w-xs flex-col bg-slate-900 text-white shadow-[0_0_50px_rgba(0,0,0,0.55)] ring-1 ring-white/10 transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed right-0 top-0 z-[70] flex h-dvh w-[86%] max-w-xs flex-col border border-white/10 bg-emerald-950/95 text-white shadow-[0_0_50px_rgba(0,0,0,0.55)] backdrop-blur-sm transition-transform duration-300 ease-out md:hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <p className="text-lg font-bold">
             Ango<span className="text-emerald-400">Start</span>
           </p>
@@ -78,12 +78,12 @@ export default function HamburgerMenu({
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="px-6 py-4">
           <SearchBar onSearched={onClose} />
         </div>
 
-        <nav className="flex-1 px-3" aria-label="Navegação móvel">
-          <ul className="space-y-2">
+        <nav className="flex-1 overflow-y-auto px-4" aria-label="Navegação móvel">
+          <ul className="space-y-4">
             {LINKS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
               return (
@@ -93,11 +93,11 @@ export default function HamburgerMenu({
                     onClick={onClose}
                     className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                       active
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'text-slate-100 hover:bg-white/15 hover:text-white'
+                        ? 'bg-emerald-500/20 text-white'
+                        : 'text-white hover:bg-white/10'
                     }`}
                   >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-6 w-6 text-emerald-400" />
                     {label}
                   </Link>
                 </li>
@@ -111,11 +111,11 @@ export default function HamburgerMenu({
                   onClick={onClose}
                   className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                     pathname.startsWith('/dashboard')
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'text-slate-100 hover:bg-white/15 hover:text-white'
+                      ? 'bg-emerald-500/20 text-white'
+                      : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  <BarChart3 className="h-6 w-6" />
+                  <BarChart3 className="h-6 w-6 text-emerald-400" />
                   Painel de vendas
                 </Link>
               </li>
@@ -140,7 +140,7 @@ export default function HamburgerMenu({
           </ul>
         </nav>
 
-        <div className="space-y-2 border-t border-white/10 px-5 py-4 text-sm text-slate-300">
+        <div className="space-y-2 border-t border-white/10 px-6 py-5 text-sm text-slate-200">
           <p className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-emerald-400" /> Luanda, Angola
           </p>
