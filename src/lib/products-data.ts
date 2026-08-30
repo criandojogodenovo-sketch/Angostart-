@@ -22,7 +22,12 @@ export interface Product {
   featured: boolean;
   /** Produto "em alta" — badge de chama 🔥 escolhido pelo vendedor. */
   is_hot?: boolean;
-  rating: number;
+  /**
+   * Fase 11: média REAL de avaliações (1–5) ou NULL quando o produto
+   * ainda não tem avaliações — a UI mostra "Sem avaliações". Nunca mais
+   * um 4.5 por omissão a fazer de conta.
+   */
+  rating: number | null;
   /**
    * 🔒 Fase 6 (ponto 3): a cota interna (`stock`) só é visível ao DONO
    * (vistas "meu=1" e detalhe para dono/admin). Nas vistas públicas a API
@@ -42,6 +47,9 @@ export interface Product {
   file_url?: string | null;
   service_lat?: number | null;
   service_lng?: number | null;
+  /* Fase 11 — botão "Ver loja" / "Ver vendedor" nos cartões */
+  seller_username?: string | null;
+  store_slug?: string | null;
 }
 
 export const PRODUCT_TYPES: Record<

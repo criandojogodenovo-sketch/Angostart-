@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from '@/lib/db';
 import {
   getAffiliateByUserId,
   listAffiliateEarnings,
@@ -66,6 +67,20 @@ export async function GET(request: NextRequest) {
       ? `${getAppUrl()}/?ref=${affiliate.codigo_afiliado}&sub=${subParam}`
       : `${getAppUrl()}/?ref=${affiliate.codigo_afiliado}`;
 
+    /* Fase 11: link de afiliado da LOJA do vendedor (/loja/[slug]?ref=CODE)
+     * — permite divulgar toda a loja em vez de produto a produto. */
+    let storeLink: string | null = null;
+    try {
+      const storeRows = (await sql`
+        SELECT slug FROM stores WHERE owner_id = ${auth.user.id} LIMIT 1
+      `) as unknown as { slug: string }[];
+      if (storeRows[0]?.slug) {
+        storeLink = `${getAppUrl()}/loja/${storeRows[0].slug}?ref=${affiliate.codigo_afiliado}`;
+      }
+    } catch {
+      /* loja opcional — sem loja não há link */
+    }
+
     return NextResponse.json({
       codigo_afiliado: affiliate.codigo_afiliado,
       comissao_percentual: affiliate.comissao_percentual,
@@ -74,6 +89,8 @@ export async function GET(request: NextRequest) {
       total_ganho: total,
       /* Fase 9 */
       referral_link: referralLink,
+      /* Fase 11 — link de afiliado da loja (null se não tiver loja) */
+      store_link: storeLink,
       escalao: {
         comissoes_recebidas: recebidas,
         proximo_escalao_em: Math.max(0, AFFILIATE_TIER_THRESHOLD - recebidas),

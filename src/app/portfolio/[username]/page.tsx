@@ -28,6 +28,7 @@ import {
   Users,
 } from 'lucide-react';
 import ProductIcon from '@/components/ProductIcon';
+import CommentsSection from '@/components/CommentsSection';
 import { Button } from '@/components/ui/button';
 import { formatKz } from '@/lib/format';
 import { PRODUCT_TYPES, type ProductType } from '@/lib/products-data';
@@ -47,6 +48,7 @@ const LEVEL_BADGE: Record<string, { label: string; emoji: string }> = {
 };
 
 interface SellerData {
+  id: number;
   name: string;
   role: string;
   role_label: string;
@@ -90,7 +92,7 @@ interface PortfolioPayload {
     icon: string;
     gradient: string;
     image_url: string | null;
-    rating: number;
+    rating: number | null;
   }[];
   reviews?: ReviewItem[];
 }
@@ -348,10 +350,17 @@ export default function PortfolioPublicoPage() {
                     <span className="text-base font-bold text-emerald-600">
                       {formatKz(product.price_kz)}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-xs text-amber-500">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                      {Number(product.rating ?? 0).toFixed(1)}
-                    </span>
+                    {/* Fase 11: sem média real → "Novo" (nunca um 4.5 falso) */}
+                    {product.rating != null ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-500">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                        {Number(product.rating).toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                        Sem avaliações
+                      </span>
+                    )}
                   </div>
                 </Link>
               </li>
@@ -402,6 +411,9 @@ export default function PortfolioPublicoPage() {
           </ul>
         )}
       </section>
+
+      {/* ── Fase 11: comentários ao vendedor (além das avaliações) ── */}
+      <CommentsSection targetType="seller" targetId={seller.id} />
     </div>
   );
 }

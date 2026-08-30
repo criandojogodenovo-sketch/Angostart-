@@ -21,6 +21,7 @@ import {
   MessageCircle,
   ShoppingCart,
   Star,
+  Store,
   Timer,
   UserRound,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import { useCart } from '@/context/StoreContext';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import CommentsSection from '@/components/CommentsSection';
 import { PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-data';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
@@ -356,11 +358,21 @@ export default function ProdutoDetalhePage() {
                 {product.name}
               </h1>
               <div className="mt-2 flex items-center gap-2">
-                <Stars value={product.rating ?? avg} />
-                <span className="text-sm text-slate-500">
-                  {(product.rating ?? avg).toFixed(1)} ({reviewCount}{' '}
-                  {reviewCount === 1 ? 'avaliação' : 'avaliações'})
-                </span>
+                {/* Fase 11: sem reviews → "Sem avaliações" (nunca média falsa) */}
+                {reviewCount > 0 ? (
+                  <>
+                    <Stars value={product.rating ?? avg} />
+                    <span className="text-sm text-slate-500">
+                      {(product.rating ?? avg).toFixed(1)} ({reviewCount}{' '}
+                      {reviewCount === 1 ? 'avaliação' : 'avaliações'})
+                    </span>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-400">
+                    <Star className="h-3.5 w-3.5 text-slate-300" />
+                    Sem avaliações — compra e deixa a primeira!
+                  </span>
+                )}
               </div>
               <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600">
                 {product.description}
@@ -540,6 +552,15 @@ export default function ProdutoDetalhePage() {
                   </Link>
                 </Button>
               )}
+              {/* Fase 11 — atalho direto para a loja do vendedor */}
+              {product.store_slug && (
+                <Button asChild variant="outline" className="mt-2 h-10 w-full border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+                  <Link href={`/loja/${product.store_slug}`}>
+                    <Store className="mr-2 h-4 w-4" />
+                    Ver loja
+                  </Link>
+                </Button>
+              )}
               {affiliateCode && (
                 <Button
                   variant="outline"
@@ -667,6 +688,9 @@ export default function ProdutoDetalhePage() {
           </ul>
         )}
       </section>
+
+      {/* ── Fase 11: comentários livres (além das avaliações com estrelas) ── */}
+      <CommentsSection targetType="product" targetId={product.id} />
     </div>
   );
 }

@@ -75,7 +75,7 @@
 | 📈 Relatórios admin | `/api/admin/report` — receita mensal, utilizadores por perfil, encomendas por estado, comissões da plataforma (tab «Relatórios») |
 | 🍽️ MoMenu (estrutura) | `src/lib/momenu.ts` com `createPayment()` placeholder — **não ativado**; checkout mostra nota «Pagamento automático em breve» |
 
-### Fase 9 (atual)
+### Fase 9
 | Módulo | Descrição |
 |---|---|
 | 🪪 BI obrigatório + idade mínima | Registo de vendedor exige **BI no formato angolano** (`004587896LA038`) e **data de nascimento (mínimo 15 anos)**; sem aprovação do BI pelo admin (`is_verified_bi`), a publicação de novos produtos fica bloqueada (403 `KYC_PENDING`) |
@@ -92,6 +92,18 @@
 | ⭐ Avaliações detalhadas | Critérios opcionais 1–5 estilo Upwork/Fiverr: **Comunicação · Qualidade · Prazo** (`reviews.comunicacao/qualidade/prazo`) |
 | 🏅 Níveis de vendedor | Bronze → Prata (10) → Ouro (25) → Platina (50) por vendas concluídas (`src/lib/levels.ts`) |
 | 🔔 Push de novo pedido | Vendedor recebe **Web Push + notificação in-app** assim que um cliente finaliza a encomenda |
+
+### Fase 11 (atual)
+| Módulo | Descrição |
+|---|---|
+| ⭐ Correção: «Sem avaliações» | Produtos novos **nascem com `rating = NULL`** (o antigo 4.5 por omissão fazia produtos sem avaliações parecerem avaliados); `ProductCard`, detalhe do produto e portfólio mostram **«Sem avaliações»** quando `rating_count = 0`; migração limpa os ratings falsos (`scripts/migrate-fase11.js`) |
+| 💬 Sistema de comentários | Tabela `comments` (`target_type: product\|seller\|store`) — comentários livres em **produtos, vendedores e lojas** (diferente das avaliações: sem estrelas, sem exigir compra); API `GET/POST/DELETE /api/comments` com sanitização XSS, rate limit (10/min), alvo validado e **DELETE só do autor ou admin**; componente `CommentsSection` em `/produtos/[id]`, `/portfolio/[username]` e `/loja/[slug]` |
+| 🔍 Pesquisa por categoria | `/prestadores`: chips de **12 categorias** (Design, Programação, Marketing, Electricidade…) que pesquisam termos-raiz na especialidade/bio; `/lojas`: pesquisa por **nome/categoria/cidade** + filtro «apenas lojas com produtos publicados» (form GET server-side) |
+| 🧭 Navegação | Navbar desktop com link **«Lojas»** + «Portfólios» (ex-Prestadores); menu mobile consistente |
+| 🏪 Botão «Ver loja» | `ProductCard` e detalhe do produto: **«Ver loja»** (`/loja/[slug]`) quando o vendedor tem loja, ou **«Ver vendedor»** (`/portfolio/[username]`) quando não tem; APIs de listagem expõem `store_slug`/`seller_username` |
+| 🔗 Links de afiliado rápidos | Novo componente `AffiliateCopyButton`: página da loja copia `/loja/[slug]?ref=AFG-XXXXXX` com o código do visitante afiliado (cache de 1 pedido `/api/affiliate`); `/api/affiliate` devolve **`store_link`** e o painel do afiliado mostra o link da loja inteira com cópia; gerador em massa da Fase 10 mantido e compatível |
+| 🛒 Anti-duplicação no checkout | Duplo clique/reenvio no «Finalizar pedido»: o servidor devolve a **mesma encomenda** (campo `duplicate: true`) quando o mesmo utilizador submete artigos+total+método idênticos em <60s (o botão já tinha bloqueio `submitting` na UI); teste E2E prova 1 só encomenda na BD |
+| 🧹 Limpeza de produção | `scripts/cleanup-fase11.js`: remove contas/produtos/encomendas/comissões de teste (oficialwehelp, *@teste.com, *@test.ao) mantendo os utilizadores reais; BD final: 2 utilizadores reais, 0 produtos de teste, 0 encomendas de teste |
 
 ---
 

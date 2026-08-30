@@ -5,6 +5,32 @@ import { CIDADES_ANGOLA } from '@/lib/cidades-angola';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Fase 11 — Categorias de prestadores. Cada categoria tem termos-raiz
+ * pesquisados na especialidade/bio (ILIKE) — cobre variações reais
+ * ("Programador web" entra em Programação, "Electricista" em
+ * Electricidade, etc.).
+ */
+const CATEGORIAS: { value: string; label: string; terms: string[] }[] = [
+  { value: 'design', label: 'Design', terms: ['design', 'designer', 'gráfico', 'grafico'] },
+  { value: 'programacao', label: 'Programação', terms: ['programa', 'desenvolvedor', 'developer', 'software', 'web', 'informática', 'informatica'] },
+  { value: 'marketing', label: 'Marketing', terms: ['marketing', 'social media', 'seo', 'publicidade', 'divulga'] },
+  { value: 'electricidade', label: 'Electricidade', terms: ['electric', 'eletric'] },
+  { value: 'canalizacao', label: 'Canalização', terms: ['canaliz', 'canaliza'] },
+  { value: 'beleza', label: 'Beleza', terms: ['beleza', 'cabele', 'barber', 'barbeiro', 'manicure', 'unhas'] },
+  { value: 'fotografia', label: 'Fotografia', terms: ['foto', 'vídeo', 'video', 'filmag'] },
+  { value: 'educacao', label: 'Educação', terms: ['educ', 'professor', 'explicador', 'aula', 'tutor', 'formação', 'formacao'] },
+  { value: 'traducao', label: 'Tradução', terms: ['tradu', 'tradutor', 'línguas', 'linguas'] },
+  { value: 'reparacoes', label: 'Reparações', terms: ['repara', 'consert', 'técnico', 'tecnico', 'instala'] },
+  { value: 'mecanica', label: 'Mecânica', terms: ['mecânic', 'mecanic', 'auto'] },
+  { value: 'costura', label: 'Costura', terms: ['costur', 'alfaiat', 'modista'] },
+];
+
+function categoriaTerms(value: string): string[] | null {
+  const cat = CATEGORIAS.find((c) => c.value === value);
+  return cat ? cat.terms : null;
+}
+
 interface PrestadorRow {
   id: number;
   name: string;
@@ -26,6 +52,7 @@ interface PrestadorRow {
  *  - q:     texto livre (nome, especialidade, bio, cidade) com ILIKE
  *  - cidade: filtro exato pela lista de cidades de Angola
  *  - tipo:  'domicilio' | 'remoto'
+ *  - categoria: design | programacao | marketing | … (ver CATEGORIAS)
  *  - ordenar: 'rating' (padrão) | 'nome' | 'recentes'
  *
  * 🔒 Apenas contas de prestadores ativas e não bloqueadas; expõe apenas
@@ -43,6 +70,7 @@ export async function GET(request: NextRequest) {
   const q = sanitizeText(searchParams.get('q') ?? '', 80);
   const cidade = sanitizeText(searchParams.get('cidade') ?? '', 60);
   const tipo = searchParams.get('tipo') ?? '';
+  const categoriaParam = sanitizeText(searchParams.get('categoria') ?? '', 40).toLowerCase();
   const ordenar = searchParams.get('ordenar') ?? 'rating';
 
   const roles =
@@ -58,6 +86,7 @@ export async function GET(request: NextRequest) {
       : null;
 
   const like = q ? `%${q}%` : null;
+  const catTerms = categoriaTerms(categoriaParam);
   const orderBy =
     ordenar === 'nome'
       ? sql`u.name ASC`
@@ -85,6 +114,12 @@ export async function GET(request: NextRequest) {
              OR u.bio ILIKE ${like}
              OR u.cidade ILIKE ${like})
         AND (${cidadeValida}::text IS NULL OR u.cidade ILIKE ${cidadeValida})
+        AND (
+          ${catTerms === null}::boolean
+          /* termos com % (parciais): "electric" apanha "Electricista…" */
+          OR u.especialidade ILIKE ANY(string_to_array(${catTerms ? catTerms.map((t) => `%${t}%`).join(',') : ''}, ',')::text[])
+          OR u.bio ILIKE ANY(string_to_array(${catTerms ? catTerms.map((t) => `%${t}%`).join(',') : ''}, ',')::text[])
+        )
       ORDER BY ${orderBy}
       LIMIT 48
     `) as unknown as PrestadorRow[];
@@ -98,6 +133,8 @@ export async function GET(request: NextRequest) {
         produtos: Number(r.produtos),
       })),
       total: rows.length,
+      /* Fase 11: lista de categorias para o frontend popular os filtros */
+      categorias: CATEGORIAS.map(({ value, label }) => ({ value, label })),
     });
   } catch (error) {
     console.error('[API /api/prestadores] Erro:', error);

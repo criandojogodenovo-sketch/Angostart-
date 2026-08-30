@@ -152,10 +152,11 @@ export async function POST(request: NextRequest) {
                     created_at = now()
     `;
 
-    // Média atualizada no produto (catálogo/estrelas)
+    // Média atualizada no produto (catálogo/estrelas) — Fase 11: sem
+    // fallback 4.5; sem reviews o rating volta a NULL ("Sem avaliações")
     await sql`
       UPDATE products
-      SET rating = (SELECT COALESCE(AVG(rating), 4.5) FROM reviews WHERE product_id = ${productId})
+      SET rating = (SELECT AVG(rating) FROM reviews WHERE product_id = ${productId})
       WHERE id = ${productId}
     `;
 

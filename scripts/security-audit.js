@@ -751,7 +751,7 @@ async function testarRateLimit({ tokenC }) {
   const enum2 = await api('/api/auth/forgot-password', { method: 'POST', body: { email: 'nao-existe-nada@angostart.ao' } });
   const msg1 = enum1.json?.message || '';
   const msg2 = enum2.json?.message || '';
-  check('J1 resposta do forgot idêntica com/sem conta (anti-enumeração)', enum1.status === 200 && enum2.status === 200 && msg1 === msg2);
+  check('J1 resposta do forgot idêntica com/sem conta (anti-enumeração)', enum1.status === 200 && enum2.status === 200 && msg1 === msg2, `s1=${enum1.status} s2=${enum2.status} m1=${msg1.slice(0, 30)} m2=${msg2.slice(0, 30)}`);
 
   let viu429Forgot = false;
   for (let i = 0; i < 5; i++) {
@@ -838,13 +838,30 @@ async function testarJWT({ tokenC }) {
 
     // Escalação de role com secret REAL — a BD é a fonte de verdade
     const sqlk = await getDb();
-    const fk = await sqlk`SELECT id FROM users WHERE email = ${CLIENTE.email} LIMIT 1`;
-    const clienteId = fk[0]?.id ?? 999999;
+    let fk = await sqlk`SELECT id FROM users WHERE email = ${CLIENTE.email} LIMIT 1`;
+    if (fk.length === 0) {
+      // Neon pode ter um cold-start transitório — cria o fixture (não deixa
+      // o teste falhar por causa de um lookup falhado, não é a intenção)
+      await sqlk`
+        INSERT INTO users (name, email, password_hash, role, blocked)
+        VALUES (${CLIENTE.name}, ${CLIENTE.email},
+                '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+                'cliente', FALSE)
+        ON CONFLICT (email) DO NOTHING
+      `;
+      fk = await sqlk`SELECT id FROM users WHERE email = ${CLIENTE.email} LIMIT 1`;
+    }
+    const clienteId = fk[0]?.id;
+    if (!clienteId) {
+      skip('K9 role admin forjado → 403', 'fixture cliente indisponível (BD)');
+      skip('K10 /api/auth/me role da BD', 'fixture cliente indisponível (BD)');
+    } else {
     const fakeAdmin = jwt.sign({ sub: String(clienteId), email: CLIENTE.email, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
     const resFake = await api('/api/admin/users', { token: fakeAdmin });
-    check('K9 role admin forjado no JWT não concede acesso (BD manda) → 403', resFake.status === 403, `status ${resFake.status}`);
+    check('K9 role admin forjado no JWT não concede acesso (BD manda) → 403', resFake.status === 403, `status ${resFake.status} body=${resFake.text.slice(0, 160)}`);
     const meFake = await api('/api/auth/me', { token: fakeAdmin });
     check('K10 /api/auth/me com role forjado devolve role da BD', meFake.status === 401 || meFake.json?.user?.role === 'cliente', `role: ${meFake.json?.user?.role}`);
+    }
   } else {
     skip('K6-K10 JWT com secret', 'JWT_SECRET não fornecida ao script');
   }
@@ -910,7 +927,7 @@ async function testarResetSenha({ tokenC }) {
       COUNT(*) FILTER (WHERE expires_at > now())::int AS futuros
     FROM password_resets WHERE user_id = ${uid}
   `;
-  check('L7 novo pedido invalida links anteriores (só 1 ativo)', estado[0].ativos === 1 && estado[0].total > pendentes1[0].n, `ativos: ${estado[0].ativos}`);
+  check('L7 novo pedido invalida links anteriores (só 1 ativo)', estado[0].ativos === 1 && estado[0].total > pendentes1[0].n, `ativos: ${estado[0].ativos} total: ${estado[0].total} pendentes1: ${pendentes1[0].n}`);
   check('L8 novo token com validade de 2 horas', estado[0].futuros >= 1);
 
   // A senha definida no reset ficou mesmo guardada? (bcrypt na BD —

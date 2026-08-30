@@ -31,7 +31,7 @@ const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/produtos', label: 'Produtos', icon: ShoppingBag },
   { href: '/lojas', label: 'Lojas', icon: Store },
-  { href: '/prestadores', label: 'Prestadores', icon: Wrench },
+  { href: '/prestadores', label: 'Portfólios', icon: Wrench },
   { href: '/chat', label: 'Chat', icon: MessageCircle },
   { href: '/perfil', label: 'Perfil', icon: User },
   { href: '/carteira', label: 'Carteira', icon: Wallet },

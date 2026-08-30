@@ -335,6 +335,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    /* ── 🔒 Anti-duplicação (Fase 11): duplo clique / reenvio acidental ──
+     * Mesmo com o botão desativado na UI, um duplo submit (rede lenta,
+     * enter repetido) podia criar 2 encomendas iguais. Se o MESMO
+     * utilizador criou uma encomenda com os MESMOS artigos, total e
+     * método de pagamento há menos de 60 segundos, devolvemos essa
+     * encomenda em vez de criar outra. Pagamentos por carteira não
+     * entram (já debita à criação — repetir devia ser erro explícito). */
+    if (userId !== null && paymentMethod !== 'carteira') {
+      const recent = (await sql`
+        SELECT id, total_kz, status, payment_method
+        FROM orders
+        WHERE user_id = ${userId}
+          AND total_kz = ${totalKz}
+          AND payment_method = ${paymentMethod}
+          AND items = ${JSON.stringify(items)}::jsonb
+          AND created_at > NOW() - INTERVAL '60 seconds'
+        ORDER BY id DESC
+        LIMIT 1
+      `) as unknown as { id: number; total_kz: number; status: string; payment_method: string }[];
+      if (recent[0]) {
+        console.log(`[API /api/orders] Duplicado bloqueado — encomenda ${recent[0].id} reutilizada (user ${userId})`);
+        return NextResponse.json({
+          ok: true,
+          duplicate: true,
+          order: {
+            id: recent[0].id,
+            total_kz: Number(recent[0].total_kz),
+            status: recent[0].status,
+            payment_method: recent[0].payment_method,
+            reference: buildKwikReference(recent[0].id),
+            proof_attached: false,
+          },
+          message: 'Encomenda já registada há poucos segundos — a mostrar em vez de criar duplicado.',
+        });
+      }
+    }
+
     const inserted = (await sql`
       INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, affiliate_sub_id, latitude, longitude, ip_address)
       VALUES (

@@ -66,9 +66,11 @@ export async function GET(request: NextRequest) {
       const rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         WHERE p.user_id = ${user.id}
         ORDER BY p.created_at DESC, p.id DESC
       `) as unknown as Product[];
@@ -82,13 +84,17 @@ export async function GET(request: NextRequest) {
   try {
     let rows: Product[];
 
+    /* Fase 11: store_slug + seller_username permitem o botão "Ver loja" /
+       "Ver vendedor" no cartão (loja em primeiro lugar; sem loja → portfólio). */
     if (type && isProductType(type)) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         WHERE p.type = ${type}
         ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
@@ -96,9 +102,11 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         WHERE p.is_hot = TRUE
         ORDER BY p.created_at DESC, p.id DESC
       `) as unknown as Product[];
@@ -107,9 +115,11 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         WHERE p.name ILIKE ${like} OR p.description ILIKE ${like}
         ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
@@ -117,9 +127,11 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         WHERE p.featured = TRUE
         ORDER BY p.created_at DESC, p.id DESC
       `) as unknown as Product[];
@@ -127,9 +139,11 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
+               u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN stores s ON s.owner_id = p.user_id
         ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
     }
@@ -287,12 +301,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    /* Fase 11: rating nasce NULL — "Sem avaliações" até haver reviews
+       reais (o antigo 4.5 por omissão fazia novos produtos parecerem
+       avaliados — bug corrigido). */
     const inserted = (await sql`
       INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng, file_url)
       VALUES (
         ${name}, ${description}, ${priceKz}, ${type},
         ${defaultIconFor(type)}, ${defaultGradientFor(type)},
-        ${imageUrl}, ${user.id}, FALSE, 4.5,
+        ${imageUrl}, ${user.id}, FALSE, NULL,
         ${type === 'produto_fisico' ? 1 : -1},
         ${type === 'servico_domicilio' ? serviceLat : null},
         ${type === 'servico_domicilio' ? serviceLng : null},

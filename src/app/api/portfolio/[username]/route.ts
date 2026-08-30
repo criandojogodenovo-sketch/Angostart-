@@ -146,6 +146,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       seller: {
+        id: seller.id,
         name: seller.name,
         role: seller.role,
         role_label: ROLE_LABELS[seller.role],

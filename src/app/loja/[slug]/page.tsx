@@ -8,6 +8,8 @@ import {
 import { formatKz } from '@/lib/format';
 import StoreFollowButton from '@/components/StoreFollowButton';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import AffiliateCopyButton from '@/components/AffiliateCopyButton';
+import CommentsSection from '@/components/CommentsSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,8 +70,10 @@ export default async function LojaPage({
               {produtos.length} produto(s) · {seguidores} seguidor(es)
             </p>
           </div>
-          <div className="pb-1">
+          <div className="flex flex-col gap-2 pb-1 sm:flex-row sm:items-center">
             <StoreFollowButton storeId={store.id} />
+            {/* Fase 11 — divulgar a loja inteira com o código do afiliado */}
+            <AffiliateCopyButton path={`/loja/${store.slug}`} className="w-full" />
           </div>
         </div>
 
@@ -117,6 +121,9 @@ export default async function LojaPage({
             ))}
           </div>
         )}
+
+        {/* ── Fase 11: comentários da loja ── */}
+        <CommentsSection targetType="store" targetId={store.id} />
       </div>
     </main>
   );

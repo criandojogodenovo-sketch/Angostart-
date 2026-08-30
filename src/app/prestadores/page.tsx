@@ -42,6 +42,11 @@ interface Prestador {
   total_avaliacoes: number;
 }
 
+interface Categoria {
+  value: string;
+  label: string;
+}
+
 const CIDADES = Object.keys(CIDADES_ANGOLA).sort();
 
 /** "luanda" → "Luanda" (rótulos das cidades no filtro). */
@@ -65,9 +70,11 @@ export default function PrestadoresPage() {
   const [q, setQ] = useState('');
   const [cidade, setCidade] = useState('');
   const [tipo, setTipo] = useState('');
+  const [categoria, setCategoria] = useState(''); // Fase 11
   const [ordenar, setOrdenar] = useState('rating');
 
   const [prestadores, setPrestadores] = useState<Prestador[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]); // Fase 11
   const [loading, setLoading] = useState(true);
   const [searched, setSearched] = useState(false);
 
@@ -78,20 +85,25 @@ export default function PrestadoresPage() {
       if (q.trim()) params.set('q', q.trim());
       if (cidade) params.set('cidade', cidade);
       if (tipo) params.set('tipo', tipo);
+      if (categoria) params.set('categoria', categoria); // Fase 11
       if (ordenar) params.set('ordenar', ordenar);
 
       const res = await fetch(`/api/prestadores?${params.toString()}`, {
         cache: 'no-store',
       });
-      const data = (await res.json()) as { prestadores?: Prestador[] };
+      const data = (await res.json()) as {
+        prestadores?: Prestador[];
+        categorias?: Categoria[];
+      };
       setPrestadores(data.prestadores ?? []);
+      if (data.categorias?.length) setCategorias(data.categorias);
     } catch {
       setPrestadores([]);
     } finally {
       setSearched(true);
       setLoading(false);
     }
-  }, [q, cidade, tipo, ordenar]);
+  }, [q, cidade, tipo, categoria, ordenar]);
 
   // Primeira carga + recarrega quando mudam os filtros estruturais
   useEffect(() => {
@@ -189,6 +201,42 @@ export default function PrestadoresPage() {
             );
           })}
         </div>
+
+        {/* Fase 11 — filtro por categoria (Design, Programação, Marketing…) */}
+        {categorias.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Categoria">
+            <button
+              type="button"
+              onClick={() => setCategoria('')}
+              aria-pressed={categoria === ''}
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                categoria === ''
+                  ? 'border-slate-900 bg-slate-900 text-white shadow'
+                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700'
+              }`}
+            >
+              Todas as categorias
+            </button>
+            {categorias.map((c) => {
+              const active = categoria === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCategoria(active ? '' : c.value)}
+                  aria-pressed={active}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                    active
+                      ? 'border-slate-900 bg-slate-900 text-white shadow'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </form>
 
       {/* Resultados */}

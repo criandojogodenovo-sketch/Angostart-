@@ -123,6 +123,8 @@ interface AffiliateData {
   comissao_percentual: number;
   total_ganho: number;
   referral_link: string;
+  /** Fase 11: link de afiliado da loja do vendedor (null sem loja). */
+  store_link?: string | null;
   /** Fase 10: janela de atribuição (dias) comunicada pelo servidor. */
   atribuicao_dias: number;
   /** Fase 9: progresso do escalão (50 comissões → 15 %). */
@@ -860,6 +862,24 @@ export default function DashboardVendedorPage() {
                   <Link2 className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Fase 11 — link de afiliado da LOJA inteira */}
+              {affiliate.store_link && (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <code className="min-w-0 flex-1 truncate text-xs text-amber-800">
+                    {affiliate.store_link}
+                  </code>
+                  <button
+                    onClick={() =>
+                      copiarTexto(affiliate.store_link as string, 'Link da loja copiado!', affiliate.store_link as string)
+                    }
+                    aria-label="Copiar link de afiliado da loja"
+                    className="rounded-lg p-2 text-amber-600 hover:bg-amber-100"
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
                 Válido durante {affiliate.atribuicao_dias} dias após o clique — compras feitas
                 nesse prazo geram comissão. Usa as ferramentas abaixo para campanhas e links em massa.

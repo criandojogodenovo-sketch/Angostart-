@@ -5,8 +5,9 @@
  * Imagem ilustrativa (ícone em gradiente), nome, preço em Kz e botão comprar.
  */
 
-import { Star, ShoppingCart, Check, Flame, UserRound } from 'lucide-react';
+import { Star, ShoppingCart, Check, Flame, UserRound, Store } from 'lucide-react';
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Product } from '@/lib/products-data';
 import { PRODUCT_TYPES } from '@/lib/products-data';
 import { formatKz } from '@/lib/format';
@@ -68,12 +69,20 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* Conteúdo */}
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center gap-1 text-amber-500">
-          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-          <span className="text-sm font-semibold text-slate-700">
-            {product.rating.toFixed(1)}
+        {/* Fase 11: sem avaliações reais → "Sem avaliações" (nunca um 4.5 falso) */}
+        {product.rating != null ? (
+          <div className="flex items-center gap-1 text-amber-500">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            <span className="text-sm font-semibold text-slate-700">
+              {product.rating.toFixed(1)}
+            </span>
+          </div>
+        ) : (
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
+            <Star className="h-3 w-3 text-slate-300" />
+            Sem avaliações
           </span>
-        </div>
+        )}
 
         <h3 className="line-clamp-2 text-base font-semibold leading-snug text-slate-900">
           {product.name}
@@ -90,6 +99,21 @@ export default function ProductCard({ product }: { product: Product }) {
         <p className="line-clamp-2 text-sm text-slate-500">
           {product.description}
         </p>
+
+        {/* Fase 11 — explorar o vendedor: loja em primeiro lugar; sem loja → portfólio */}
+        {(product.store_slug || product.seller_username) && (
+          <Link
+            href={
+              product.store_slug
+                ? `/loja/${product.store_slug}`
+                : `/portfolio/${product.seller_username ?? ''}`
+            }
+            className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+          >
+            <Store className="h-3 w-3" aria-hidden="true" />
+            {product.store_slug ? 'Ver loja' : 'Ver vendedor'}
+          </Link>
+        )}
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-3">
           <p className="text-lg font-bold text-emerald-600">
