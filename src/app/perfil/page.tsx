@@ -18,6 +18,7 @@ import {
   BadgeCheck,
   BarChart3,
   Briefcase,
+  CheckCircle2,
   CircleDollarSign,
   Download,
   ExternalLink,
@@ -27,6 +28,7 @@ import {
   LogIn,
   LogOut,
   Mail,
+  MapPin,
   Package,
   Pencil,
   Phone,
@@ -48,6 +50,7 @@ import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders } from '@/context/AuthContext';
 import ProfileGamificationCard from '@/components/ProfileGamificationCard';
 import MyProposals from '@/components/MyProposals';
+import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import {
   ORDER_STATUS_BADGES,
@@ -107,6 +110,14 @@ interface OrderRecord {
   delivery_type?: string;
   created_at: string;
 }
+
+/** Rótulos do tipo de entrega (adaptados ao tipo de produto — ponto 6). */
+const DELIVERY_TYPE_LABELS: Record<string, string> = {
+  digital: 'Entrega digital imediata',
+  domicilio: 'Serviço ao domicílio',
+  remoto: 'Serviço remoto (chat/email)',
+  entrega: 'Entrega em Luanda',
+};
 
 function initialsOf(name: string): string {
   return name
@@ -612,26 +623,22 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
       .catch(() => setDisputes([]));
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetch('/api/orders?mine=1', { headers: authHeaders() });
-        if (!res.ok) throw new Error();
-        const data = (await res.json()) as { orders: OrderRecord[] };
-        if (!cancelled) setOrders(data.orders ?? []);
-      } catch {
-        if (!cancelled) setOrders([]);
-      } finally {
-        if (!cancelled) setOrdersLoaded(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+  const refreshOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/orders?mine=1', { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { orders: OrderRecord[] };
+      setOrders(data.orders ?? []);
+    } catch {
+      setOrders([]);
+    } finally {
+      setOrdersLoaded(true);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshOrders();
+  }, [refreshOrders]);
 
   function handleLogout() {
     onLogout();
@@ -802,7 +809,8 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
                       {formatDateTime(order.created_at)} ·{' '}
-                      {order.delivery_type === 'domicilio' ? 'Entrega ao domicílio' : 'Retirada'}
+                      {DELIVERY_TYPE_LABELS[order.delivery_type ?? 'entrega'] ??
+                        order.delivery_type}
                     </p>
                     <ul className="mt-2 space-y-1 text-sm text-slate-600">
                       {order.items.map((item, index) => {
@@ -850,6 +858,16 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                     <p className="mt-2 border-t border-slate-100 pt-2 text-right text-sm font-bold text-slate-900">
                       Total: {formatKz(order.total_kz)}
                     </p>
+
+                    {/* Ponto 4B/5: rastreamento em tempo real + confirmação
+                        de conclusão para serviços ao domicílio pagos */}
+                    {order.items.some((i) => i.type === 'servico_domicilio') &&
+                      ['pago', 'entregue'].includes(order.status) && (
+                        <DomicilioServiceCard
+                          order={order}
+                          onConfirmed={refreshOrders}
+                        />
+                      )}
 
                     {/* Disputas (Fase 6, ponto 7) */}
                     {['pago', 'entregue'].includes(order.status) && (
@@ -1122,6 +1140,131 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           {/* Fase 7 — propostas enviadas: acompanhar, contrapropor, aceitar */}
           <MyProposals />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ Serviço ao domicílio: rastreamento + conclusão (pontos 4B/5) ═══════════ */
+
+/**
+ * Cartão do serviço ao domicílio pago:
+ *  - Polling a cada 5 s contra GET /api/orders/[id]/tracking;
+ *  - Mapa Leaflet: prestador (azul) + cliente aproximado (vermelho) + ETA;
+ *  - Botão «Confirmar conclusão» — o ESCROW só é libertado APÓS esta
+ *    confirmação do cliente (nunca antes).
+ */
+function DomicilioServiceCard({
+  order,
+  onConfirmed,
+}: {
+  order: OrderRecord;
+  onConfirmed: () => void;
+}) {
+  const { toast } = useToast();
+  const [tracking, setTracking] = useState<TrackingData | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmed, setConfirmed] = useState(order.status === 'entregue');
+
+  /* ── Polling de rastreamento (a cada 5 s) enquanto o pedido está pago ── */
+  useEffect(() => {
+    if (confirmed) return;
+    let active = true;
+
+    const load = () => {
+      fetch(`/api/orders/${order.id}/tracking`, {
+        headers: authHeaders(),
+        cache: 'no-store',
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { tracking?: TrackingData } | null) => {
+          if (active && data?.tracking) setTracking(data.tracking);
+        })
+        .catch(() => {});
+    };
+
+    load();
+    const t = setInterval(load, 5_000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [order.id, confirmed]);
+
+  /* ── Ponto 5: confirmação de conclusão → liberta o escrow ── */
+  async function handleConfirm() {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível confirmar', description: data.error });
+        return;
+      }
+      setConfirmed(true);
+      toast({
+        title: 'Serviço concluído ✓',
+        description:
+          data.message ??
+          'Obrigado! O pagamento foi libertado ao prestador da AngoStart.',
+      });
+      onConfirmed();
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  const prestadorEnCaminho =
+    !confirmed &&
+    (tracking?.tracking_active || tracking?.service_started_at != null);
+
+  return (
+    <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900 p-3">
+      <p className="flex items-center gap-2 text-sm font-semibold text-white">
+        <MapPin className="h-4 w-4 text-sky-400" />
+        Serviço ao domicílio — acompanhamento em direto
+      </p>
+
+      <div className="mt-3">
+        <ServiceTrackingMap tracking={tracking} orderId={order.id} />
+      </div>
+
+      {!confirmed && !prestadorEnCaminho && (
+        <p className="mt-2 text-xs text-amber-300">
+          O prestador ainda não iniciou a deslocação — o mapa ativa-se
+          automaticamente quando ele carregar em «Iniciar deslocação».
+        </p>
+      )}
+
+      <div className="mt-3">
+        {confirmed ? (
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+            <CheckCircle2 className="h-4 w-4" />
+            Serviço concluído e confirmado — pagamento libertado ao prestador.
+          </p>
+        ) : (
+          <>
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="h-11 w-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              {confirming ? 'A confirmar…' : 'Confirmar conclusão do serviço'}
+            </Button>
+            <p className="mt-1.5 text-center text-[11px] text-slate-400">
+              Só confirma quando o serviço estiver feito — o dinheiro só sai do
+              escrow após a tua confirmação.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

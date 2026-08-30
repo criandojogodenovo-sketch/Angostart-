@@ -15,10 +15,10 @@ import {
   CheckCircle2,
   Copy,
   CreditCard,
-  FileText,
   Hourglass,
   Loader2,
   MapPin,
+  MessageCircle,
   Minus,
   PackageOpen,
   Plus,
@@ -51,8 +51,8 @@ import {
 } from '@/lib/payments-manual';
 import { useToast } from '@/hooks/use-toast';
 
-/** Métodos de pagamento disponíveis no carrinho. */
-type PaymentChoice = ManualMethodId | 'whatsapp' | 'carteira' | 'momenu';
+/** Métodos de pagamento disponíveis no carrinho (whatsapp REMOVIDO — negociação só no chat). */
+type PaymentChoice = ManualMethodId | 'carteira' | 'momenu';
 
 interface PlacedOrder {
   id: number;
@@ -72,13 +72,6 @@ type ProofState =
   | { kind: 'sent' }
   | { kind: 'error'; message: string };
 
-const WHATSAPP_NUMBER = '244958176915';
-
-/** URL do WhatsApp para confirmação manual do pagamento. */
-function placedWhatsAppUrl(message: string): string {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-}
-
 /** Lê um ficheiro como data URL (data:<mime>;base64,<dados>). */
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -97,8 +90,8 @@ export default function CarrinhoPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [morada, setMorada] = useState('');
   const [notes, setNotes] = useState('');
-  const [comprovativo, setComprovativo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentChoice>('kwik');
   const [proof, setProof] = useState<ProofState>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
@@ -127,6 +120,85 @@ export default function CarrinhoPage() {
   const [locating, setLocating] = useState(false);
 
   const hasDomicilio = items.some((i) => i.product.type === 'servico_domicilio');
+  const hasRemoto = items.some((i) => i.product.type === 'servico_remoto');
+  const hasInfo = items.some((i) => i.product.type === 'infoproduto');
+  /* ── Ponto 1: campos condicionais — tudo digital → sem morada/entrega física ── */
+  const allDigital = items.every(
+    (i) => i.product.type === 'infoproduto' || i.product.type === 'servico_remoto'
+  );
+
+  /* ── Ponto 4A: disponibilidade dos prestadores (checkout bloqueia se offline) ── */
+  const domicilioProductIds = useMemo(
+    () =>
+      items
+        .filter((i) => i.product.type === 'servico_domicilio')
+        .map((i) => i.product.id),
+    [items]
+  );
+  const [availability, setAvailability] = useState<
+    Record<number, { is_available: boolean; seller_name: string | null }>
+  >({});
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+
+  const unavailableSellers = useMemo(() => {
+    const names = new Set<string>();
+    for (const id of domicilioProductIds) {
+      const entry = availability[id];
+      if (entry && !entry.is_available && entry.seller_name) names.add(entry.seller_name);
+    }
+    return [...names];
+  }, [domicilioProductIds, availability]);
+  const prestadorBloqueia = unavailableSellers.length > 0;
+
+  useEffect(() => {
+    if (domicilioProductIds.length === 0) {
+      setAvailability({});
+      setAvailabilityLoaded(true);
+      return;
+    }
+    let active = true;
+    setAvailabilityLoaded(false);
+    const load = () => {
+      fetch(`/api/prestadores/availability?product_ids=${domicilioProductIds.join(',')}`, {
+        cache: 'no-store',
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(
+          (
+            data: {
+              items?: {
+                product_id: number;
+                is_available: boolean;
+                seller_name: string | null;
+              }[];
+            } | null
+          ) => {
+            if (!active || !data?.items) return;
+            const next: Record<
+              number,
+              { is_available: boolean; seller_name: string | null }
+            > = {};
+            for (const it of data.items) {
+              next[it.product_id] = {
+                is_available: it.is_available,
+                seller_name: it.seller_name,
+              };
+            }
+            setAvailability(next);
+            setAvailabilityLoaded(true);
+          }
+        )
+        .catch(() => active && setAvailabilityLoaded(true));
+    };
+    load();
+    // Re-verifica a cada 30 s — o prestador pode desligar-se enquanto o
+    // cliente revê o carrinho (polling leve; a validação real é server-side)
+    const t = setInterval(load, 30_000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [domicilioProductIds]);
 
   function captureLocation() {
     if (!navigator.geolocation) {
@@ -173,20 +245,17 @@ export default function CarrinhoPage() {
     }
   }, [user]);
 
-  const whatsappMessage = useMemo(() => {
-    if (items.length === 0) return '';
-    const lines = items.map(
-      (i) =>
-        `• ${i.quantity}x ${i.product.name} — ${formatKz(
-          i.quantity * i.product.price_kz
-        )}`
-    );
-    return encodeURIComponent(
-      `Olá AngoStart! Acabei de fazer a encomenda e quero confirmar o pagamento.\n\n${lines.join(
-        '\n'
-      )}\n\nTotal: ${formatKz(totalKz)}`
-    );
-  }, [items, totalKz]);
+  const deliveryNote = useMemo(() => {
+    if (allDigital) {
+      return hasInfo && hasRemoto
+        ? 'Entrega digital imediata (ebooks) + remota via chat/email (serviços)'
+        : hasRemoto
+          ? 'Entrega remota via chat/email'
+          : 'Entrega digital imediata após pagamento confirmado';
+    }
+    if (hasDomicilio) return 'Entrega em Luanda — o prestador desloca-se ao teu local';
+    return 'Entrega em Luanda';
+  }, [allDigital, hasInfo, hasRemoto, hasDomicilio]);
 
   /** Validação local (o servidor volta a validar tudo — defesa em profundidade). */
   function selectProofFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -227,6 +296,16 @@ export default function CarrinhoPage() {
     event.preventDefault();
     if (items.length === 0) return;
     if (proof.kind === 'uploading') return;
+    // 🔒 Ponto 4A: bloqueio local — o prestador offline impede o pagamento
+    // (a rota POST /api/orders volta a verificar server-side)
+    if (prestadorBloqueia) {
+      toast({
+        title: 'Prestador indisponível',
+        description:
+          'Este prestador está temporariamente indisponível. Escolha outro ou contacte no chat.',
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -237,14 +316,13 @@ export default function CarrinhoPage() {
           customer_name: name,
           customer_phone: phone,
           customer_email: email || undefined,
-          delivery_type: 'entrega',
+          delivery_type: allDigital ? 'digital' : 'entrega',
+          delivery_address: allDigital ? undefined : morada,
           notes: notes || undefined,
           payment_method: paymentMethod,
           affiliate_code: codigoAfiliado.trim() || undefined,
           latitude: hasDomicilio && clientLocation ? clientLocation.lat : undefined,
           longitude: hasDomicilio && clientLocation ? clientLocation.lng : undefined,
-          comprovativo_url:
-            paymentMethod === 'whatsapp' ? comprovativo || undefined : undefined,
           // Transferência manual (KWiK/PayPay/Multicaixa Express):
           // comprovativo opcional — pode anexar depois na confirmação
           payment_proof:
@@ -289,15 +367,13 @@ export default function CarrinhoPage() {
         id: data.order.id,
         total_kz: data.order.total_kz,
         paymentMethod:
-          data.order.payment_method === 'whatsapp'
-            ? 'whatsapp'
-            : data.order.payment_method === 'carteira'
-              ? 'carteira'
-              : data.order.payment_method === 'momenu'
-                ? 'momenu'
-                : isManualTransferMethod(data.order.payment_method)
-                  ? data.order.payment_method
-                  : 'kwik',
+          data.order.payment_method === 'carteira'
+            ? 'carteira'
+            : data.order.payment_method === 'momenu'
+              ? 'momenu'
+              : isManualTransferMethod(data.order.payment_method)
+                ? data.order.payment_method
+                : 'kwik',
         reference: data.order.reference ?? buildKwikReference(data.order.id),
         proofAttached: data.order.proof_attached,
         status: data.order.status,
@@ -516,27 +592,6 @@ export default function CarrinhoPage() {
             </div>
           )}
 
-          {!manualMethod && placed.paymentMethod === 'carteira' && (
-            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
-                <Wallet className="h-4 w-4" /> Pago com o saldo da carteira
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-emerald-800">
-                Foi debitado <strong>{formatKz(placed.total_kz)}</strong> do teu saldo
-                (referência <strong className="font-mono">{placed.reference}</strong>).
-                O valor fica retido em <strong>escrow</strong> até a entrega ser
-                concluída — só então o vendedor recebe.
-              </p>
-            </div>
-          )}
-
-          {!manualMethod && placed.paymentMethod === 'whatsapp' && (
-            <p className="mt-5 text-sm text-slate-500">
-              A nossa equipa entra em contacto pelo WhatsApp para combinar a
-              entrega e o pagamento.
-            </p>
-          )}
-
           {!manualMethod && placed.paymentMethod === 'momenu' && (
             <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-left">
               <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
@@ -561,30 +616,46 @@ export default function CarrinhoPage() {
             </div>
           )}
 
+          {!manualMethod && placed.paymentMethod === 'carteira' && (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+                <Wallet className="h-4 w-4" /> Pago com o saldo da carteira
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+                Foi debitado <strong>{formatKz(placed.total_kz)}</strong> do teu saldo
+                (referência <strong className="font-mono">{placed.reference}</strong>).
+                O valor fica retido em <strong>escrow</strong> até a entrega ser
+                concluída — só então o vendedor recebe.
+              </p>
+            </div>
+          )}
+
+          <p className="mt-5 text-sm text-slate-500">
+            {deliveryNote}.
+          </p>
+
           <div className="mt-8 space-y-3">
-            {manualMethod ? (
-              <Button
-                asChild
-                className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
-              >
-                <Link href="/perfil">
-                  <CreditCard className="mr-2 h-5 w-5" /> Ver estado da encomenda
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                asChild
-                className="h-12 w-full bg-[#25D366] text-base font-semibold text-white hover:bg-[#1fb857]"
-              >
-                <a href={placedWhatsAppUrl(whatsappMessage)} target="_blank" rel="noopener noreferrer">
-                  <Send className="mr-2 h-5 w-5" /> Confirmar no WhatsApp
-                </a>
-              </Button>
-            )}
+            <Button
+              asChild
+              className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
+            >
+              <Link href="/perfil">
+                <CreditCard className="mr-2 h-5 w-5" /> Ver estado da encomenda
+              </Link>
+            </Button>
             <Button
               asChild
               variant="outline"
               className="h-11 w-full border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+            >
+              <Link href="/chat">
+                <MessageCircle className="mr-2 h-4 w-4" /> Falar no chat
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="h-11 w-full border-slate-300 text-slate-600 hover:bg-slate-50"
             >
               <Link href="/produtos">
                 Continuar a comprar <ArrowRight className="ml-2 h-4 w-4" />
@@ -734,9 +805,10 @@ export default function CarrinhoPage() {
                 <dt>Subtotal ({count} artigos)</dt>
                 <dd>{formatKz(totalKz)}</dd>
               </div>
+              {/* Ponto 6: texto da entrega adaptado ao tipo de produto */}
               <div className="flex justify-between text-slate-500">
-                <dt>Entrega em Luanda</dt>
-                <dd>A combinar no WhatsApp</dd>
+                <dt>Entrega</dt>
+                <dd className="max-w-[60%] text-right">{deliveryNote}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
                 <dt>Total</dt>
@@ -745,6 +817,15 @@ export default function CarrinhoPage() {
             </dl>
 
             <form onSubmit={handleSubmit} className="space-y-4 pt-2" noValidate>
+              {/* Nota de entrega digital (ponto 1) — substitui os campos de morada */}
+              {allDigital && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-800">
+                  {hasRemoto && !hasInfo
+                    ? '📦 Entrega remota via chat/email — o prestador combina contigo no chat da plataforma.'
+                    : '⚡ Entrega digital imediata após pagamento confirmado — sem morada, sem esperas.'}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="cart-nome">Nome completo</Label>
                 <Input
@@ -758,7 +839,30 @@ export default function CarrinhoPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cart-telefone">Telefone / WhatsApp</Label>
+                <Label htmlFor="cart-email">
+                  Email{' '}
+                  {allDigital ? (
+                    <span className="text-rose-500">*</span>
+                  ) : (
+                    '(opcional)'
+                  )}
+                </Label>
+                <Input
+                  id="cart-email"
+                  type="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="o.teu@email.com"
+                  className="h-11"
+                  required={allDigital}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cart-telefone">
+                  Telefone{' '}
+                  {allDigital ? '(opcional)' : <span className="text-rose-500">*</span>}
+                </Label>
                 <Input
                   id="cart-telefone"
                   type="tel"
@@ -767,10 +871,28 @@ export default function CarrinhoPage() {
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="9xx xxx xxx"
                   className="h-11"
-                  required
-                  minLength={9}
+                  required={!allDigital}
+                  minLength={allDigital ? undefined : 9}
                 />
               </div>
+
+              {/* Ponto 1: morada só para encomendas com entrega física/domicílio */}
+              {!allDigital && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="cart-morada">
+                    Morada de entrega <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="cart-morada"
+                    value={morada}
+                    onChange={(e) => setMorada(e.target.value)}
+                    placeholder="Bairro, rua e referência — ex.: Maianga, Rua 21 de Janeiro, perto do mercado"
+                    className="h-11"
+                    required
+                    minLength={10}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="cart-notas">Notas (opcional)</Label>
                 <Input
@@ -847,25 +969,45 @@ export default function CarrinhoPage() {
                     </span>
                   </span>
                 </label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-50">
-                  <input
-                    type="radio"
-                    name="pagamento"
-                    value="whatsapp"
-                    checked={paymentMethod === 'whatsapp'}
-                    onChange={() => setPaymentMethod('whatsapp')}
-                    className="mt-0.5 h-4 w-4 accent-slate-600"
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold text-slate-900">
-                      Combinar pelo WhatsApp
-                    </span>
-                    <span className="block text-xs text-slate-500">
-                      Dinheiro na entrega ou outra forma — combinado com a
-                      equipa.
-                    </span>
-                  </span>
-                </label>
+                {/* Ponto 2: «Combinar pelo WhatsApp» FOI REMOVIDO — toda a
+                    negociação fica no chat interno (anti-burla) */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">
+                    Precisas de combinar algo com o vendedor? Toda a negociação
+                    fica registada na plataforma — sem burlas.
+                  </p>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="h-8 shrink-0 border-emerald-500 px-3 text-xs font-semibold text-emerald-600 hover:bg-emerald-50"
+                  >
+                    <Link href="/chat">
+                      <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Falar no chat
+                    </Link>
+                  </Button>
+                </div>
+
+                {/* 🔒 Ponto 4A: prestador offline → cliente NÃO pode pagar */}
+                {hasDomicilio && domicilioProductIds.length > 0 && (
+                  !availabilityLoaded ? (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                      A verificar disponibilidade do prestador…
+                    </p>
+                  ) : prestadorBloqueia ? (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-3" role="alert">
+                      <p className="text-xs font-bold text-rose-900">
+                        🚫 Este prestador está temporariamente indisponível. Escolha outro ou contacte no chat.
+                      </p>
+                      <p className="mt-1 text-[11px] text-rose-700">
+                        {unavailableSellers.join(', ')} não aceita novos pedidos agora — o pagamento fica bloqueado enquanto ele estiver offline.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                      ✓ Prestador disponível — podes finalizar o pedido.
+                    </p>
+                  )
+                )}
 
                 {/* MoMenu (Multicaixa Express) — apenas com MOMENU_API_KEY definida (Fase 6) */}
                 {momenuEnabled && user && (
@@ -943,7 +1085,7 @@ export default function CarrinhoPage() {
                 )}
 
                 {/* Localização para serviços ao domicílio (Fase 5) */}
-                {hasDomicilio && paymentMethod !== 'whatsapp' && (
+                {hasDomicilio && (
                   <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
                     <p className="text-xs font-bold text-orange-900">
                       Serviço ao domicílio no carrinho — partilha a tua localização (opcional)
@@ -1018,22 +1160,6 @@ export default function CarrinhoPage() {
                   </div>
                 )}
 
-                {/* WhatsApp: link de comprovativo opcional (método manual existente) */}
-                {paymentMethod === 'whatsapp' && (
-                  <div className="space-y-1.5 pl-2 pt-1">
-                    <Label htmlFor="cart-comprovativo" className="text-xs text-slate-500">
-                      Link do comprovativo (opcional — validado pela equipa)
-                    </Label>
-                    <Input
-                      id="cart-comprovativo"
-                      type="url"
-                      value={comprovativo}
-                      onChange={(e) => setComprovativo(e.target.value)}
-                      placeholder="https://…/comprovativo.jpg"
-                      className="h-10 text-sm"
-                    />
-                  </div>
-                )}
               </fieldset>
 
               {/* Afiliado: código opcional (Fase A) */}
@@ -1053,7 +1179,7 @@ export default function CarrinhoPage() {
 
               <Button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || prestadorBloqueia}
                 className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
               >
                 {submitting ? (
@@ -1061,6 +1187,8 @@ export default function CarrinhoPage() {
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     A registar encomenda…
                   </>
+                ) : prestadorBloqueia ? (
+                  'Prestador indisponível'
                 ) : (
                   <>
                     <Send className="mr-2 h-5 w-5" />
@@ -1070,9 +1198,9 @@ export default function CarrinhoPage() {
               </Button>
 
               <p className="text-center text-xs text-slate-400">
-                Pagamento por KWiK, PayPay ou Multicaixa Express
-                (transferência), carteira AngoStart, WhatsApp ou dinheiro na
-                entrega.
+                Pagamento por KWiK, PayPay ou Multicaixa Express (transferência)
+                ou carteira AngoStart — negociação e apoio sempre no chat da
+                plataforma.
               </p>
             </form>
           </div>

@@ -188,6 +188,46 @@ export async function sendOrderValidatedEmail(
   approved: boolean
 ): Promise<void> {
   if (!customerEmail) return;
+
+  /* ── Ponto 3 do fluxo de e-books: após o admin validar (status `pago`),
+   * o email ao cliente traz os LINKS DE DOWNLOAD dos infoprodutos —
+   * a libertação no perfil também acontece (gated por status pago). ── */
+  let downloadSection = '';
+  if (approved) {
+    try {
+      const { sql } = await import('@/lib/db');
+      const ebooks = (await sql`
+        SELECT DISTINCT ON (p.id) p.id, p.name
+        FROM orders o,
+             jsonb_array_elements(o.items) item
+        JOIN products p ON p.id = (item->>'id')::int
+        WHERE o.id = ${orderId}
+          AND p.type = 'infoproduto'
+          AND p.file_url IS NOT NULL
+      `) as unknown as { id: number; name: string }[];
+
+      if (ebooks.length > 0) {
+        const links = ebooks
+          .map(
+            (b) =>
+              `<li style="margin:8px 0"><a href="${getAppUrl()}/api/products/${b.id}/download"
+                 style="color:#059669;font-weight:600">${b.name}</a></li>`
+          )
+          .join('');
+        downloadSection = `
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px;margin:16px 0">
+            <p style="margin:0 0 8px;font-weight:700;color:#065f46">📚 Os teus downloads estão prontos:</p>
+            <ul style="margin:0;padding-left:20px">${links}</ul>
+            <p style="margin:10px 0 0;font-size:13px;color:#047857">
+              O link abre a tua conta AngoStart para descarregar com segurança.
+            </p>
+          </div>`;
+      }
+    } catch (ebookError) {
+      console.error('[email] Secção de downloads falhou (não crítico):', ebookError);
+    }
+  }
+
   await sendMail({
     to: customerEmail,
     subject: approved
@@ -197,9 +237,9 @@ export async function sendOrderValidatedEmail(
       approved ? 'O teu comprovativo foi aprovado!' : 'O teu comprovativo foi rejeitado',
       approved
         ? `<p>A encomenda <strong>n.º ${orderId}</strong> foi validada pela nossa equipa.
-           O vendedor já foi notificado para preparar a entrega.</p>`
+           O vendedor já foi notificado para preparar a entrega.</p>${downloadSection}`
         : `<p>Infelizmente o comprovativo da encomenda <strong>n.º ${orderId}</strong>
-           não foi validado. Contacta-nos pelo WhatsApp para esclarecer.</p>`
+           não foi validado. Contacta-nos pelo chat para esclarecer.</p>`
     ),
   });
 }

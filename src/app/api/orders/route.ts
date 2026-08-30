@@ -14,6 +14,7 @@ import {
   buildKwikReference,
 } from '@/lib/kwik';
 import { isManualTransferMethod } from '@/lib/payments-manual';
+import { parseCoord, ANGOLA_LAT, ANGOLA_LNG } from '@/lib/geo';
 import {
   payWithWallet,
   ensureWallet,
@@ -41,6 +42,8 @@ interface OrderPayload {
   customer_email?: string;
   items?: OrderItemPayload[];
   delivery_type?: string;
+  /** Morada de entrega (produtos físicos/serviços ao domicílio). */
+  delivery_address?: unknown;
   notes?: string;
   comprovativo_url?: string;
   /** Método de pagamento: 'kwik' | 'paypay' | 'multicaixa_express' |
@@ -60,6 +63,7 @@ interface DbProduct {
   id: number;
   name: string;
   price_kz: number;
+  type: string;
   user_id: number | null;
   seller_email: string | null;
 }
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
   const customerName = sanitizeText(body.customer_name, 80);
   const customerPhone = sanitizeText(body.customer_phone, 20);
   const customerEmail = body.customer_email?.trim().toLowerCase() || null;
-  const deliveryType = sanitizeText(body.delivery_type, 30) || 'entrega';
+  // delivery_type é DERIVADO dos itens no servidor (digital/domicilio/entrega)
   const notes = sanitizeMultiline(body.notes, 300) || null;
   const comprovativoUrl =
     body.comprovativo_url?.trim() && isSafeHttpUrl(body.comprovativo_url.trim())
@@ -114,17 +118,16 @@ export async function POST(request: NextRequest) {
   /* ── Métodos de pagamento ──
    * Manuais por transferência (KWiK principal + PayPay + Multicaixa
    * Express): mesmo fluxo — cliente anexa comprovativo, admin valida.
-   * 'carteira' = saldo interno; 'momenu' = automático (desativado);
-   * 'whatsapp' = combinar com a equipa. Por omissão → 'kwik'. */
+   * 'carteira' = saldo interno; 'momenu' = automático (desativado).
+   * 'whatsapp' FOI REMOVIDO do checkout — toda a negociação fica no chat
+   * interno da plataforma (anti-burla). Por omissão → 'kwik'. */
   const rawMethod = isManualTransferMethod(body.payment_method)
     ? body.payment_method
-    : body.payment_method === 'whatsapp'
-      ? 'whatsapp'
-      : body.payment_method === 'carteira'
-        ? 'carteira'
-        : body.payment_method === 'momenu'
-          ? 'momenu' // Fase 6 (ponto 9): pagamento automático — validado depois pelo gateway
-          : 'kwik';
+    : body.payment_method === 'carteira'
+      ? 'carteira'
+      : body.payment_method === 'momenu'
+        ? 'momenu' // Fase 6 (ponto 9): pagamento automático — validado depois pelo gateway
+        : 'kwik';
   const paymentMethod = rawMethod;
 
   // Pagamento com a carteira exige sessão autenticada — saldo é pessoal.
@@ -148,15 +151,11 @@ export async function POST(request: NextRequest) {
   }
 
   /* ── Localização do cliente (Fase 5 — serviços ao domicílio, opcional) ── */
-  const ANGOLA_LAT = [-18.5, -4.5] as const;
-  const ANGOLA_LNG = [11.0, 25.0] as const;
-  const parseCoord = (value: unknown, range: readonly [number, number]): number | null => {
-    const num = Number(value);
-    if (!Number.isFinite(num) || num < range[0] || num > range[1]) return null;
-    return Math.round(num * 1e6) / 1e6;
-  };
   const clientLat = parseCoord(body.latitude, ANGOLA_LAT);
   const clientLng = parseCoord(body.longitude, ANGOLA_LNG);
+
+  /* ── Morada de entrega (produtos físicos / serviços ao domicílio) ── */
+  const deliveryAddress = sanitizeMultiline(body.delivery_address, 300) || null;
 
   const proof = body.payment_proof
     ? parseAndValidateProof({
@@ -222,7 +221,7 @@ export async function POST(request: NextRequest) {
   // ids já validados como inteiros positivos; enviamos como texto e
   // convertemos em array de inteiros na BD (o driver neon() não tem .join)
   const dbProducts = (await sql`
-    SELECT p.id, p.name, p.price_kz, p.user_id, u.email AS seller_email
+    SELECT p.id, p.name, p.price_kz, p.type, p.user_id, u.email AS seller_email
     FROM products p
     LEFT JOIN users u ON u.id = p.user_id
     WHERE p.id = ANY(string_to_array(${ids.join(',')}, ',')::int[])
@@ -239,6 +238,7 @@ export async function POST(request: NextRequest) {
     id: p.id,
     name: p.name,
     price_kz: p.price_kz,
+    type: p.type,
     quantity: wanted.get(p.id) ?? 1,
     seller_id: p.user_id,
   }));
@@ -249,6 +249,63 @@ export async function POST(request: NextRequest) {
   const totalKz = items.reduce((acc, i) => acc + i.price_kz * i.quantity, 0);
   if (totalKz <= 0) {
     return NextResponse.json({ error: 'Total da encomenda inválido.' }, { status: 400 });
+  }
+
+  /* ── Tipo de entrega derivado dos itens (o servidor é autoridade —
+   *    o valor do cliente é ignorado):
+   *    digital  → tudo infoproduto/servico_remoto (entrega sem morada)
+   *    domicilio → há serviço ao domicílio (prestador desloca-se)
+   *    entrega  → produto físico em Luanda */
+  const hasDomicilioItem = items.some((i) => i.type === 'servico_domicilio');
+  const allDigital = items.every(
+    (i) => i.type === 'infoproduto' || i.type === 'servico_remoto'
+  );
+  const derivedDeliveryType = hasDomicilioItem
+    ? 'domicilio'
+    : allDigital
+      ? 'digital'
+      : 'entrega';
+
+  /* ── Morada obrigatória para entregas físicas/domicílio ── */
+  if (!allDigital && !deliveryAddress) {
+    return NextResponse.json(
+      {
+        error:
+          'Indica a morada de entrega (bairro, referência) — os serviços ao domicílio e produtos físicos precisam dela.',
+      },
+      { status: 400 }
+    );
+  }
+
+  /* ── 🔒 BLOQUEIO: prestador indisponível → cliente NÃO pode pagar ──
+   * Verificação server-side (a UI também bloqueia, mas isto é a fonte
+   * de verdade): cada item de servico_domicilio tem de pertencer a um
+   * prestador com is_available = true. */
+  if (hasDomicilioItem) {
+    const domicilioSellerIds = [
+      ...new Set(
+        items
+          .filter((i) => i.type === 'servico_domicilio' && i.seller_id)
+          .map((i) => Number(i.seller_id))
+      ),
+    ];
+    if (domicilioSellerIds.length > 0) {
+      const unavailable = (await sql`
+        SELECT u.id, u.name
+        FROM users u
+        WHERE u.id = ANY(string_to_array(${domicilioSellerIds.join(',')}, ',')::int[])
+          AND (u.is_available IS NOT TRUE OR u.blocked = TRUE)
+      `) as unknown as { id: number; name: string }[];
+      if (unavailable.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Este prestador está temporariamente indisponível. Escolha outro ou contacte no chat. (${unavailable[0].name})`,
+            unavailable_sellers: unavailable.map((u) => u.name),
+          },
+          { status: 409 }
+        );
+      }
+    }
   }
 
   // Com comprovativo anexado → aguardando validação de um admin;
@@ -273,7 +330,7 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude)
       VALUES (
         ${customerName},
         ${customerPhone},
@@ -281,7 +338,8 @@ export async function POST(request: NextRequest) {
         ${JSON.stringify(items)}::jsonb,
         ${totalKz},
         ${initialStatus},
-        ${deliveryType},
+        ${derivedDeliveryType},
+        ${allDigital ? null : deliveryAddress},
         ${notes},
         ${userId},
         ${comprovativoUrl},
@@ -356,7 +414,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[API /api/orders] Erro no Neon:', error);
     return NextResponse.json(
-      { error: 'Não foi possível registar a encomenda agora. Tenta novamente ou fala connosco pelo WhatsApp.' },
+      { error: 'Não foi possível registar a encomenda agora. Tenta novamente ou fala connosco no chat.' },
       { status: 503 }
     );
   }

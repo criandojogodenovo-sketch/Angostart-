@@ -15,11 +15,12 @@ function parseCoord(value: unknown, range: readonly [number, number]): number | 
 }
 
 /**
- * POST /api/perfil/location — botão "Estou disponível" (Fase 5, mapa).
+ * POST /api/perfil/location — botão "Estou disponível" / "Estou indisponível".
  *
- * O prestador ao domicílio partilha a sua posição atual (aproximada) e fica
- * visível como disponível por 2 horas. Clientes sem encomenda paga veem
- * apenas a posição DESLOCADA (raio ~500 m) — privacidade por defeito.
+ * Ponto 4A do prompt: `is_available` (boolean) é a FONTE DE VERDADE do
+ * checkout — o cliente NÃO pode pagar um serviço ao domicílio enquanto o
+ * prestador estiver offline. Continua também a guardar a posição para o
+ * mapa de prestadores próximos (raio ~500 m — privacidade por defeito).
  * Corpo: { latitude, longitude } ou { clear: true } para ficar indisponível.
  */
 export async function POST(request: NextRequest) {
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
   try {
     if (body.clear === true) {
       await sql`
-        UPDATE users SET latitude = NULL, longitude = NULL, available_until = NULL
+        UPDATE users
+        SET latitude = NULL, longitude = NULL, available_until = NULL,
+            is_available = FALSE
         WHERE id = ${auth.user.id}
       `;
       return NextResponse.json({ ok: true, available: false });
@@ -58,12 +61,47 @@ export async function POST(request: NextRequest) {
 
     await sql`
       UPDATE users
-      SET latitude = ${lat}, longitude = ${lng}, available_until = now() + interval '2 hours'
+      SET latitude = ${lat}, longitude = ${lng},
+          available_until = now() + interval '2 hours',
+          is_available = TRUE
       WHERE id = ${auth.user.id}
     `;
     return NextResponse.json({ ok: true, available: true, until: '+2h' });
   } catch (error) {
     console.error('[API perfil/location] Erro:', error);
     return NextResponse.json({ error: 'Não foi possível guardar a localização.' }, { status: 503 });
+  }
+}
+
+/**
+ * GET /api/perfil/location — estado atual de disponibilidade do prestador
+ * autenticado (usado pelo dashboard para renderizar o toggle correto).
+ */
+export async function GET(request: NextRequest) {
+  const auth = await requireRole(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  try {
+    const rows = (await sql`
+      SELECT is_available, available_until, latitude, longitude
+      FROM users WHERE id = ${auth.user.id} LIMIT 1
+    `) as unknown as {
+      is_available: boolean | null;
+      available_until: string | null;
+      latitude: number | null;
+      longitude: number | null;
+    }[];
+
+    const row = rows[0];
+    return NextResponse.json({
+      is_available: Boolean(row?.is_available),
+      available_until: row?.available_until ?? null,
+      has_location: row?.latitude != null && row?.longitude != null,
+    });
+  } catch (error) {
+    console.error('[API perfil/location GET] Erro:', error);
+    return NextResponse.json({ error: 'Não foi possível carregar o estado.' }, { status: 503 });
   }
 }

@@ -67,7 +67,11 @@ export async function POST(
       );
     }
 
-    /* ── Anti-burla: partilha de contactos para negociar fora da plataforma ── */
+    /* ── Anti-burla: BLOQUEIO de partilha de contactos (ponto 4C) ──
+     * Mensagem com email/telefone/WhatsApp NÃO é inserida — toda a
+     * negociação tem de ficar dentro da plataforma. A tentativa fica
+     * REGISTADA (tentativa_fora) e contínua para o bloqueio automático
+     * da conta após deteções repetidas. */
     const contactHits = detectContactSharing(content);
     if (contactHits.length > 0) {
       logSuspiciousActivity({
@@ -76,6 +80,15 @@ export async function POST(
         details: `Contactos detetados no chat (conversa #${convId}): padrões ${contactHits.length}. Mensagem: "${content.slice(0, 120)}"`,
         severity: 'media',
       }).catch(() => {});
+
+      return NextResponse.json(
+        {
+          error:
+            'Mensagem bloqueada: não partilhes telefone, WhatsApp ou email. Toda a negociação, localização e pagamentos ficam aqui dentro para a tua proteção — negociar fora remove a cobertura da AngoStart.',
+          blocked: 'contact_sharing',
+        },
+        { status: 400 }
+      );
     }
 
     const inserted = (await sql`
@@ -121,10 +134,6 @@ export async function POST(
       {
         ok: true,
         message: inserted[0],
-        warning:
-          contactHits.length > 0
-            ? 'Não partilhes contactos pessoais — negociar fora da AngoStart remove a tua proteção e é monitorizado.'
-            : null,
       },
       { status: 201 }
     );

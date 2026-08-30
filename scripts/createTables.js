@@ -55,11 +55,22 @@ const DDL = [
     admin_note TEXT,
     validated_at TIMESTAMPTZ,
     validated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    delivery_address TEXT,
+    service_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    service_completed_at TIMESTAMPTZ,
+    service_started_at TIMESTAMPTZ,
+    prestador_lat DOUBLE PRECISION,
+    prestador_lng DOUBLE PRECISION,
+    prestador_loc_updated_at TIMESTAMPTZ,
+    tracking_active BOOLEAN NOT NULL DEFAULT FALSE
   )`,
   `CREATE INDEX IF NOT EXISTS idx_products_type ON products(type)`,
   `CREATE INDEX IF NOT EXISTS idx_products_featured ON products(featured)`,
   `CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE INDEX IF NOT EXISTS idx_orders_tracking_active ON orders(tracking_active) WHERE tracking_active = TRUE`,
+  `CREATE INDEX IF NOT EXISTS idx_users_is_available ON users(is_available) WHERE is_available = TRUE`,
 ];
 
 const PRODUCTS = [

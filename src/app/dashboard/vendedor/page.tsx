@@ -18,8 +18,10 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Award,
+  Bike,
   ClipboardList,
   Copy,
+  Crosshair,
   ExternalLink,
   Flame,
   Loader2,
@@ -27,6 +29,7 @@ import {
   MapPin,
   Medal,
   MessageCircle,
+  Navigation,
   Package,
   PiggyBank,
   Receipt,
@@ -55,6 +58,7 @@ import { useAuth } from '@/context/AuthContext';
 import { authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
+import ServiceMap from '@/components/ServiceMap';
 
 interface DashboardData {
   cards: {
@@ -86,9 +90,21 @@ interface DashboardData {
   orders: {
     id: number;
     customer_name: string;
+    customer_phone: string;
     status: string;
     created_at: string;
-    items: { name: string; price_kz: number; quantity: number }[];
+    items: { name: string; price_kz: number; quantity: number; type: string | null }[];
+    delivery_address: string | null;
+    notes: string | null;
+    tracking_active: boolean;
+    service_started_at: string | null;
+    service_completed: boolean;
+    prestador_lat: number | null;
+    prestador_lng: number | null;
+    prestador_loc_updated_at: string | null;
+    client_approx_lat: number | null;
+    client_approx_lng: number | null;
+    client_has_gps: boolean;
   }[];
 }
 
@@ -298,8 +314,27 @@ export default function DashboardVendedorPage() {
       .catch(() => undefined);
   }
 
-  /* ── Fase 5: disponibilidade do prestador ao domicílio ── */
+  /* ── Ponto 4A: disponibilidade do prestador (is_available = fonte de
+   *    verdade do checkout — cliente NÃO pode pagar se estiveres offline) ── */
   const [aAtualizarLocal, setAAtualizarLocal] = useState(false);
+  const [estadoDisponibilidade, setEstadoDisponibilidade] = useState<{
+    is_available: boolean;
+    available_until: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user || unauthorized) return;
+    fetch('/api/perfil/location', { headers: authHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (d: { is_available?: boolean; available_until?: string | null } | null) =>
+          setEstadoDisponibilidade({
+            is_available: Boolean(d?.is_available),
+            available_until: d?.available_until ?? null,
+          })
+      )
+      .catch(() => setEstadoDisponibilidade(null));
+  }, [user, unauthorized]);
 
   function marcarDisponivel() {
     if (!navigator.geolocation) {
@@ -320,7 +355,8 @@ export default function DashboardVendedorPage() {
             toast({ title: 'Não foi possível', description: payload.error });
             return;
           }
-          toast({ title: 'Estás disponível por 2 horas! 📍', description: 'Clientes próximos já te podem encontrar.' });
+          setEstadoDisponibilidade({ is_available: true, available_until: '+2h' });
+          toast({ title: 'Estás DISPONÍVEL ✓', description: 'Clientes já podem contratar e pagar os teus serviços — continua visível até te desligares.' });
         } finally {
           setAAtualizarLocal(false);
         }
@@ -341,7 +377,8 @@ export default function DashboardVendedorPage() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ clear: true }),
       });
-      toast({ title: 'Pausado — já não apareces como disponível.' });
+      setEstadoDisponibilidade({ is_available: false, available_until: null });
+      toast({ title: 'Estás INDISPONÍVEL ⏸', description: 'O checkout bloqueia novos pagamentos até te marcares disponível outra vez.' });
     } finally {
       setAAtualizarLocal(false);
     }
@@ -743,40 +780,62 @@ export default function DashboardVendedorPage() {
           )}
         </section>
 
-        {/* Estou disponível — prestadores ao domicílio (Fase 5, mapa) */}
+        {/* Ponto 4A: toggle de disponibilidade — o checkout bloqueia se estiveres offline */}
         {user?.role === 'prestador_domicilio' && (
           <section
             aria-label="Disponibilidade de serviço"
-            className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500 p-5 text-white shadow-sm"
+            className={`rounded-2xl border p-5 text-white shadow-sm ${
+              estadoDisponibilidade?.is_available
+                ? 'border-emerald-300 bg-gradient-to-br from-emerald-500 to-teal-600'
+                : 'border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500'
+            }`}
           >
             <h2 className="flex items-center gap-2 text-base font-semibold">
               <MapPin className="h-5 w-5" /> Disponibilidade ao domicílio
             </h2>
-            <p className="mt-2 text-xs leading-relaxed text-orange-50">
-              Partilha a tua localização aproximada (expira em 2 h) para apareceres como
-              disponível. Clientes veem apenas a área — a localização exata só é revelada
-              após pagamento.
+            <p className="mt-2 text-xs leading-relaxed text-white/90">
+              Enquanto estiveres <strong>indisponível</strong>, o checkout bloqueia o pagamento de
+              novos serviços — o cliente vê «prestador temporariamente indisponível». Liga-te para
+              poderes receber e cobrar serviços.
             </p>
+            <div className="mt-3 flex items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                  estadoDisponibilidade?.is_available
+                    ? 'bg-white/25 text-white'
+                    : 'bg-black/20 text-white/90'
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    estadoDisponibilidade?.is_available ? 'bg-emerald-200 animate-pulse' : 'bg-white/60'
+                  }`}
+                />
+                {estadoDisponibilidade?.is_available
+                  ? 'DISPONÍVEL — podes receber pedidos'
+                  : 'INDISPONÍVEL — checkout bloqueado'}
+              </span>
+            </div>
             <div className="mt-4 flex gap-2">
               <Button
                 onClick={marcarDisponivel}
-                disabled={aAtualizarLocal}
-                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-50"
+                disabled={aAtualizarLocal || estadoDisponibilidade?.is_available}
+                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-70"
               >
                 {aAtualizarLocal ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <MapPin className="mr-2 h-4 w-4" />
+                  <Crosshair className="mr-2 h-4 w-4" />
                 )}
                 Estou disponível
               </Button>
               <Button
                 onClick={ficarIndisponivel}
-                disabled={aAtualizarLocal}
+                disabled={aAtualizarLocal || (estadoDisponibilidade != null && !estadoDisponibilidade.is_available)}
                 variant="outline"
-                className="h-10 border-white/40 text-white hover:bg-white/10"
+                className="h-10 border-white/40 text-white hover:bg-white/10 disabled:opacity-70"
               >
-                Pausar
+                Estou indisponível
               </Button>
             </div>
           </section>
@@ -827,6 +886,9 @@ export default function DashboardVendedorPage() {
           </ul>
         )}
       </section>
+
+      {/* Ponto 4B: serviços ao domicílio pagos — iniciar deslocação + GPS em tempo real */}
+      <ServicosAtivosCard />
 
       {/* Gamificação — selos, nível e progresso (Fase 7) */}
       <GamificationCard />
@@ -1270,6 +1332,256 @@ function PropostasRecebidas() {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/* ═══════ Ponto 4B — Serviços ao domicílio pagos: deslocação + GPS em tempo real ═══════ */
+
+interface ServicoOrder {
+  id: number;
+  customer_name: string;
+  status: string;
+  items: { name: string; price_kz: number; quantity: number; type: string | null }[];
+  delivery_address: string | null;
+  notes: string | null;
+  tracking_active: boolean;
+  service_started_at: string | null;
+  service_completed: boolean;
+  client_approx_lat: number | null;
+  client_approx_lng: number | null;
+  client_has_gps: boolean;
+}
+
+/**
+ * Lista os serviços ao domicílio com status `pago` (dinheiro já em escrow)
+ * e conduz o fluxo de deslocação:
+ *  1. «Iniciar deslocação» → POST /api/orders/[id]/start-service;
+ *  2. GPS do telemóvel via watchPosition + envio ao servidor a cada 5 s
+ *     (POST /api/orders/[id]/location);
+ *  3. Mapa com a posição APROXIMADA do cliente (raio de 500 m — a exata
+ *     nunca sai do servidor) + a tua última posição conhecida.
+ * O rastreamento para quando o cliente confirma a conclusão.
+ */
+function ServicosAtivosCard() {
+  const { toast } = useToast();
+  const [servicos, setServicos] = useState<ServicoOrder[] | null>(null);
+  const [aIniciar, setAIniciar] = useState<number | null>(null);
+  const [gpsAtivo, setGpsAtivo] = useState<Record<number, boolean>>({});
+  const [ultimaPos, setUltimaPos] = useState<{ lat: number; lng: number } | null>(null);
+
+  const carregar = useCallback(() => {
+    fetch('/api/dashboard/vendedor', { headers: authHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: DashboardData | null) => {
+        if (!d?.orders) {
+          setServicos([]);
+          return;
+        }
+        setServicos(
+          d.orders.filter(
+            (o) =>
+              o.items.some((i) => i.type === 'servico_domicilio') &&
+              ['pago', 'entregue'].includes(o.status) &&
+              !o.service_completed
+          )
+        );
+      })
+      .catch(() => setServicos([]));
+  }, []);
+
+  useEffect(() => {
+    carregar();
+    const t = setInterval(carregar, 15_000);
+    return () => clearInterval(t);
+  }, [carregar]);
+
+  async function iniciarDeslocacao(orderId: number) {
+    if (aIniciar !== null) return;
+    setAIniciar(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/start-service`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível iniciar', description: data.error });
+        return;
+      }
+      toast({
+        title: 'Deslocação iniciada 🛵',
+        description: 'O teu GPS é partilhado com o cliente a cada 5 segundos.',
+      });
+      carregar();
+    } catch {
+      toast({ title: 'Erro de ligação', description: 'Tenta novamente.' });
+    } finally {
+      setAIniciar(null);
+    }
+  }
+
+  /** Liga o GPS contínuo para um pedido: watchPosition + envio a cada 5 s. */
+  function ligarGps(orderId: number) {
+    if (!('geolocation' in navigator)) {
+      toast({ title: 'GPS indisponível neste dispositivo.' });
+      return;
+    }
+    let latest: { lat: number; lng: number } | null = null;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        latest = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUltimaPos(latest);
+      },
+      () => {
+        toast({
+          title: 'Sem acesso ao GPS',
+          description: 'Autoriza a localização para o cliente te acompanhar.',
+        });
+      },
+      { enableHighAccuracy: true, maximumAge: 4000, timeout: 15_000 }
+    );
+
+    // Envio periódico a cada 5 s (o servidor valida tracking ativo)
+    const sender = setInterval(() => {
+      if (!latest) return;
+      fetch(`/api/orders/${orderId}/location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ latitude: latest.lat, longitude: latest.lng }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { tracking_active?: boolean } | null) => {
+          if (d && d.tracking_active === false) {
+            pararGps();
+            carregar();
+          }
+        })
+        .catch(() => {});
+    }, 5_000);
+
+    function pararGps() {
+      navigator.geolocation.clearWatch(watchId);
+      clearInterval(sender);
+      setGpsAtivo((prev) => ({ ...prev, [orderId]: false }));
+    }
+    // exposto via closure para o useEffect de limpeza e para o próprio fluxo
+    (ligarGps as unknown as { _parar?: () => void })._parar = pararGps;
+    setGpsAtivo((prev) => ({ ...prev, [orderId]: true }));
+  }
+
+  if (servicos === null) {
+    return (
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-400">
+        A carregar serviços…
+      </section>
+    );
+  }
+
+  if (servicos.length === 0) return null;
+
+  return (
+    <section
+      aria-label="Serviços ao domicílio ativos"
+      className="mt-8 rounded-2xl border border-sky-200 bg-white shadow-sm"
+    >
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+          <Bike className="h-5 w-5 text-sky-600" /> Serviços ao domicílio — em curso
+        </h2>
+        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-700">
+          {servicos.length}
+        </span>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {servicos.map((s) => {
+          const emCurso = Boolean(s.service_started_at) || s.tracking_active;
+          return (
+            <li key={s.id} className="px-5 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">
+                    #{s.id} — {s.customer_name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {s.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ')}
+                  </p>
+                  {s.delivery_address && (
+                    <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      <span>
+                        <strong>Morada:</strong> {s.delivery_address}
+                        {s.notes ? ` · Nota: ${s.notes}` : ''}
+                      </span>
+                    </p>
+                  )}
+                  {!s.client_has_gps && (
+                    <p className="mt-1 text-[11px] text-amber-600">
+                      O cliente não partilhou GPS — segue a morada acima ou fala no chat.
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {!emCurso ? (
+                    <Button
+                      onClick={() => iniciarDeslocacao(s.id)}
+                      disabled={aIniciar === s.id}
+                      className="h-10 bg-sky-600 font-semibold text-white hover:bg-sky-700"
+                    >
+                      {aIniciar === s.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Navigation className="mr-2 h-4 w-4" />
+                      )}
+                      Iniciar deslocação
+                    </Button>
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
+                        Rastreamento ativo
+                      </span>
+                      {!gpsAtivo[s.id] && (
+                        <Button
+                          onClick={() => ligarGps(s.id)}
+                          variant="outline"
+                          className="h-9 border-sky-500 text-xs font-semibold text-sky-600 hover:bg-sky-50"
+                        >
+                          <Crosshair className="mr-2 h-4 w-4" /> Ligar GPS
+                        </Button>
+                      )}
+                      {ultimaPos && gpsAtivo[s.id] && (
+                        <p className="text-[11px] text-slate-400">
+                          A enviar posição… ({ultimaPos.lat.toFixed(4)},{' '}
+                          {ultimaPos.lng.toFixed(4)})
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Mapa: posição APROXIMADA do cliente (raio 500 m) */}
+              {s.client_has_gps && s.client_approx_lat != null && s.client_approx_lng != null && (
+                <div className="mt-3">
+                  <ServiceMap
+                    providerLat={s.client_approx_lat}
+                    providerLng={s.client_approx_lng}
+                    cidade="Local do cliente (raio ~500 m)"
+                    height={260}
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    🔒 Por privacidade, vês apenas a área aproximada do cliente (raio de 500 m) —
+                    a posição exata nunca sai do servidor. Usa a morada e o chat para os últimos
+                    metros.
+                  </p>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

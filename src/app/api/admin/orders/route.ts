@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   try {
     const orders = (await sql`
       SELECT id, customer_name, customer_phone, customer_email, items, total_kz,
-             status, delivery_type, notes, comprovativo_url,
+             status, delivery_type, notes, comprovativo_url, delivery_address,
              payment_method, payment_proof_name, payment_proof_type,
              (payment_proof IS NOT NULL) AS has_payment_proof,
              admin_note, validated_at, created_at

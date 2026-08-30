@@ -289,7 +289,14 @@ export async function PATCH(
     }
 
     const totalKz = Math.round(proposal.price_kz);
-    const deliveryType = info.type === 'servico_remoto' ? 'remoto' : 'entrega';
+    const deliveryType =
+      info.type === 'servico_remoto'
+        ? 'remoto'
+        : info.type === 'servico_domicilio'
+          ? 'domicilio'
+          : info.type === 'infoproduto'
+            ? 'digital'
+            : 'entrega';
     const items = [
       {
         id: info.id,
@@ -344,7 +351,36 @@ export async function PATCH(
     );
     notifyAcceptedEmails(proposal, info, totalKz, orderId).catch(() => {});
 
-    return NextResponse.json({ ok: true, status: 'aceite', order_id: orderId });
+    /* ── Ponto 4C: aviso de disponibilidade — se o prestador aceitou mas
+     *    está OFFLINE, o cliente fica avisado de que o serviço não pode
+     *    começar enquanto ele não ligar ("Estou disponível"). ── */
+    let providerAvailable: boolean | null = null;
+    let availability_warning: string | null = null;
+    if (info.type === 'servico_domicilio') {
+      const providerRows = (await sql`
+        SELECT is_available, blocked FROM users WHERE id = ${proposal.provider_id} LIMIT 1
+      `) as unknown as { is_available: boolean | null; blocked: boolean | null }[];
+      providerAvailable = Boolean(providerRows[0]?.is_available) && !providerRows[0]?.blocked;
+      if (!providerAvailable) {
+        availability_warning =
+          'O prestador está temporariamente indisponível — o pagamento só será liberado para início quando ele ativar «Estou disponível» no painel.';
+        // Avisa o prestador para se marcar disponível
+        await pushNotification(
+          proposal.provider_id,
+          'Ativa a tua disponibilidade 📍',
+          `Aceitaste a proposta do pedido #${orderId} mas estás offline — marca-te disponível para o cliente poder pagar e tu começares o serviço.`,
+          '/dashboard/vendedor'
+        );
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: 'aceite',
+      order_id: orderId,
+      provider_available: providerAvailable,
+      warning: availability_warning,
+    });
   } catch (error) {
     console.error('[API proposals/[id] PATCH] Erro:', error);
     return NextResponse.json({ error: 'Não foi possível responder à proposta.' }, { status: 503 });

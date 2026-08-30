@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { clientKey, rateLimit, requireSeller } from '@/lib/security';
 import { commissionPercentForRole, getBusinessConfig } from '@/lib/config';
+import { fuzzCoordinate } from '@/lib/geo';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +11,22 @@ interface SellerOrderRow {
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
-  items: { id: number; name: string; price_kz: number; quantity: number; seller_id: number | null }[];
+  items: { id: number; name: string; price_kz: number; quantity: number; seller_id: number | null; type?: string }[];
   status: string;
   created_at: string;
+  delivery_address?: string | null;
+  notes?: string | null;
+  service_started_at?: string | null;
+  service_completed?: boolean;
+  service_completed_at?: string | null;
+  tracking_active?: boolean;
+  prestador_lat?: number | null;
+  prestador_lng?: number | null;
+  prestador_loc_updated_at?: string | null;
+  // 🔒 Cliente APROXIMADO (fuzz ~500 m) — a posição exata nunca sai do servidor
+  client_approx_lat?: number | null;
+  client_approx_lng?: number | null;
+  client_has_gps?: boolean;
 }
 
 /**
@@ -36,9 +50,15 @@ export async function GET(request: NextRequest) {
   const commissionPercent = commissionPercentForRole(auth.user.role, getBusinessConfig());
 
   try {
-    /* Encomendas que contêm artigos do vendedor (evita duplicados por GROUP BY) */
+    /* Encomendas que contêm artigos do vendedor (evita duplicados por GROUP BY)
+     * Inclui campos do fluxo de serviço ao domicílio (rastreamento, morada,
+     * conclusão) — a posição do cliente vai sempre FUZZADA (~500 m). */
     const orders = (await sql`
-      SELECT o.id, o.customer_name, o.customer_phone, o.customer_email, o.items, o.status, o.created_at
+      SELECT o.id, o.customer_name, o.customer_phone, o.customer_email, o.items,
+             o.status, o.created_at, o.delivery_address, o.notes,
+             o.service_started_at, o.service_completed, o.service_completed_at,
+             o.tracking_active, o.prestador_lat, o.prestador_lng,
+             o.prestador_loc_updated_at, o.latitude, o.longitude
       FROM orders o
       WHERE EXISTS (
         SELECT 1 FROM jsonb_array_elements(o.items) AS it
@@ -46,7 +66,27 @@ export async function GET(request: NextRequest) {
       )
       ORDER BY o.created_at DESC
       LIMIT 200
-    `) as unknown as SellerOrderRow[];
+    `) as unknown as (SellerOrderRow & {
+      latitude: number | null;
+      longitude: number | null;
+    })[];
+
+    /* 🔒 PRIVACIDADE: aplica o fuzz de 500 m à posição do cliente ANTES de
+     * qualquer uso — a coordenada exata é descartada nesta função. */
+    for (const o of orders) {
+      if (o.latitude != null && o.longitude != null) {
+        const f = fuzzCoordinate(o.latitude, o.longitude, o.id);
+        o.client_approx_lat = f.lat;
+        o.client_approx_lng = f.lng;
+        o.client_has_gps = true;
+      } else {
+        o.client_approx_lat = null;
+        o.client_approx_lng = null;
+        o.client_has_gps = false;
+      }
+      o.latitude = null; // sanitização defensiva
+      o.longitude = null;
+    }
 
     /* Produtos publicados */
     const productCount = (await sql`
@@ -164,7 +204,19 @@ export async function GET(request: NextRequest) {
       created_at: o.created_at,
       items: (o.items ?? [])
         .filter((i) => i.seller_id === sellerId)
-        .map((i) => ({ name: i.name, price_kz: i.price_kz, quantity: i.quantity })),
+        .map((i) => ({ name: i.name, price_kz: i.price_kz, quantity: i.quantity, type: i.type ?? null })),
+      // ── Fluxo de serviço ao domicílio (rastreamento em tempo real) ──
+      delivery_address: o.delivery_address ?? null,
+      notes: o.notes ?? null,
+      tracking_active: Boolean(o.tracking_active),
+      service_started_at: o.service_started_at ?? null,
+      service_completed: Boolean(o.service_completed),
+      prestador_lat: o.prestador_lat ?? null,
+      prestador_lng: o.prestador_lng ?? null,
+      prestador_loc_updated_at: o.prestador_loc_updated_at ?? null,
+      client_approx_lat: o.client_approx_lat ?? null,
+      client_approx_lng: o.client_approx_lng ?? null,
+      client_has_gps: Boolean(o.client_has_gps),
     }));
 
     return NextResponse.json({
