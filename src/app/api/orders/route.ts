@@ -80,7 +80,7 @@ interface DbProduct {
  *   é validado (só http/https).
  * - Comprovativo KWiK (upload) validado: MIME whitelist, 2 MB máx.,
  *   magic bytes e nome sanitizado (ver lib/kwik.ts).
- * - Notificações por email (Resend): cliente + vendedores.
+ * - Notificações por email (Brevo): cliente + vendedores.
  */
 export async function POST(request: NextRequest) {
   const authUser = await getAuthUser(request);

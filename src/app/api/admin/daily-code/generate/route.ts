@@ -21,7 +21,7 @@ interface TargetAdmin {
  *  - Header `Authorization: Bearer $CRON_SECRET` → gera para todos
  *    (usado pelo cron diário das 00:00 em África/Luanda).
  *
- * O código é guardado apenas como hash; é enviado por email (Resend).
+ * O código é guardado apenas como hash; é enviado por email (Brevo).
  * Se o email falhar, devolve o código na resposta para entrega manual.
  */
 export async function POST(request: NextRequest) {

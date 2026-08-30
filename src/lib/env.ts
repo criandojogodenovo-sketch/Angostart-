@@ -6,7 +6,7 @@ import { z } from 'zod';
  *
  * - `import 'server-only'` garante que este módulo NUNCA entra no bundle
  *   de um Client Component: se o fizer, o build falha imediatamente.
- * - As chaves secretas (JWT_SECRET, DATABASE_URL, RESEND_API_KEY)
+ * - As chaves secretas (JWT_SECRET, DATABASE_URL, BREVO_API_KEY)
  *   vivem exclusivamente no servidor (.env.local em dev,
  *   Environment Variables da Vercel em produção).
  * - Pagamentos: KWiK é um pagamento MANUAL por transferência — não
@@ -23,8 +23,9 @@ const serverEnvSchema = z.object({
   /** Segredo de assinatura dos JWT (HS256). */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET deve ter pelo menos 32 caracteres'),
 
-  /* ── Email (Resend) — opcionais: app funciona sem, email fica em modo dev ── */
-  RESEND_API_KEY: z.string().min(10).optional(),
+  /* ── Email (Brevo) — opcionais: app funciona sem, email fica em modo dev ── */
+  BREVO_API_KEY: z.string().min(10).optional(),
+  /** «AngoStart <conta@dominio>» ou «conta@dominio». O remetente tem de estar verificado no painel Brevo. */
   EMAIL_FROM: z.string().optional(),
 
   /** Email do administrador — recebe alertas de validações de pagamento. */
@@ -55,7 +56,7 @@ export function getEnv(): ServerEnv {
   const parsed = serverEnvSchema.safeParse({
     DATABASE_URL: process.env.DATABASE_URL,
     JWT_SECRET: process.env.JWT_SECRET,
-    RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+    BREVO_API_KEY: process.env.BREVO_API_KEY || undefined,
     EMAIL_FROM: process.env.EMAIL_FROM || undefined,
     ADMIN_EMAIL: process.env.ADMIN_EMAIL || undefined,
     CRON_SECRET: process.env.CRON_SECRET || undefined,

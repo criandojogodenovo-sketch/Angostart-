@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
  * POST /api/admin/invites — cria/reemite um convite para admin limitado.
  * Corpo: { email, name? }
  * Gera código de 8 caracteres (24 h), guarda apenas o hash e envia por
- * email (Resend). Se o email falhar (sem RESEND_API_KEY em dev), o código
+ * email (Brevo). Se o email falhar (sem BREVO_API_KEY em dev), o código
  * é devolvido ao ADMIN na resposta para partilha manual — nunca quando
  * a entrega por email está ativa.
  * 🔒 Apenas role='admin'.
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         code: delivered ? undefined : code,
         message: delivered
           ? `Convite enviado para ${email} — válido 24 h.`
-          : `Email não entregue (Resend sem configurar). Código para partilha manual: ${code}`,
+          : `Email não entregue (Brevo sem configurar). Código para partilha manual: ${code}`,
       },
       { status: 201 }
     );

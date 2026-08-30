@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/auth/forgot-password — "Esqueci a senha" (Fase 5).
  *
- * Cria um token de uso único (1 h) e envia o link por email (Resend).
+ * Cria um token de uso único (1 h) e envia o link por email (Brevo).
  * Por segurança a resposta é SEMPRE { ok: true } — nunca revela se o
  * email existe na plataforma (anti-enumerção de contas).
  */

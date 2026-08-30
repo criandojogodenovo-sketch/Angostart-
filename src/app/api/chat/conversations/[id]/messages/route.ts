@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * - Anti-burla: se a mensagem contiver email/telefone/WhatsApp, a tentativa
  *   é REGISTADA (tentativa_fora) e a mensagem segue com aviso — 2
  *   deteções bloqueiam a conta automaticamente.
- * - Notifica o destinatário: sino no site + email (Resend, melhor-esforço).
+ * - Notifica o destinatário: sino no site + email (Brevo, melhor-esforço).
  */
 export async function POST(
   request: NextRequest,

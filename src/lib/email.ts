@@ -1,5 +1,5 @@
 import 'server-only';
-import { Resend } from 'resend';
+import { BrevoClient } from '@getbrevo/brevo';
 import { getEnv, getAppUrl } from '@/lib/env';
 import { formatKz } from '@/lib/format';
 import {
@@ -8,17 +8,42 @@ import {
 } from '@/lib/payments-manual';
 
 /**
- * AngoStart — Notificações por email (Resend).
+ * AngoStart — Notificações por email (Brevo, ex-Sendinblue).
  *
- * ⚠️ SERVER-ONLY: a RESEND_API_KEY vive exclusivamente no servidor
- * (`.env.local` em dev / Environment Variables da Vercel) e NUNCA entra
+ * ⚠️ SERVER-ONLY: a BREVO_API_KEY vive exclusivamente no servidor
+ * (`.env` em dev / Environment Variables da Vercel) e NUNCA entra
  * no bundle do cliente — garantido pelo módulo `server-only`.
  *
- * Sem RESEND_API_KEY configurada, os envios tornam-se no-ops registados
+ * Porquê Brevo? O Resend em modo testing só permitia enviar para o email
+ * da conta (erro 403). O Brevo (plano grátis, 300 emails/dia) envia para
+ * QUALQUER destinatário sem precisar de domínio verificado — basta o
+ * remetente estar confirmado no painel (Senders & IP).
+ *
+ * Sem BREVO_API_KEY configurada, os envios tornam-se no-ops registados
  * na consola (modo dev) — a app nunca falha por causa do email.
  */
 
-const FROM_DEFAULT = 'AngoStart <onboarding@resend.dev>';
+/**
+ * Remetente por omissão: o email da conta Brevo (criandojogodenovo@gmail.com),
+ * que tem de estar VERIFICADO no painel Brevo → Senders & IP.
+ * Pode ser overridden com EMAIL_FROM («AngoStart <conta@dominio.ao>» ou só o email).
+ */
+const FROM_EMAIL_DEFAULT = 'criandojogodenovo@gmail.com';
+const FROM_NAME_DEFAULT = 'AngoStart';
+
+function resolveSender(emailFrom?: string): { email: string; name: string } {
+  const raw = (emailFrom ?? '').trim();
+  if (!raw) return { email: FROM_EMAIL_DEFAULT, name: FROM_NAME_DEFAULT };
+  /* Suporta o formato «Nome <email@dominio>» ou apenas «email@dominio». */
+  const comNome = raw.match(/^(.*?)\s*<([^>]+)>\s*$/);
+  if (comNome) {
+    return {
+      name: comNome[1].trim().replace(/^["']|["']$/g, '') || FROM_NAME_DEFAULT,
+      email: comNome[2].trim(),
+    };
+  }
+  return { email: raw, name: FROM_NAME_DEFAULT };
+}
 
 interface MailInput {
   to: string | string[];
@@ -26,13 +51,16 @@ interface MailInput {
   html: string;
 }
 
+/** Cliente Brevo partilhado (a chave é constante por processo). */
+let brevoClient: BrevoClient | null = null;
+
 async function sendMail({ to, subject, html }: MailInput): Promise<boolean> {
   let apiKey: string | undefined;
-  let from: string;
+  let sender: { email: string; name: string };
   try {
     const env = getEnv();
-    apiKey = env.RESEND_API_KEY;
-    from = env.EMAIL_FROM || FROM_DEFAULT;
+    apiKey = env.BREVO_API_KEY;
+    sender = resolveSender(env.EMAIL_FROM);
   } catch {
     console.error('[email] Variáveis de ambiente inválidas — email não enviado.');
     return false;
@@ -40,22 +68,32 @@ async function sendMail({ to, subject, html }: MailInput): Promise<boolean> {
 
   if (!apiKey) {
     console.log(
-      `[email] RESEND_API_KEY ausente — modo dev. Email não enviado:\n` +
+      `[email] BREVO_API_KEY ausente — modo dev. Email não enviado:\n` +
         `  para: ${Array.isArray(to) ? to.join(', ') : to}\n  assunto: ${subject}`
     );
     return false;
   }
 
   try {
-    const resend = new Resend(apiKey);
-    const { error } = await resend.emails.send({ from, to, subject, html });
-    if (error) {
-      console.error('[email] Erro do Resend:', error);
-      return false;
+    if (!brevoClient) {
+      brevoClient = new BrevoClient({ apiKey, timeoutInSeconds: 15 });
     }
+    const destinatarios = (Array.isArray(to) ? to : [to])
+      .filter(Boolean)
+      .map((email) => ({ email }));
+    if (destinatarios.length === 0) return false;
+
+    const resultado = await brevoClient.transactionalEmails.sendTransacEmail({
+      sender,
+      to: destinatarios,
+      subject,
+      htmlContent: html,
+    });
+    const id = resultado.messageId ?? resultado.messageIds?.join(', ') ?? 'ok';
+    console.log(`[email] Enviado via Brevo (messageId: ${id}).`);
     return true;
   } catch (error) {
-    console.error('[email] Falha ao enviar:', error);
+    console.error('[email] Falha ao enviar via Brevo:', error);
     return false;
   }
 }

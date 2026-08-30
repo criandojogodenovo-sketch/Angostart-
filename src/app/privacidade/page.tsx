@@ -19,7 +19,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
     title: '2. Como usamos os dados',
     paragraphs: [
       'Para operar a plataforma: criar encomendas, validar pagamentos KWiK, gerir a carteira com retenção (escrow), creditar comissões de afiliados e permitir o chat entre cliente e vendedor.',
-      'Para comunicações essenciais: emails transacionais (confirmação de encomenda, códigos de acesso, notificações de mensagens) enviados via Resend. Nunca enviamos spam.',
+      'Para comunicações essenciais: emails transacionais (confirmação de encomenda, códigos de acesso, notificações de mensagens) enviados via Brevo. Nunca enviamos spam.',
       'Para segurança: monitorização de atividades suspeitas (ciclos de depósito/saque, partilha de contactos no chat, reclamações repetidas) para proteger compradores e vendedores.',
     ],
   },

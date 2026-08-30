@@ -8,7 +8,7 @@ import { sql } from '@/lib/db';
  *
  * Substitui as contas de admin_limitado com senha fixa por:
  *  1. CONVITE — o admin total convida um email; o sistema gera um código
- *     de 8 caracteres (24 h de validade) enviado por email (Resend).
+ *     de 8 caracteres (24 h de validade) enviado por email (Brevo).
  *     O convidado cria a conta em /admin-limitado com email + código.
  *  2. CÓDIGO DIÁRIO — OTP de 6 dígitos, gerado todos os dias (cron 00:00
  *     em África/Luanda ou a pedido), enviado por email, expira em 24 h
