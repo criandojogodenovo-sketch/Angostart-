@@ -24,10 +24,12 @@ import {
   Crosshair,
   ExternalLink,
   Flame,
+  Link2,
   Loader2,
   Lock,
   MapPin,
   Medal,
+  Megaphone,
   MessageCircle,
   Navigation,
   Package,
@@ -120,7 +122,35 @@ interface AffiliateData {
   codigo_afiliado: string;
   comissao_percentual: number;
   total_ganho: number;
-  earnings: { id: number; order_id: number; comissao: number; status: string; created_at: string }[];
+  referral_link: string;
+  /** Fase 10: janela de atribuição (dias) comunicada pelo servidor. */
+  atribuicao_dias: number;
+  /** Fase 9: progresso do escalão (50 comissões → 15 %). */
+  escalao: {
+    comissoes_recebidas: number;
+    proximo_escalao_em: number;
+    percentual_escalao_seguinte: number;
+    no_escalao_maximo: boolean;
+  };
+  /** Fase 10: relatório de comissões por canal (Sub-ID/campanha). */
+  sub_id_report: { sub_id: string | null; comissoes: number; total: number }[];
+  earnings: {
+    id: number;
+    order_id: number;
+    comissao: number;
+    status: string;
+    sub_id: string | null;
+    created_at: string;
+  }[];
+}
+
+/** Estado de elegibilidade devolvido pela API quando ainda não é afiliado. */
+interface AffiliateEligibilityState {
+  eligible: boolean;
+  role: string;
+  count: number;
+  required: number;
+  message: string;
 }
 
 interface WalletSummary {
@@ -189,6 +219,7 @@ export default function DashboardVendedorPage() {
   /* ── Fase 4: produtos (hot), afiliados e carteira ── */
   const [meusProdutos, setMeusProdutos] = useState<MeuProduto[]>([]);
   const [affiliate, setAffiliate] = useState<AffiliateData | null>(null);
+  const [affiliateElegibilidade, setAffiliateElegibilidade] = useState<AffiliateEligibilityState | null>(null);
   const [affiliateCarregado, setAffiliateCarregado] = useState(false);
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [hotBusyId, setHotBusyId] = useState<number | null>(null);
@@ -209,11 +240,27 @@ export default function DashboardVendedorPage() {
       .then((payload: WalletSummary | null) => setWallet(payload))
       .catch(() => setWallet(null));
 
-    // Afiliado (404 = ainda não aderiu)
+    // Afiliado (404 = ainda não aderiu — a resposta traz a elegibilidade)
     fetch('/api/affiliate', { headers: authHeaders() })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload: AffiliateData | null) => setAffiliate(payload))
-      .catch(() => setAffiliate(null))
+      .then((res) =>
+        res.ok ? res.json() : res.json().catch(() => null)
+      )
+      .then((payload: unknown) => {
+        const data = payload as (AffiliateData & { eligibility?: AffiliateEligibilityState }) | null;
+        if (data?.codigo_afiliado) {
+          setAffiliate(data);
+          setAffiliateElegibilidade(null);
+        } else {
+          setAffiliate(null);
+          setAffiliateElegibilidade(
+            (payload as { eligibility?: AffiliateEligibilityState } | null)?.eligibility ?? null
+          );
+        }
+      })
+      .catch(() => {
+        setAffiliate(null);
+        setAffiliateElegibilidade(null);
+      })
       .finally(() => setAffiliateCarregado(true));
   }, []);
 
@@ -289,6 +336,7 @@ export default function DashboardVendedorPage() {
         title: 'Bem-vindo ao programa de afiliados!',
         description: `O teu código: ${payload.codigo_afiliado}`,
       });
+      setAffiliateElegibilidade(null);
       setAffiliateCarregado(false);
       fetch('/api/affiliate', { headers: authHeaders() })
         .then((r) => (r.ok ? r.json() : null))
@@ -304,15 +352,89 @@ export default function DashboardVendedorPage() {
 
   function copiarCodigo() {
     if (!affiliate) return;
+    copiarTexto(affiliate.codigo_afiliado, 'Código copiado', affiliate.codigo_afiliado);
+  }
+
+  /* ── Fase 10 — ferramentas de afiliado (campanha, batch, relatório) ── */
+  const [subCampanha, setSubCampanha] = useState('');
+  const [batchInput, setBatchInput] = useState('');
+  const [batchLinks, setBatchLinks] = useState<{ input: string; link: string }[]>([]);
+  const [batchAviso, setBatchAviso] = useState<string | null>(null);
+
+  /** Sub-ID validado (≤30 chars, letras/números/-/_ — igual ao servidor). */
+  function subNormalizado(): string | null {
+    const s = subCampanha.trim().toLowerCase();
+    return /^[a-z0-9_-]{1,30}$/.test(s) ? s : null;
+  }
+
+  /** Copia texto com confirmação visual (toast). */
+  function copiarTexto(texto: string, titulo: string, descricao?: string) {
     navigator.clipboard
-      ?.writeText(affiliate.codigo_afiliado)
-      .then(() =>
-        toast({
-          title: 'Código copiado',
-          description: affiliate.codigo_afiliado,
-        })
-      )
-      .catch(() => undefined);
+      ?.writeText(texto)
+      .then(() => toast({ title: titulo, description: descricao }))
+      .catch(() =>
+        toast({ title: 'Não foi possível copiar', description: texto, variant: 'destructive' })
+      );
+  }
+
+  /** Link limpo do afiliado para um URL (acrescenta ?ref=CODE&sub=…). */
+  function buildAffiliateLink(url: string, sub: string | null): string {
+    if (!affiliate) return url;
+    try {
+      const u = new URL(url, window.location.origin);
+      u.searchParams.set('ref', affiliate.codigo_afiliado);
+      if (sub) u.searchParams.set('sub', sub);
+      else u.searchParams.delete('sub');
+      return u.toString();
+    } catch {
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}ref=${affiliate.codigo_afiliado}${sub ? `&sub=${sub}` : ''}`;
+    }
+  }
+
+  /** Link do início da plataforma com a campanha atual (Sub-ID). */
+  function linkComCampanha(): string {
+    if (!affiliate) return '';
+    const sub = subNormalizado();
+    return sub ? `${affiliate.referral_link}&sub=${sub}` : affiliate.referral_link;
+  }
+
+  /** Gera links de afiliado para vários URLs/IDs de produtos de uma vez. */
+  function gerarLinksEmMassa() {
+    if (!affiliate) return;
+    const linhas = batchInput
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (linhas.length === 0) {
+      setBatchAviso('Cola pelo menos um link (ou ID) de produto.');
+      setBatchLinks([]);
+      return;
+    }
+    const sub = subNormalizado();
+    const out: { input: string; link: string }[] = [];
+    let ignoradas = 0;
+    for (const linha of linhas.slice(0, 30)) {
+      const idMatch = linha.match(/produtos\/(\d+)/) ?? (/^\d+$/.test(linha) ? ['', linha] : null);
+      if (idMatch?.[1]) {
+        out.push({
+          input: linha,
+          link: buildAffiliateLink(`${window.location.origin}/produtos/${idMatch[1]}`, sub),
+        });
+      } else if (/^https?:\/\//.test(linha)) {
+        out.push({ input: linha, link: buildAffiliateLink(linha, sub) });
+      } else {
+        ignoradas += 1;
+      }
+    }
+    setBatchLinks(out);
+    setBatchAviso(
+      ignoradas > 0
+        ? `${ignoradas} linha(s) ignorada(s) — usa links de produto (…/produtos/123) ou o número do produto.`
+        : out.length > 0
+          ? `${out.length} link(s) gerado(s).`
+          : null
+    );
   }
 
   /* ── Ponto 4A: disponibilidade do prestador (is_available = fonte de
@@ -654,7 +776,7 @@ export default function DashboardVendedorPage() {
           </Button>
         </section>
 
-        {/* Afiliados */}
+        {/* Afiliados — Fase 10 (modelo Shopee/Amazon) */}
         <section aria-label="Programa de afiliados" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
             <Share2 className="h-5 w-5 text-amber-500" /> Programa de afiliados
@@ -678,6 +800,42 @@ export default function DashboardVendedorPage() {
                   <Copy className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Escalão automático — 10 % → 15 % (Fase 9/10) */}
+              {(() => {
+                const totalEscalao =
+                  affiliate.escalao.comissoes_recebidas + affiliate.escalao.proximo_escalao_em;
+                const pct = totalEscalao > 0
+                  ? Math.min(100, Math.round((affiliate.escalao.comissoes_recebidas / totalEscalao) * 100))
+                  : 0;
+                return (
+                  <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-amber-700">
+                        Escalão {affiliate.comissao_percentual}%
+                      </span>
+                      <span className="text-slate-500">
+                        {affiliate.escalao.comissoes_recebidas}{' '}
+                        {affiliate.escalao.comissoes_recebidas === 1 ? 'comissão paga' : 'comissões pagas'}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100">
+                      <div
+                        className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all"
+                        style={{ width: `${affiliate.escalao.no_escalao_maximo ? 100 : pct}%` }}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {affiliate.escalao.no_escalao_maximo
+                        ? `Escalão máximo atingido — ganhas ${affiliate.escalao.percentual_escalao_seguinte}% por venda. 🎉`
+                        : `Faltam ${affiliate.escalao.proximo_escalao_em} ${
+                            affiliate.escalao.proximo_escalao_em === 1 ? 'venda' : 'vendas'
+                          } para ganhares ${affiliate.escalao.percentual_escalao_seguinte}%.`}
+                    </p>
+                  </div>
+                );
+              })()}
+
               <p className="mt-3 text-sm text-slate-600">
                 Total ganho:{' '}
                 <strong className="text-emerald-600">{formatKz(affiliate.total_ganho)}</strong>
@@ -686,13 +844,42 @@ export default function DashboardVendedorPage() {
                 {affiliate.earnings.length}{' '}
                 {affiliate.earnings.length === 1 ? 'comissão' : 'comissões'} registadas
               </p>
+
+              {/* Link limpo de afiliado (?ref=CODE) com janela de atribuição */}
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <code className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                  {affiliate.referral_link}
+                </code>
+                <button
+                  onClick={() =>
+                    copiarTexto(affiliate.referral_link, 'Link de afiliado copiado!', affiliate.referral_link)
+                  }
+                  aria-label="Copiar link de afiliado"
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-200"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+                Válido durante {affiliate.atribuicao_dias} dias após o clique — compras feitas
+                nesse prazo geram comissão. Usa as ferramentas abaixo para campanhas e links em massa.
+              </p>
             </>
           ) : (
             <>
               <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                Ganha 10% de cada venda feita com o teu código de referência.
-                A comissão entra direto na tua carteira quando o pedido é pago.
+                Ganha 10% de cada venda feita com o teu código de referência — e sobe para 15%
+                após 50 comissões. A comissão entra direto na tua carteira quando o pedido é pago.
               </p>
+              <p className="mt-2 text-xs text-slate-400">
+                Requisito de adesão: 5 vendas concluídas (vendedor) ou 2 compras concluídas
+                (cliente). O teu link fica atribuído 30 dias após o clique.
+              </p>
+              {affiliateElegibilidade && !affiliateElegibilidade.eligible && (
+                <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  {affiliateElegibilidade.message}
+                </p>
+              )}
               <Button
                 onClick={registarAfiliado}
                 disabled={aRegistarAfiliado}
@@ -756,6 +943,164 @@ export default function DashboardVendedorPage() {
           )}
         </section>
       </div>
+
+      {/* Fase 10 — Ferramentas de afiliado: campanha (Sub-ID), relatório por canal e links em massa */}
+      {affiliate && (
+        <section
+          id="ferramentas-afiliado"
+          aria-label="Ferramentas de afiliado"
+          className="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-5 shadow-sm"
+        >
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <Megaphone className="h-5 w-5 text-amber-500" /> Ferramentas de afiliado
+          </h2>
+          <div className="mt-4 grid gap-8 lg:grid-cols-2">
+            {/* 1. Link de campanha (Sub-ID) */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700">
+                1. Link de campanha <span className="font-normal text-slate-400">(Sub-ID)</span>
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Cria um link por canal (ex.: <em>instagram</em>, <em>whatsapp</em>,{' '}
+                <em>tiktok</em>) para saberes de onde vêm as tuas vendas — o canal fica
+                registado na comissão.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={subCampanha}
+                  onChange={(e) => setSubCampanha(e.target.value)}
+                  placeholder="ex.: instagram"
+                  maxLength={30}
+                  aria-label="Nome da campanha (Sub-ID)"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-amber-400"
+                />
+                {subNormalizado() && (
+                  <button
+                    onClick={() => copiarTexto(linkComCampanha(), 'Link de campanha copiado!', linkComCampanha())}
+                    className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                  >
+                    <Copy className="h-4 w-4" /> Copiar
+                  </button>
+                )}
+              </div>
+              {subCampanha.trim() && !subNormalizado() && (
+                <p className="mt-1.5 text-xs text-red-500">
+                  Usa só letras, números, hífen ou underscore (máx. 30).
+                </p>
+              )}
+              {subNormalizado() && (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <code className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                    {linkComCampanha()}
+                  </code>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Relatório de vendas por canal */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700">2. Vendas por canal</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Comissões pagas por campanha — descobre qual canal vale mais a pena.
+              </p>
+              {affiliate.sub_id_report.length === 0 ? (
+                <p className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+                  Ainda sem comissões — partilha o teu link e o relatório aparece aqui.
+                </p>
+              ) : (
+                <table className="mt-3 w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400">
+                      <th scope="col" className="py-2 font-medium">Canal</th>
+                      <th scope="col" className="py-2 text-right font-medium">Comissões</th>
+                      <th scope="col" className="py-2 text-right font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {affiliate.sub_id_report.map((r) => (
+                      <tr key={r.sub_id ?? 'direto'} className="border-b border-slate-100 last:border-0">
+                        <td className="py-2 font-medium text-slate-700">
+                          {r.sub_id ?? '(sem campanha)'}
+                        </td>
+                        <td className="py-2 text-right text-slate-500">{r.comissoes}</td>
+                        <td className="py-2 text-right font-semibold text-emerald-600">
+                          {formatKz(r.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* 3. Gerador em massa de links (batch — modelo Shopee) */}
+            <div className="lg:col-span-2">
+              <h3 className="text-sm font-semibold text-slate-700">3. Gerar links em massa</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Cola os links dos produtos (um por linha — aceita também só o número do
+                produto) e gera todos os teus links de afiliado de uma vez
+                {subNormalizado() ? (
+                  <> com a campanha <strong>{subNormalizado()}</strong></>
+                ) : (
+                  <> (opcionalmente com a campanha acima)</>
+                )}
+                .
+              </p>
+              <textarea
+                value={batchInput}
+                onChange={(e) => setBatchInput(e.target.value)}
+                rows={3}
+                placeholder={'https://angostart.vercel.app/produtos/123\n124\nhttps://angostart.vercel.app/produtos/125'}
+                aria-label="Links ou IDs de produtos (um por linha)"
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 outline-none focus:border-amber-400"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={gerarLinksEmMassa}
+                  className="h-9 bg-amber-500 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                >
+                  Gerar links
+                </Button>
+                {batchLinks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      copiarTexto(
+                        batchLinks.map((l) => l.link).join('\n'),
+                        'Todos os links copiados!',
+                        `${batchLinks.length} ${batchLinks.length === 1 ? 'link' : 'links'}`
+                      )
+                    }
+                    className="h-9 border-amber-300 px-4 text-sm font-semibold text-amber-700 hover:bg-amber-50"
+                  >
+                    <Copy className="h-4 w-4" /> Copiar todos
+                  </Button>
+                )}
+                {batchAviso && <span className="text-xs text-slate-500">{batchAviso}</span>}
+              </div>
+              {batchLinks.length > 0 && (
+                <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+                  {batchLinks.map((l, i) => (
+                    <li
+                      key={`${i}-${l.link}`}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    >
+                      <code className="min-w-0 flex-1 truncate text-xs text-slate-600">{l.link}</code>
+                      <button
+                        onClick={() => copiarTexto(l.link, 'Link copiado!', l.input)}
+                        aria-label={`Copiar link gerado para ${l.input}`}
+                        className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Fase 5 — Atividade recente: avaliações + disponibilidade (domicílio) */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">

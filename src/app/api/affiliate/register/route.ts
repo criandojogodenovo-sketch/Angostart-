@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/affiliate/register — adere ao programa de afiliados.
  *
- * Fase 9 — regras de elegibilidade:
- *  - Vendedor/Prestador: ≥ 7 vendas concluídas (encomendas pagas).
+ * Fase 9/10 — regras de elegibilidade:
+ *  - Vendedor/Prestador: ≥ 5 vendas concluídas (encomendas pagas).
  *  - Cliente: ≥ 2 compras concluídas (encomendas pagas).
  * Sem o requisito, devolve 403 com mensagem clara ("Necessitas de X…").
  * Cria (idempotente) um código único de referência (ex.: AFG-3K9PQX).

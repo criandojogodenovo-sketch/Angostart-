@@ -444,12 +444,16 @@ export async function creditSellersOnPaid(orderId: number): Promise<void> {
  *  - Autoindicação (afiliado = comprador) → comissão bloqueada + suspeito.
  *  - Mesmo IP de registo (afiliado vs comprador) → bloqueada + suspeito.
  *  - Suspeitos ficam em suspicious_activities e o admin é notificado.
+ *
+ * Fase 10 — Sub-ID/campanha (`subId`) guardado na comissão para o
+ * relatório por canal (instagram, whatsapp, tiktok…) do painel.
  */
 export async function payAffiliateCommission(
   orderId: number,
   orderTotalKz: number,
   affiliateCode: string | null,
-  buyerId: number | null = null
+  buyerId: number | null = null,
+  subId: string | null = null
 ): Promise<void> {
   if (!affiliateCode) return;
   const code = affiliateCode.trim().toUpperCase();
@@ -524,8 +528,8 @@ export async function payAffiliateCommission(
   if (comissao < 1) return;
 
   const earned = (await sql`
-    INSERT INTO affiliate_earnings (affiliate_id, order_id, product_id, comissao, percentual, status)
-    SELECT ${affiliate.id}, ${orderId}, ${productId}, ${comissao}, ${percentual}, 'pago'
+    INSERT INTO affiliate_earnings (affiliate_id, order_id, product_id, sub_id, comissao, percentual, status)
+    SELECT ${affiliate.id}, ${orderId}, ${productId}, ${subId}, ${comissao}, ${percentual}, 'pago'
     WHERE NOT EXISTS (
       SELECT 1 FROM affiliate_earnings
       WHERE affiliate_id = ${affiliate.id} AND order_id = ${orderId}
@@ -710,15 +714,21 @@ export async function applyOrderStatusSideEffects(
 ): Promise<void> {
   if (nextStatus === 'pago' && prevStatus !== 'pago') {
     const order = (await sql`
-      SELECT total_kz::float8 AS total, affiliate_code, user_id AS buyer_id
+      SELECT total_kz::float8 AS total, affiliate_code, affiliate_sub_id, user_id AS buyer_id
       FROM orders WHERE id = ${orderId} LIMIT 1
-    `) as unknown as { total: number; affiliate_code: string | null; buyer_id: number | null }[];
+    `) as unknown as {
+      total: number;
+      affiliate_code: string | null;
+      affiliate_sub_id: string | null;
+      buyer_id: number | null;
+    }[];
     await creditSellersOnPaid(orderId);
     await payAffiliateCommission(
       orderId,
       toNumber(order[0]?.total),
       order[0]?.affiliate_code ?? null,
-      order[0]?.buyer_id ?? null
+      order[0]?.buyer_id ?? null,
+      order[0]?.affiliate_sub_id ?? null
     );
 
     // Fase 7 — notificações push: pedido pago (cliente) + venda realizada (vendedor)

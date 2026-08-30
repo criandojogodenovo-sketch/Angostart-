@@ -3,7 +3,7 @@ import { sql } from '@/lib/db';
 import { getBusinessConfig } from '@/lib/config';
 
 /**
- * AngoStart — Afiliados (Fase A + Fase 5 + Fase 9) — server-side.
+ * AngoStart — Afiliados (Fase A + Fase 5 + Fase 9 + Fase 10) — server-side.
  *
  * Código único por utilizador (ex.: AFG-3K9PQX), comissão automática
  * creditada na carteira quando a encomenda indicada é paga. O percentual
@@ -11,13 +11,19 @@ import { getBusinessConfig } from '@/lib/config';
  * default 10 %) — sem valores hardcoded.
  *
  * Fase 9 — regras de elegibilidade e escalões:
- *  - Vendedor/Prestador: ≥ 7 vendas concluídas (encomendas pagas).
- *  - Cliente: ≥ 2 compras concluídas (encomendas pagas).
  *  - Escalão automático: ≥ 50 comissões recebidas → 15 % (em vez de 10 %).
+ *
+ * Fase 10 (modelo Shopee/Amazon/Fiverr):
+ *  - Elegibilidade reduzida: vendedor ≥ 5 vendas concluídas (era 7);
+ *    cliente mantém ≥ 2 compras concluídas.
+ *  - Atribuição prolongada: o ref fica guardado 30 dias (configurável
+ *    via AFFILIATE_ATTRIBUTION_DAYS) — capturado no cliente (RefCapture).
+ *  - Sub-ID / campanha: links com `?ref=AFG-XXXX&sub=instagram` guardam
+ *    o canal na encomenda e na comissão → relatório por canal no painel.
  */
 
-/** Vendas pagas mínimas para vendedores aderirem ao programa. */
-export const MIN_SALES_AFFILIATE = 7;
+/** Vendas pagas mínimas para vendedores aderirem ao programa (Fase 10: 5). */
+export const MIN_SALES_AFFILIATE = 5;
 /** Compras pagas mínimas para clientes aderirem ao programa. */
 export const MIN_PURCHASES_AFFILIATE = 2;
 /** Comissões recebidas para subir para o escalão de 15 %. */
@@ -39,6 +45,7 @@ export interface AffiliateEarning {
   id: number;
   order_id: number;
   product_id: number | null;
+  sub_id: string | null;
   comissao: number;
   percentual: number;
   status: string;
@@ -81,7 +88,7 @@ export async function getAffiliateByUserId(
   return rows[0] ?? null;
 }
 
-/* ─────────────── Elegibilidade (Fase 9, ponto 3A) ─────────────── */
+/* ─────────────── Elegibilidade (Fase 9, ajuste Fase 10) ────────────── */
 
 export interface AffiliateEligibility {
   eligible: boolean;
@@ -120,7 +127,8 @@ export async function countBuyerPaidPurchases(userId: number): Promise<number> {
 
 /**
  * Verifica se o utilizador cumpre o requisito mínimo para ser afiliado
- * (vendedor: 7 vendas · cliente: 2 compras). Nunca cria o afiliado.
+ * (vendedor: 5 vendas · cliente: 2 compras — Fase 10). Nunca cria o
+ * afiliado.
  */
 export async function getAffiliateEligibility(
   userId: number,
@@ -145,6 +153,45 @@ export async function getAffiliateEligibility(
 }
 
 /* ────────────────── Escalão automático (Fase 9, 3C) ───────────────── */
+
+/* ───────────── Sub-ID / campanha (Fase 10, modelo Shopee) ──────────── */
+
+/** Comissão por canal (Sub-ID) do afiliado — relatório do painel. */
+export interface SubIdReportRow {
+  sub_id: string | null;
+  comissoes: number;
+  total: number;
+}
+
+/**
+ * Agrega as comissões do afiliado por canal (Sub-ID) — ex.: instagram,
+ * whatsapp, tiktok. `sub_id = null` significa «link direto sem campanha».
+ */
+export async function listEarningsBySubId(
+  affiliateId: number
+): Promise<SubIdReportRow[]> {
+  const rows = (await sql`
+    SELECT sub_id,
+           COUNT(*)::int AS comissoes,
+           COALESCE(SUM(comissao), 0)::float8 AS total
+    FROM affiliate_earnings
+    WHERE affiliate_id = ${affiliateId} AND status = 'pago'
+    GROUP BY sub_id
+    ORDER BY total DESC, comissoes DESC
+  `) as unknown as SubIdReportRow[];
+  return rows.map((r) => ({
+    sub_id: r.sub_id,
+    comissoes: Number(r.comissoes),
+    total: Number(r.total),
+  }));
+}
+
+/** Normaliza um Sub-ID recebido do cliente (≤ 30 chars, [a-z0-9_-]). */
+export function sanitizeSubId(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const sub = raw.trim().toLowerCase().slice(0, 30);
+  return /^[a-z0-9_-]+$/.test(sub) ? sub : null;
+}
 
 /** Comissões pagas recebidas pelo afiliado (para o escalão de 15 %). */
 export async function countAffiliateEarnings(affiliateId: number): Promise<number> {
@@ -206,7 +253,7 @@ export async function listAffiliateEarnings(
   limit = 25
 ): Promise<{ earnings: AffiliateEarning[]; total: number }> {
   const rows = (await sql`
-    SELECT e.id, e.order_id, e.product_id, e.comissao::float8, e.percentual::float8, e.status, e.created_at
+    SELECT e.id, e.order_id, e.product_id, e.sub_id, e.comissao::float8, e.percentual::float8, e.status, e.created_at
     FROM affiliate_earnings e
     WHERE e.affiliate_id = ${affiliateId}
     ORDER BY e.created_at DESC, e.id DESC

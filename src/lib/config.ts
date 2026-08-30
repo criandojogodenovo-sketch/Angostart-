@@ -17,6 +17,9 @@
 /** Comissão de afiliados (% sobre a venda paga). */
 export const DEFAULT_AFFILIATE_COMMISSION_PERCENT = 10;
 
+/** Janela de atribuição do link de afiliado (dias — Fase 10, modelo Amazon/Shopee). */
+export const DEFAULT_AFFILIATE_ATTRIBUTION_DAYS = 30;
+
 /** Limites da carteira por operação (Kz) — anti-lavagem. */
 export const DEFAULT_MAX_DEPOSIT_AMOUNT = 200_000;
 export const DEFAULT_MIN_DEPOSIT_AMOUNT = 1_000;
@@ -36,6 +39,8 @@ export const DEFAULT_COMMISSION_FREELANCER = 6.5; // % — freelancers / serviç
 
 export interface BusinessConfig {
   affiliateCommissionPercent: number;
+  /** Dias que o link de afiliado permanece atribuído após o clique (Fase 10). */
+  affiliateAttributionDays: number;
   maxDepositAmount: number;
   minDepositAmount: number;
   maxWithdrawAmount: number;
@@ -63,6 +68,11 @@ export function getBusinessConfig(): BusinessConfig {
       process.env.AFFILIATE_COMMISSION_PERCENT,
       DEFAULT_AFFILIATE_COMMISSION_PERCENT
     ),
+    affiliateAttributionDays: envNumber(
+      process.env.NEXT_PUBLIC_AFFILIATE_ATTRIBUTION_DAYS ??
+        process.env.AFFILIATE_ATTRIBUTION_DAYS,
+      DEFAULT_AFFILIATE_ATTRIBUTION_DAYS
+    ),
     maxDepositAmount: envNumber(process.env.MAX_DEPOSIT_AMOUNT, DEFAULT_MAX_DEPOSIT_AMOUNT),
     minDepositAmount: envNumber(process.env.MIN_DEPOSIT_AMOUNT, DEFAULT_MIN_DEPOSIT_AMOUNT),
     maxWithdrawAmount: envNumber(process.env.MAX_WITHDRAW_AMOUNT, DEFAULT_MAX_WITHDRAW_AMOUNT),
@@ -85,6 +95,7 @@ export function getBusinessConfig(): BusinessConfig {
 
 export const BUSINESS_DEFAULTS: BusinessConfig = {
   affiliateCommissionPercent: DEFAULT_AFFILIATE_COMMISSION_PERCENT,
+  affiliateAttributionDays: DEFAULT_AFFILIATE_ATTRIBUTION_DAYS,
   maxDepositAmount: DEFAULT_MAX_DEPOSIT_AMOUNT,
   minDepositAmount: DEFAULT_MIN_DEPOSIT_AMOUNT,
   maxWithdrawAmount: DEFAULT_MAX_WITHDRAW_AMOUNT,

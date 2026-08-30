@@ -16,6 +16,7 @@ import {
 } from '@/lib/kwik';
 import { isManualTransferMethod } from '@/lib/payments-manual';
 import { parseCoord, ANGOLA_LAT, ANGOLA_LNG } from '@/lib/geo';
+import { sanitizeSubId } from '@/lib/affiliate';
 import {
   payWithWallet,
   ensureWallet,
@@ -55,6 +56,8 @@ interface OrderPayload {
   payment_proof_name?: unknown;
   /** Código de afiliado indicado no checkout (ex.: AFG-3K9PQX). */
   affiliate_code?: unknown;
+  /** Sub-ID/campanha do link de afiliado (ex.: instagram — Fase 10). */
+  affiliate_sub_id?: unknown;
   /** Localização do cliente (serviços ao domicílio — opcional, validada). */
   latitude?: unknown;
   longitude?: unknown;
@@ -150,6 +153,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  /* ── Sub-ID/campanha do afiliado (Fase 10 — ex.: instagram, whatsapp) ── */
+  const affiliateSubId = sanitizeSubId(body.affiliate_sub_id);
 
   /* ── Localização do cliente (Fase 5 — serviços ao domicílio, opcional) ── */
   const clientLat = parseCoord(body.latitude, ANGOLA_LAT);
@@ -331,7 +336,7 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude, ip_address)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, affiliate_sub_id, latitude, longitude, ip_address)
       VALUES (
         ${customerName},
         ${customerPhone},
@@ -349,6 +354,7 @@ export async function POST(request: NextRequest) {
         ${proof ? proof.name : null},
         ${proof ? proof.mime : null},
         ${affiliateCode},
+        ${affiliateSubId},
         ${clientLat},
         ${clientLng},
         ${getRequestIp(request)}
@@ -375,7 +381,7 @@ export async function POST(request: NextRequest) {
       }
       // Vendedores recebem em saldo_bloqueado (escrow até entrega)
       await creditSellersOnPaid(order.id);
-      await payAffiliateCommission(order.id, totalKz, affiliateCode, userId);
+      await payAffiliateCommission(order.id, totalKz, affiliateCode, userId, affiliateSubId);
     }
 
     /* Fase 9 — push "Novo Pedido" aos vendedores + notificação in-app. */

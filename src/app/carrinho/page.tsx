@@ -36,7 +36,7 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '@/context/StoreContext';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
-import { getStoredRefCode } from '@/components/RefCapture';
+import { getStoredRefCode, getStoredRefData } from '@/components/RefCapture';
 import {
   KWIK_PAYEE_NUMBER,
   KWIK_PAYEE_DIGITS,
@@ -116,10 +116,18 @@ export default function CarrinhoPage() {
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null);
   /* ── Afiliado (Fase 4): código opcional no checkout ── */
   const [codigoAfiliado, setCodigoAfiliado] = useState('');
-  /* Fase 9: pré-preenche com o código capturado do link ?ref= (30 dias). */
+  /* Fase 10: Sub-ID/campanha capturado do link (?ref=…&sub=instagram). */
+  const [subAfiliado, setSubAfiliado] = useState<string | null>(null);
+  /* Fase 9/10: pré-preenche com o código capturado do link ?ref= (30 dias). */
   useEffect(() => {
-    const ref = getStoredRefCode();
-    if (ref) setCodigoAfiliado(ref);
+    const ref = getStoredRefData();
+    if (ref) {
+      setCodigoAfiliado(ref.code);
+      setSubAfiliado(ref.sub);
+    } else {
+      const legacy = getStoredRefCode();
+      if (legacy) setCodigoAfiliado(legacy);
+    }
   }, []);
   /* ── Fase 5: localização do cliente para serviços ao domicílio ── */
   const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -327,6 +335,7 @@ export default function CarrinhoPage() {
           notes: notes || undefined,
           payment_method: paymentMethod,
           affiliate_code: codigoAfiliado.trim() || undefined,
+          affiliate_sub_id: codigoAfiliado.trim() ? subAfiliado || undefined : undefined,
           latitude: hasDomicilio && clientLocation ? clientLocation.lat : undefined,
           longitude: hasDomicilio && clientLocation ? clientLocation.lng : undefined,
           // Transferência manual (KWiK/PayPay/Multicaixa Express):
