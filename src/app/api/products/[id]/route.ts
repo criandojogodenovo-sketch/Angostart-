@@ -55,9 +55,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
              p.service_lat, p.service_lng, p.file_url,
              u.name AS seller_name, u.role AS seller_role, u.username AS seller_username,
              u.cidade AS seller_cidade, u.especialidade AS seller_especialidade,
-             u.telefone AS seller_telefone, u.portfolio_image AS seller_portfolio_image
+             u.telefone AS seller_telefone, u.portfolio_image AS seller_portfolio_image,
+             u.is_verified_bi::boolean AS seller_verified,
+             s.slug AS store_slug, s.name AS store_name
       FROM products p
       LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN stores s ON s.owner_id = p.user_id
       WHERE p.id = ${id}
       LIMIT 1
     `) as unknown as Product[];

@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateAffiliate } from '@/lib/affiliate';
+import { getAffiliateEligibility, getOrCreateAffiliate, getAffiliateByUserId } from '@/lib/affiliate';
 import { requireRole, clientKey, rateLimit } from '@/lib/security';
+import { isSellerRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/affiliate/register — adere ao programa de afiliados.
  *
- * Cria (idempotente) um código único de referência (ex.: AFG-3K9PQX) para
- * o utilizador autenticado. Os clientes indicam o código no checkout e a
- * comissão (10%) é creditada automaticamente na carteira do afiliado
- * quando a encomenda é paga.
+ * Fase 9 — regras de elegibilidade:
+ *  - Vendedor/Prestador: ≥ 7 vendas concluídas (encomendas pagas).
+ *  - Cliente: ≥ 2 compras concluídas (encomendas pagas).
+ * Sem o requisito, devolve 403 com mensagem clara ("Necessitas de X…").
+ * Cria (idempotente) um código único de referência (ex.: AFG-3K9PQX).
  */
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request);
@@ -33,6 +35,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    /* Quem já é afiliado mantém o código (regra aplica-se só à adesão). */
+    const existing = await getAffiliateByUserId(auth.user.id);
+    if (!existing) {
+      const elegibilidade = await getAffiliateEligibility(
+        auth.user.id,
+        isSellerRole(auth.user.role)
+      );
+      if (!elegibilidade.eligible) {
+        return NextResponse.json(
+          { error: elegibilidade.message, code: 'AFFILIATE_NOT_ELIGIBLE', eligibility: elegibilidade },
+          { status: 403 }
+        );
+      }
+    }
+
     const affiliate = await getOrCreateAffiliate(auth.user.id);
 
     return NextResponse.json(

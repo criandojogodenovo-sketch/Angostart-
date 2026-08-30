@@ -111,11 +111,16 @@ function cleanupRateMap(now: number) {
 
 /** Chave de rate limit baseada no IP do pedido. */
 export function clientKey(request: NextRequest, scope: string): string {
-  const ip =
+  return `${scope}:${getRequestIp(request)}`;
+}
+
+/** IP do pedido (x-forwarded-for → x-real-ip → 'local' em dev). */
+export function getRequestIp(request: NextRequest): string {
+  return (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     request.headers.get('x-real-ip') ||
-    'local';
-  return `${scope}:${ip}`;
+    'local'
+  );
 }
 
 /* ─────────────────────── Autorização (role guards) ─────────────────── */

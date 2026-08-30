@@ -54,7 +54,8 @@ interface MailInput {
 /** Cliente Brevo partilhado (a chave é constante por processo). */
 let brevoClient: BrevoClient | null = null;
 
-async function sendMail({ to, subject, html }: MailInput): Promise<boolean> {
+/** Envio base (exportado para casos pontuais fora dos templates). */
+export async function sendMail({ to, subject, html }: MailInput): Promise<boolean> {
   let apiKey: string | undefined;
   let sender: { email: string; name: string };
   try {

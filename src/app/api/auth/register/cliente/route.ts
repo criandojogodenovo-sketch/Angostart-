@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { publicUser, signToken, generateUniqueUsername, type UserRow } from '@/lib/auth';
-import { clientKey, rateLimit, sanitizeText } from '@/lib/security';
+import { clientKey, rateLimit, sanitizeText, getRequestIp } from '@/lib/security';
+import { validatePassword } from '@/lib/password';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/auth/register/cliente
- * Corpo: { name, email, password, telefone }
+ * Corpo: { name, email, password, telefone, ref_code? }
  * Cria um utilizador com role='cliente' e devolve { token, user }.
+ * Fase 9: senha forte obrigatória + ref_code de afiliado (opcional)
+ * + signup_ip para deteção de fraude de afiliados.
  */
 export async function POST(request: NextRequest) {
   let body: {
@@ -17,6 +20,7 @@ export async function POST(request: NextRequest) {
     email?: string;
     password?: string;
     telefone?: string;
+    ref_code?: string;
   };
 
   try {
@@ -51,6 +55,11 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  /* Fase 9: senha forte obrigatória (≥8, A-Z, a-z, 0-9, símbolo, não-comum). */
+  const senhaForte = validatePassword(password);
+  if (!senhaForte.ok) {
+    return NextResponse.json({ error: senhaForte.error }, { status: 400 });
+  }
   if (telefone.replace(/\D/g, '').length < 9) {
     return NextResponse.json(
       { error: 'Telefone inválido — indica pelo menos 9 dígitos (ex.: 958 176 915).' },
@@ -77,12 +86,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* Fase 9: código de afiliado que indicou a conta (opcional). */
+    let referredBy: number | null = null;
+    const refCode = (body.ref_code ?? '').trim().toUpperCase();
+    if (refCode) {
+      if (!/^[A-Z0-9-]{4,20}$/.test(refCode)) {
+        return NextResponse.json(
+          { error: 'Código de afiliado inválido — usa o formato AFG-XXXXXX.' },
+          { status: 400 }
+        );
+      }
+      const ref = (await sql`
+        SELECT user_id FROM affiliates WHERE codigo_afiliado = ${refCode} LIMIT 1
+      `) as unknown as { user_id: number }[];
+      if (ref[0]?.user_id) referredBy = ref[0].user_id;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const username = await generateUniqueUsername(name);
 
     const inserted = (await sql`
-      INSERT INTO users (name, email, password_hash, phone, telefone, role, username)
-      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente', ${username})
+      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, signup_ip, referred_by)
+      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente', ${username}, ${getRequestIp(request)}, ${referredBy})
       RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
     `) as unknown as UserRow[];
 

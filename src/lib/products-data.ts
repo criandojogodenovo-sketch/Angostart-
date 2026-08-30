@@ -36,6 +36,8 @@ export interface Product {
   image_url?: string | null;
   seller_name?: string | null;
   seller_role?: string | null;
+  /** Selo azul de verificação (Fase 9) — BI aprovado pelo admin. */
+  seller_verified?: boolean;
   /** PDF do infoproduto (Vercel Blob) — download só após compra paga. */
   file_url?: string | null;
   service_lat?: number | null;

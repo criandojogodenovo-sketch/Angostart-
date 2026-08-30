@@ -437,35 +437,95 @@ export async function creditSellersOnPaid(orderId: number): Promise<void> {
 }
 
 /**
- * Comissão de afiliado (Fase A + Fase 5): paga automaticamente quando a
- * venda é `pago`, com percentual configurável (AFFILIATE_COMMISSION_PERCENT
- * ou o percentual guardado no registo do afiliado). Idempotente.
+ * Comissão de afiliado (Fase A + Fase 5 + Fase 9): paga automaticamente
+ * quando a venda é `pago`. Idempotente.
+ *
+ * Fase 9 — escalão automático (50+ comissões → 15 %) e deteção de fraude:
+ *  - Autoindicação (afiliado = comprador) → comissão bloqueada + suspeito.
+ *  - Mesmo IP de registo (afiliado vs comprador) → bloqueada + suspeito.
+ *  - Suspeitos ficam em suspicious_activities e o admin é notificado.
  */
 export async function payAffiliateCommission(
   orderId: number,
   orderTotalKz: number,
-  affiliateCode: string | null
+  affiliateCode: string | null,
+  buyerId: number | null = null
 ): Promise<void> {
   if (!affiliateCode) return;
   const code = affiliateCode.trim().toUpperCase();
   if (!/^[A-Z0-9-]{4,20}$/.test(code)) return;
 
   const rows = (await sql`
-    SELECT a.id, a.user_id, a.comissao_percentual::float8
+    SELECT a.id, a.user_id, a.comissao_percentual::float8, a.active::boolean,
+           u.signup_ip AS affiliate_signup_ip
     FROM affiliates a
+    JOIN users u ON u.id = a.user_id
     WHERE a.codigo_afiliado = ${code}
     LIMIT 1
-  `) as unknown as { id: number; user_id: number; comissao_percentual: number }[];
+  `) as unknown as {
+    id: number;
+    user_id: number;
+    comissao_percentual: number;
+    active: boolean;
+    affiliate_signup_ip: string | null;
+  }[];
 
   const affiliate = rows[0];
   if (!affiliate) return;
+  if (!affiliate.active) return;
 
-  const comissao = Math.floor((orderTotalKz * affiliate.comissao_percentual) / 100);
+  /* ── Deteção de fraude (Fase 9, ponto 3C) ── */
+  if (buyerId !== null && buyerId === affiliate.user_id) {
+    await flagAffiliateFraud(
+      affiliate.user_id,
+      orderId,
+      'Autoindicação no programa de afiliados — o afiliado comprou com o próprio código.',
+      'alta'
+    );
+    return;
+  }
+  if (buyerId !== null) {
+    const buyerRows = (await sql`
+      SELECT signup_ip FROM users WHERE id = ${buyerId} LIMIT 1
+    `) as unknown as { signup_ip: string | null }[];
+    const buyerIp = buyerRows[0]?.signup_ip ?? null;
+    if (
+      buyerIp &&
+      affiliate.affiliate_signup_ip &&
+      buyerIp === affiliate.affiliate_signup_ip
+    ) {
+      await flagAffiliateFraud(
+        affiliate.user_id,
+        orderId,
+        `Comissão bloqueada: comprador registado a partir do mesmo IP do afiliado (${buyerIp}).`,
+        'alta'
+      );
+      return;
+    }
+  }
+
+  /* ── Escalão automático: 50+ comissões → 15 % ── */
+  const { resolveAffiliatePercent } = await import('@/lib/affiliate');
+  const percentual = await resolveAffiliatePercent(affiliate);
+
+  /* Produto único da encomenda (rastreio por produto, Fase 9). */
+  let productId: number | null = null;
+  const itemRows = (await sql`
+    SELECT (item->>'id')::int AS id
+    FROM orders, jsonb_array_elements(items) item
+    WHERE id = ${orderId}
+    LIMIT 2
+  `) as unknown as { id: number }[];
+  if (itemRows.length === 1 && Number.isInteger(itemRows[0]?.id)) {
+    productId = itemRows[0].id;
+  }
+
+  const comissao = Math.floor((orderTotalKz * percentual) / 100);
   if (comissao < 1) return;
 
   const earned = (await sql`
-    INSERT INTO affiliate_earnings (affiliate_id, order_id, comissao, percentual, status)
-    SELECT ${affiliate.id}, ${orderId}, ${comissao}, ${affiliate.comissao_percentual}, 'pago'
+    INSERT INTO affiliate_earnings (affiliate_id, order_id, product_id, comissao, percentual, status)
+    SELECT ${affiliate.id}, ${orderId}, ${productId}, ${comissao}, ${percentual}, 'pago'
     WHERE NOT EXISTS (
       SELECT 1 FROM affiliate_earnings
       WHERE affiliate_id = ${affiliate.id} AND order_id = ${orderId}
@@ -474,6 +534,12 @@ export async function payAffiliateCommission(
   `) as unknown as { id: number }[];
   if (!earned[0]) return;
 
+  await sql`
+    UPDATE affiliates
+    SET total_earnings = total_earnings + ${comissao}, updated_at = NOW()
+    WHERE id = ${affiliate.id}
+  `;
+
   await ensureWallet(affiliate.user_id);
   const inserted = await insertOrderTxOnce({
     userId: affiliate.user_id,
@@ -481,10 +547,35 @@ export async function payAffiliateCommission(
     valor: comissao,
     status: 'concluido',
     orderId,
-    descricao: `Comissão de afiliado (${affiliate.comissao_percentual}%)`,
+    descricao: `Comissão de afiliado (${percentual}%)`,
   });
   if (inserted) {
     await creditSaldo(affiliate.user_id, comissao);
+  }
+}
+
+/**
+ * Marca atividade suspeita de afiliado + notifica o admin (Fase 9).
+ * Melhor-esforço: falha nunca bloqueia o fluxo de pagamento.
+ */
+async function flagAffiliateFraud(
+  affiliateUserId: number,
+  orderId: number,
+  detalhe: string,
+  severidade: 'baixa' | 'media' | 'alta'
+): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO suspicious_activities (user_id, action, details, severity)
+      VALUES (${affiliateUserId}, ${'fraude_afiliado'}, ${`${detalhe} (encomenda #${orderId})`}, ${severidade})
+    `;
+    const { sendAdminAlertEmail } = await import('@/lib/email');
+    await sendAdminAlertEmail(
+      'Fraude de afiliado detetada',
+      `<p>${detalhe}</p><p><strong>Encomenda:</strong> #${orderId}</p>`
+    );
+  } catch (error) {
+    console.error('[wallet] Falha ao registar suspeita de fraude de afiliado:', error);
   }
 }
 
@@ -623,7 +714,12 @@ export async function applyOrderStatusSideEffects(
       FROM orders WHERE id = ${orderId} LIMIT 1
     `) as unknown as { total: number; affiliate_code: string | null; buyer_id: number | null }[];
     await creditSellersOnPaid(orderId);
-    await payAffiliateCommission(orderId, toNumber(order[0]?.total), order[0]?.affiliate_code ?? null);
+    await payAffiliateCommission(
+      orderId,
+      toNumber(order[0]?.total),
+      order[0]?.affiliate_code ?? null,
+      order[0]?.buyer_id ?? null
+    );
 
     // Fase 7 — notificações push: pedido pago (cliente) + venda realizada (vendedor)
     try {

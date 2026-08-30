@@ -9,18 +9,26 @@ import {
   type SellerRole,
   type UserRow,
 } from '@/lib/auth';
-import { clientKey, rateLimit, sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
+import { clientKey, rateLimit, sanitizeMultiline, sanitizeText, isSafeHttpUrl, getRequestIp } from '@/lib/security';
+import { validatePassword, validateBiAndBirth } from '@/lib/password';
+import { getOrCreateStoreForUser } from '@/lib/stores';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/auth/register/vendedor
- * Corpo: { name, email, password, telefone, role, bio?, area_atuacao?, cidade?, especialidade?, portfolio_url? }
+ * Corpo: { name, email, password, telefone, role, bi_number, birth_date,
+ *          bio?, area_atuacao?, cidade?, especialidade?, portfolio_url?, ref_code? }
  * role deve ser um perfil de vendedor: criador | prestador_domicilio | prestador_remoto
  * Campos condicionais:
  *   - criador            → bio
  *   - prestador_domicilio → area_atuacao + cidade
  *   - prestador_remoto    → especialidade (+ portfolio_url opcional)
+ * Fase 9: BI + data de nascimento OBRIGATÓRIOS (idade mínima 15 anos,
+ * BI validado no formato angolano; a VERIFICAÇÃO do documento é feita
+ * pelo admin — sem aprovação, não publica produtos). Senha forte
+ * obrigatória. Loja virtual criada automaticamente. ref_code opcional
+ * (código de afiliado que indicou a conta).
  */
 export async function POST(request: NextRequest) {
   let body: {
@@ -29,11 +37,14 @@ export async function POST(request: NextRequest) {
     password?: string;
     telefone?: string;
     role?: string;
+    bi_number?: string;
+    birth_date?: string;
     bio?: string;
     area_atuacao?: string;
     cidade?: string;
     especialidade?: string;
     portfolio_url?: string;
+    ref_code?: string;
   };
 
   try {
@@ -73,6 +84,19 @@ export async function POST(request: NextRequest) {
   if (password.length < 6) {
     return NextResponse.json(
       { error: 'A palavra-passe deve ter pelo menos 6 caracteres.' },
+      { status: 400 }
+    );
+  }
+  /* Fase 9: senha forte obrigatória (≥8, A-Z, a-z, 0-9, símbolo, não-comum). */
+  const senhaForte = validatePassword(password);
+  if (!senhaForte.ok) {
+    return NextResponse.json({ error: senhaForte.error }, { status: 400 });
+  }
+  /* Fase 9: BI + idade mínima (15 anos) obrigatórios no registo. */
+  const biBirth = validateBiAndBirth(body.bi_number ?? '', body.birth_date ?? '');
+  if (!biBirth.ok) {
+    return NextResponse.json(
+      { error: biBirth.error },
       { status: 400 }
     );
   }
@@ -146,20 +170,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* Fase 9: código de afiliado que indicou a conta (opcional). */
+    let referredBy: number | null = null;
+    const refCode = (body.ref_code ?? '').trim().toUpperCase();
+    if (refCode) {
+      if (!/^[A-Z0-9-]{4,20}$/.test(refCode)) {
+        return NextResponse.json(
+          { error: 'Código de afiliado inválido — usa o formato AFG-XXXXXX.' },
+          { status: 400 }
+        );
+      }
+      const ref = (await sql`
+        SELECT user_id FROM affiliates WHERE codigo_afiliado = ${refCode} LIMIT 1
+      `) as unknown as { user_id: number }[];
+      if (ref[0]?.user_id) referredBy = ref[0].user_id;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const username = await generateUniqueUsername(name);
 
     const inserted = (await sql`
-      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url)
+      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url,
+                         bi_number, birth_date, kyc_status, is_verified_bi, signup_ip, referred_by)
       VALUES (
         ${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone},
-        ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl}
+        ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl},
+        ${biBirth.bi}, ${biBirth.birthDate}, 'pending', FALSE, ${getRequestIp(request)}, ${referredBy}
       )
       RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
     `) as unknown as UserRow[];
 
     const user = publicUser(inserted[0]);
     const token = signToken(user);
+
+    /* Fase 9: loja virtual criada automaticamente com o nome da conta. */
+    try {
+      await getOrCreateStoreForUser(user.id, user.name);
+    } catch (storeError) {
+      console.error('[API auth/register/vendedor] Loja automática falhou (não crítico):', storeError);
+    }
 
     return NextResponse.json({ token, user }, { status: 201 });
   } catch (error) {

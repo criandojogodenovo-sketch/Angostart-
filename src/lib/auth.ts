@@ -49,6 +49,11 @@ export interface AuthUser {
   especialidade: string | null;
   portfolio_url: string | null;
   blocked: boolean;
+  /** Fase 9: TRUE → o cliente deve trocar a senha antes de continuar. */
+  must_change_password?: boolean;
+  /** Fase 9: verificação de identidade (BI aprovado pelo admin). */
+  kyc_status?: string | null;
+  is_verified_bi?: boolean;
 }
 
 export type UserRow = AuthUser & {
@@ -132,7 +137,8 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
   try {
     const rows = (await sql`
       SELECT id, name, email, role, username, telefone, bio, area_atuacao, cidade,
-             especialidade, portfolio_url, blocked::boolean
+             especialidade, portfolio_url, blocked::boolean,
+             must_change_password::boolean, kyc_status, is_verified_bi::boolean
       FROM users WHERE id = ${Number(payload.sub)} AND blocked = FALSE LIMIT 1
     `) as unknown as AuthUser[];
     return rows[0] ?? null;
@@ -157,6 +163,9 @@ export function publicUser(row: UserRow): AuthUser {
     especialidade: row.especialidade ?? null,
     portfolio_url: row.portfolio_url ?? null,
     blocked: Boolean(row.blocked),
+    must_change_password: Boolean(row.must_change_password),
+    kyc_status: row.kyc_status ?? null,
+    is_verified_bi: Boolean(row.is_verified_bi),
   };
 }
 

@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import RefCapture from "@/components/RefCapture";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -61,6 +62,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <StoreProvider>
+            <RefCapture />
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />

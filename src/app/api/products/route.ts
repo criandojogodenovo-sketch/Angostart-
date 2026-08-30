@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       const rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.user_id = ${user.id}
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.type = ${type}
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.is_hot = TRUE
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.name ILIKE ${like} OR p.description ILIKE ${like}
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         WHERE p.featured = TRUE
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
                p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
-               u.name AS seller_name, u.role AS seller_role
+               u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
@@ -168,17 +168,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 🔒 KYC (Fase 6, ponto 12): verificação de identidade obrigatória para
-  // novos vendedores — o BI é obrigatório para publicar; o NIF é opcional.
+  // 🔒 KYC (Fase 6 + Fase 9): o BI é obrigatório E o admin tem de o
+  // VERIFICAR (is_verified_bi) — vendedores pendentes não publicam
+  // novos produtos.
   const kycRows = (await sql`
-    SELECT bi_number FROM users WHERE id = ${user.id} LIMIT 1
-  `) as unknown as { bi_number: string | null }[];
+    SELECT bi_number, is_verified_bi::boolean, kyc_status FROM users WHERE id = ${user.id} LIMIT 1
+  `) as unknown as { bi_number: string | null; is_verified_bi: boolean; kyc_status: string }[];
   if (!kycRows[0]?.bi_number) {
     return NextResponse.json(
       {
         error:
           'Verificação de identidade necessária: confirma o teu BI (bilhete de identidade) no teu perfil antes de publicar.',
         code: 'KYC_REQUIRED',
+      },
+      { status: 403 }
+    );
+  }
+  if (!kycRows[0].is_verified_bi) {
+    return NextResponse.json(
+      {
+        error:
+          'O teu BI está em análise pela equipa AngoStart — a publicação de novos produtos desbloqueia assim que a verificação for aprovada (normalmente em poucas horas).',
+        code: 'KYC_PENDING',
       },
       { status: 403 }
     );
@@ -298,6 +309,16 @@ export async function POST(request: NextRequest) {
         evaluateBadges(inserted[0].user_id).catch(() => {});
       } catch {
         /* gamificação opcional */
+      }
+    }
+
+    // Fase 9 («Seguir»): notifica seguidores da loja da nova publicação
+    if (inserted[0]?.id) {
+      try {
+        const { notifyFollowersNewProduct } = await import('@/lib/stores');
+        notifyFollowersNewProduct(user.id, inserted[0].name, inserted[0].id).catch(() => {});
+      } catch {
+        /* notificação opcional */
       }
     }
 

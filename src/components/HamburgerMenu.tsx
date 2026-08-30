@@ -17,6 +17,7 @@ import {
   Plus,
   ShoppingBag,
   ShoppingCart,
+  Store,
   User,
   Wallet,
   Wrench,
@@ -29,6 +30,7 @@ import { useAuth } from '@/context/AuthContext';
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/produtos', label: 'Produtos', icon: ShoppingBag },
+  { href: '/lojas', label: 'Lojas', icon: Store },
   { href: '/prestadores', label: 'Prestadores', icon: Wrench },
   { href: '/chat', label: 'Chat', icon: MessageCircle },
   { href: '/perfil', label: 'Perfil', icon: User },

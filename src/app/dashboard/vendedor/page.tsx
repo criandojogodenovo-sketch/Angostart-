@@ -59,6 +59,7 @@ import { authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import ServiceMap from '@/components/ServiceMap';
+import StoreEditorCard from '@/components/StoreEditorCard';
 
 interface DashboardData {
   cards: {
@@ -445,6 +446,11 @@ export default function DashboardVendedorPage() {
             <Link href="/adicionar-produto">Publicar produto</Link>
           </Button>
         </div>
+      </div>
+
+      {/* Fase 9 — Loja virtual: editor + página pública */}
+      <div className="mt-4">
+        <StoreEditorCard />
       </div>
 
       {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}

@@ -34,6 +34,10 @@ export interface AuthUser {
   especialidade: string | null;
   portfolio_url: string | null;
   blocked: boolean;
+  /** Fase 9: TRUE → deve trocar a senha antes de continuar. */
+  must_change_password?: boolean;
+  kyc_status?: string | null;
+  is_verified_bi?: boolean;
 }
 
 const SELLER_ROLES: Role[] = ['criador', 'prestador_domicilio', 'prestador_remoto'];
@@ -50,6 +54,8 @@ export interface RegisterClienteData {
   email: string;
   password: string;
   telefone: string;
+  /** Fase 9: código de afiliado que indicou a conta (opcional). */
+  ref_code?: string;
 }
 
 export interface RegisterVendedorData {
@@ -63,6 +69,12 @@ export interface RegisterVendedorData {
   cidade?: string;
   especialidade?: string;
   portfolio_url?: string;
+  /** Fase 9: BI obrigatório (formato angolano). */
+  bi_number?: string;
+  /** Fase 9: data de nascimento obrigatória (AAAA-MM-DD, idade mínima 15). */
+  birth_date?: string;
+  /** Fase 9: código de afiliado que indicou a conta (opcional). */
+  ref_code?: string;
 }
 
 interface AuthContextValue {

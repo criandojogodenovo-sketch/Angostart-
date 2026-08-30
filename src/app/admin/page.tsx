@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  BadgeCheck,
   Ban,
   BarChart3,
   CalendarClock,
@@ -49,6 +50,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import AdminGate from '@/components/AdminGate';
+import AdminKycTab from '@/components/AdminKycTab';
 import ProofReviewList, {
   type KwikAdminOrder,
 } from '@/components/ProofReviewList';
@@ -126,6 +128,7 @@ type Tab =
   | 'carteira'
   | 'disputas'
   | 'comissoes'
+  | 'kyc'
   | 'admins'
   | 'anuncios'
   | 'monitorizacao'
@@ -255,6 +258,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'disputas', label: 'Disputas', icon: Gavel },
   { key: 'comissoes', label: 'Comissões', icon: Percent },
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
+  { key: 'kyc', label: 'Verificação de Identidade', icon: BadgeCheck },
   { key: 'produtos', label: 'Produtos', icon: Package },
   { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
   { key: 'monitorizacao', label: 'Monitorização', icon: Eye },
@@ -612,6 +616,8 @@ function AdminPanel() {
     if (tab === 'disputas') loadDisputes();
     if (tab === 'comissoes') loadCommissions();
   }, [tab, loadUsers, loadProducts, loadAdminSecurityData, loadWalletOps, loadAnnouncements, loadSuspicious, loadReport, loadDisputes, loadCommissions]);
+
+  /* Fase 9: a fila de KYC carrega dentro de AdminKycTab (auto-contida). */
 
   async function sendInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -1659,6 +1665,9 @@ function AdminPanel() {
       )}
 
       {/* ── Disputas (Fase 6, ponto 7) ── */}
+      {/* Fase 9 — Verificação de Identidade (BI dos vendedores) */}
+      {tab === 'kyc' && <AdminKycTab />}
+
       {tab === 'disputas' && (
         <section className="mt-6" aria-label="Gestão de disputas">
           <div className="flex flex-wrap items-center justify-between gap-3">

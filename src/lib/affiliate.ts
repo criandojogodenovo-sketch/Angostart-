@@ -3,25 +3,42 @@ import { sql } from '@/lib/db';
 import { getBusinessConfig } from '@/lib/config';
 
 /**
- * AngoStart — Afiliados (Fase A + Fase 5) — server-side.
+ * AngoStart — Afiliados (Fase A + Fase 5 + Fase 9) — server-side.
  *
  * Código único por utilizador (ex.: AFG-3K9PQX), comissão automática
  * creditada na carteira quando a encomenda indicada é paga. O percentual
  * de novos afiliados vem de AFFILIATE_COMMISSION_PERCENT (lib/config.ts,
  * default 10 %) — sem valores hardcoded.
+ *
+ * Fase 9 — regras de elegibilidade e escalões:
+ *  - Vendedor/Prestador: ≥ 7 vendas concluídas (encomendas pagas).
+ *  - Cliente: ≥ 2 compras concluídas (encomendas pagas).
+ *  - Escalão automático: ≥ 50 comissões recebidas → 15 % (em vez de 10 %).
  */
+
+/** Vendas pagas mínimas para vendedores aderirem ao programa. */
+export const MIN_SALES_AFFILIATE = 7;
+/** Compras pagas mínimas para clientes aderirem ao programa. */
+export const MIN_PURCHASES_AFFILIATE = 2;
+/** Comissões recebidas para subir para o escalão de 15 %. */
+export const AFFILIATE_TIER_THRESHOLD = 50;
+/** Percentual do escalão avançado. */
+export const AFFILIATE_TIER_PERCENT = 15;
 
 export interface AffiliateRow {
   id: number;
   user_id: number;
   codigo_afiliado: string;
   comissao_percentual: number;
+  active: boolean;
+  total_earnings: number;
   created_at: string;
 }
 
 export interface AffiliateEarning {
   id: number;
   order_id: number;
+  product_id: number | null;
   comissao: number;
   percentual: number;
   status: string;
@@ -57,10 +74,106 @@ export async function getAffiliateByUserId(
   userId: number
 ): Promise<AffiliateRow | null> {
   const rows = (await sql`
-    SELECT id, user_id, codigo_afiliado, comissao_percentual::float8, created_at
+    SELECT id, user_id, codigo_afiliado, comissao_percentual::float8,
+           active::boolean, total_earnings::float8, created_at
     FROM affiliates WHERE user_id = ${userId} LIMIT 1
   `) as unknown as AffiliateRow[];
   return rows[0] ?? null;
+}
+
+/* ─────────────── Elegibilidade (Fase 9, ponto 3A) ─────────────── */
+
+export interface AffiliateEligibility {
+  eligible: boolean;
+  role: 'vendedor' | 'cliente';
+  /** Vendas/compras concluídas (pagas). */
+  count: number;
+  required: number;
+  message: string;
+}
+
+/**
+ * Conta vendas concluídas do vendedor: encomendas com status `pago`
+ * (ou mais avançado) em que tem itens próprios (items.seller_id).
+ */
+export async function countSellerPaidSales(userId: number): Promise<number> {
+  const rows = (await sql`
+    SELECT COUNT(DISTINCT o.id)::int AS n
+    FROM orders o,
+         jsonb_array_elements(o.items) item
+    WHERE (item->>'seller_id')::int = ${userId}
+      AND o.status IN ('pago', 'entregue', 'concluido')
+  `) as unknown as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
+/** Compras concluídas do cliente: encomendas pagas associadas à conta. */
+export async function countBuyerPaidPurchases(userId: number): Promise<number> {
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS n
+    FROM orders
+    WHERE user_id = ${userId}
+      AND status IN ('pago', 'entregue', 'concluido')
+  `) as unknown as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
+/**
+ * Verifica se o utilizador cumpre o requisito mínimo para ser afiliado
+ * (vendedor: 7 vendas · cliente: 2 compras). Nunca cria o afiliado.
+ */
+export async function getAffiliateEligibility(
+  userId: number,
+  isSeller: boolean
+): Promise<AffiliateEligibility> {
+  const role: 'vendedor' | 'cliente' = isSeller ? 'vendedor' : 'cliente';
+  const required = isSeller ? MIN_SALES_AFFILIATE : MIN_PURCHASES_AFFILIATE;
+  const count = isSeller
+    ? await countSellerPaidSales(userId)
+    : await countBuyerPaidPurchases(userId);
+
+  const eligible = count >= required;
+  return {
+    eligible,
+    role,
+    count,
+    required,
+    message: eligible
+      ? `Requisito cumprido: ${count} ${isSeller ? 'vendas' : 'compras'} concluídas.`
+      : `Ainda não tens ${isSeller ? 'vendas' : 'compras'} suficientes para ser afiliado. Necessitas de ${required - count} ${isSeller ? 'vendas' : 'compras'}.`,
+  };
+}
+
+/* ────────────────── Escalão automático (Fase 9, 3C) ───────────────── */
+
+/** Comissões pagas recebidas pelo afiliado (para o escalão de 15 %). */
+export async function countAffiliateEarnings(affiliateId: number): Promise<number> {
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS n FROM affiliate_earnings
+    WHERE affiliate_id = ${affiliateId} AND status = 'pago'
+  `) as unknown as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
+/**
+ * Percentual efetivo do afiliado: sobe para 15 % após 50 comissões
+ * recebidas (escalão automático) — atualiza o registo na BD.
+ */
+export async function resolveAffiliatePercent(
+  affiliate: Pick<AffiliateRow, 'id' | 'comissao_percentual'>
+): Promise<number> {
+  const current = Number(affiliate.comissao_percentual);
+  if (current >= AFFILIATE_TIER_PERCENT) return current;
+  const recebidas = await countAffiliateEarnings(affiliate.id);
+  if (recebidas >= AFFILIATE_TIER_THRESHOLD) {
+    await sql`
+      UPDATE affiliates
+      SET comissao_percentual = ${AFFILIATE_TIER_PERCENT}, updated_at = NOW()
+      WHERE id = ${affiliate.id}
+    `;
+    return AFFILIATE_TIER_PERCENT;
+  }
+  return current;
 }
 
 /**
@@ -93,7 +206,7 @@ export async function listAffiliateEarnings(
   limit = 25
 ): Promise<{ earnings: AffiliateEarning[]; total: number }> {
   const rows = (await sql`
-    SELECT e.id, e.order_id, e.comissao::float8, e.percentual::float8, e.status, e.created_at
+    SELECT e.id, e.order_id, e.product_id, e.comissao::float8, e.percentual::float8, e.status, e.created_at
     FROM affiliate_earnings e
     WHERE e.affiliate_id = ${affiliateId}
     ORDER BY e.created_at DESC, e.id DESC

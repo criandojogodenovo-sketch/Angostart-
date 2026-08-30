@@ -2,7 +2,7 @@
 
 **Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência manual) + carteira com escrow, comissões configuráveis, programa de afiliados, chat interno, anúncios, sistema anti-burla, configuração central de negócio e duplo painel de administração com 2FA.**
 
-> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Resend** · **Vercel Blob** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
+> Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Brevo** (email) · **Vercel Blob** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
 
 ---
 
@@ -14,7 +14,7 @@
 4. [Rotas ocultas de administração](#-rotas-ocultas-de-administração)
 5. [Pagamento KWiK (manual)](#-pagamento-kwik-manual)
 6. [Mapa de serviços ao domicílio](#-mapa-de-serviços-ao-domicílio)
-7. [Notificações por email (Resend)](#-notificações-por-email-resend)
+7. [Notificações por email (Brevo)](#-notificações-por-email-brevo)
 8. [Referência da API](#-referência-da-api)
 9. [Base de dados (Neon)](#-base-de-dados-neon)
 10. [Variáveis de ambiente](#-variáveis-de-ambiente)
@@ -38,7 +38,7 @@
 | 🛡️ Segurança | `server-only` nos módulos com segredos, validação Zod do ambiente, sanitização anti-XSS, rate limiting, guards de role, headers de segurança |
 | 🗺️ Mapa | Leaflet + tiles **Esri Dark Gray** (tema escuro, sem API key), geolocalização, marcador do prestador e escolha do ponto de serviço |
 | 📊 Painel de vendas | Cartões de métricas, receita por mês (BarChart), produtos mais vendidos (PieChart), encomendas recebidas — **Recharts** |
-| 📧 Emails | Resend — confirmação ao cliente + aviso aos vendedores em cada encomenda; alertas de pagamento |
+| 📧 Emails | Brevo — confirmação ao cliente + aviso aos vendedores em cada encomenda; alertas de pagamento |
 | 💳 Pagamentos | **KWiK (Kwanza Instantâneo)** — transferência manual para `+244 958 176 915`, upload de comprovativo (foto/PDF) validado e **aprovação no painel admin** |
 | ⭐ Avaliações | 1–5 estrelas + comentário, **apenas após compra confirmada** (`pago`/`entregue`), média recalculada no produto |
 | 👤 Portfólio | Página pública `/portfolio/[username]` com bio, galeria de trabalhos, produtos e CTA WhatsApp + editor em `/dashboard/vendedor/portfolio` |
@@ -64,7 +64,7 @@
 | 💰 Limites da carteira | Mín/Máx por operação **+ limites DIÁRIOS** (soma das transações do dia validada no servidor) — anti-lavagem; limites exibidos no formulário |
 | 📄 PDF de infoprodutos | Upload para **Vercel Blob** (`/api/products/upload`, MIME + magic bytes `%PDF-` + 20 MB); download protegido `/api/products/[id]/download` (só comprador com pedido pago, vendedor ou admin); secção «Histórico» no perfil com botão «Descarregar» |
 | 📢 Anúncios | Tabela `announcements` (promo / destaque / novidade / **exclusivo** só para admin total); visibilidade por perfil (`target_role`); banner na página inicial (dispensável); secção completa no painel admin |
-| 💬 Chat interno | `/chat` — conversas cliente ↔ vendedor a partir de um produto; isolamento estrito (só as 2 partes); email de notificação (Resend) + sino no site; polling 5 s |
+| 💬 Chat interno | `/chat` — conversas cliente ↔ vendedor a partir de um produto; isolamento estrito (só as 2 partes); email de notificação (Brevo) + sino no site; polling 5 s |
 | 🛡️ Anti-burla | Regras automáticas: **tentativa_fora** (partilha de contactos no chat), **ciclo_deposito_saque** (3+3 idênticos em 24 h), **reclamacoes_cliente** (2 avaliações ≤ 2★); 2 atividades abertas → **conta bloqueada automaticamente** + alerta ao admin; secção «Monitorização» no painel (desbloquear / banir / ignorar) |
 | 🗺️ Mapa + disponibilidade | Botão «Estou disponível» do prestador (geolocalização, expira em 2 h); **tempo estimado de chegada** no produto (haversine ≈ 25 km/h + 5 min); localização do cliente capturada no checkout de serviços ao domicílio (`orders.latitude/longitude`) |
 | 📊 Dashboard pro | KPIs: vendas, receita bruta, **receita líquida**, comissão retida, clientes distintos, avaliação média real, mensagens do chat (7 d); últimas avaliações; alertas de reclamações/suspeitas |
@@ -74,6 +74,22 @@
 | 📜 Termos e privacidade | Páginas `/termos` e `/privacidade` + links no footer |
 | 📈 Relatórios admin | `/api/admin/report` — receita mensal, utilizadores por perfil, encomendas por estado, comissões da plataforma (tab «Relatórios») |
 | 🍽️ MoMenu (estrutura) | `src/lib/momenu.ts` com `createPayment()` placeholder — **não ativado**; checkout mostra nota «Pagamento automático em breve» |
+
+### Fase 9 (atual)
+| Módulo | Descrição |
+|---|---|
+| 🪪 BI obrigatório + idade mínima | Registo de vendedor exige **BI no formato angolano** (`004587896LA038`) e **data de nascimento (mínimo 15 anos)**; sem aprovação do BI pelo admin (`is_verified_bi`), a publicação de novos produtos fica bloqueada (403 `KYC_PENDING`) |
+| 🛡️ Verificação de Identidade | Nova aba no painel admin: fila pendentes/verificados, **foto do BI** (Vercel Blob, só visível à equipa), aprovar → selo azul + publicar · recusar → reenvio obrigatório; vendedor submete o documento em `/perfil` |
+| 🔑 Senhas fortes | Política obrigatória (≥8 caracteres, A-Z, a-z, 0-9, símbolo, anti-comum com base alfabética + padrões triviais); medidor de força (fraca/média/forte) na UI; botão «Criar conta» bloqueado até cumprir; `must_change_password` força utilizadores antigos a trocar a senha no perfil |
+| 🤝 Afiliados com elegibilidade | **Vendedor: 7+ vendas pagas · Cliente: 2+ compras pagas** — verificação automática do histórico; sem requisito → 403 com mensagem «Necessitas de X…» |
+| 🔗 Links de afiliado | Código capturado por `?ref=AFG-XXXXXX` (30 dias em localStorage, componente `RefCapture`), pré-preenchido no checkout; campo «Código de afiliado» no registo (`users.referred_by`); botão «Copiar link de afiliado» nos produtos |
+| 📈 Escalão automático | 50+ comissões recebidas → comissão sobe de 10% para **15%** (`resolveAffiliatePercent`, atualiza a BD) |
+| 🚫 Anti-fraude de afiliados | **Autoindicação** (afiliado = comprador) e **mesmo IP de registo** (`users.signup_ip` vs `orders.ip_address`) → comissão bloqueada + registo em `suspicious_activities` + email ao admin |
+| 🏪 Lojas virtuais | Tabela `stores` (1 por vendedor, criada automaticamente no registo + backfill); página pública `/loja/[slug]` (banner, logo, descrição, produtos, seguidores); diretório `/lojas`; editor «Minha Loja» no dashboard (upload de logo/banner) |
+| ❤️ Seguir lojas | `store_followers` — botão «Seguir» na página da loja; nova publicação notifica seguidores (in-app + Web Push) |
+| ⭐ Avaliações detalhadas | Critérios opcionais 1–5 estilo Upwork/Fiverr: **Comunicação · Qualidade · Prazo** (`reviews.comunicacao/qualidade/prazo`) |
+| 🏅 Níveis de vendedor | Bronze → Prata (10) → Ouro (25) → Platina (50) por vendas concluídas (`src/lib/levels.ts`) |
+| 🔔 Push de novo pedido | Vendedor recebe **Web Push + notificação in-app** assim que um cliente finaliza a encomenda |
 
 ---
 
@@ -85,7 +101,7 @@ src/lib/env.ts        → import 'server-only' + validação Zod das variáveis
 src/lib/db.ts         → import 'server-only' (DATABASE_URL nunca no cliente)
 src/lib/auth.ts       → import 'server-only' (JWT_SECRET, bcrypt, roles BD)
 src/lib/security.ts   → import 'server-only' (sanitização, rate limit, guards)
-src/lib/email.ts      → import 'server-only' (RESEND_API_KEY)
+src/lib/email.ts      → import 'server-only' (BREVO_API_KEY)
 src/lib/admin-session.ts → import 'server-only' (assinatura do cookie 2FA)
 src/lib/wallet.ts     → import 'server-only' (escrow, saldos, movimentações, comissões)
 src/lib/affiliate.ts  → import 'server-only' (códigos AFG, comissões)
@@ -142,7 +158,7 @@ O registo condicional recolhe: `bio` (criador), `area_atuacao`+`cidade` (domicí
 
 ### `/admin-limitado` — Administração Limitada (SEM palavra-passe fixa)
 - Acesso **100 % dinâmico** — não existem credenciais fixas para validadores:
-  - **Primeiro acesso**: o admin total convida um email no painel `/admin` → o sistema envia um **código de convite de 8 caracteres** (validade 24 h) por email (Resend) → o convidado abre `/admin-limitado`, escolhe *“Primeiro acesso”*, introduz email + código → a conta é criada com role `admin_limitado` → ativa o 2FA (QR).
+  - **Primeiro acesso**: o admin total convida um email no painel `/admin` → o sistema envia um **código de convite de 8 caracteres** (validade 24 h) por email (Brevo) → o convidado abre `/admin-limitado`, escolhe *“Primeiro acesso”*, introduz email + código → a conta é criada com role `admin_limitado` → ativa o 2FA (QR).
   - **Acesso diário**: todos os dias às 00:00 (África/Luanda) um **código de 6 dígitos** é gerado e enviado por email (Vercel Cron → `/api/cron/daily-codes`; também gerado a pedido no primeiro login do dia). O código muda a cada 24 h, é de **uso único** e expira no fim do dia. Entrada = email + código diário + 2FA.
 - Apenas a validação de comprovativos. Sem listas de utilizadores/produtos nem criação de admins.
 - `admin_limitado` é bloqueado em `/admin` (redirect) e recebe **403** nas APIs de utilizadores/produtos.
@@ -162,7 +178,7 @@ O registo condicional recolhe: `bio` (criador), `area_atuacao`+`cidade` (domicí
 ### Endpoints da administração dinâmica
 | Rota | Acesso | Descrição |
 |---|---|---|
-| `POST /api/admin/invites` | admin | cria/reemite convite (email Resend; código só na resposta se o email falhar) |
+| `POST /api/admin/invites` | admin | cria/reemite convite (email Brevo; código só na resposta se o email falhar) |
 | `GET /api/admin/invites` | admin | lista convites + contas limitadas + histórico de códigos (sem valores) |
 | `DELETE /api/admin/invites/[id]` | admin | revoga convite pendente |
 | `POST /api/admin/invites/accept` | público (5/min) | valida convite, cria conta `admin_limitado`, devolve JWT → 2FA |
@@ -248,14 +264,14 @@ PATCH /api/admin/orders/[id] ────► Aprovar → status 'pago' + email c
 
 ---
 
-## 📧 Notificações por email (Resend)
+## 📧 Notificações por email (Brevo)
 
 | Evento | Emails |
 |---|---|
 | Encomenda criada | cliente (confirmação + **instruções KWiK** com número/valor/referência) + vendedores envolvidos (novo pedido) |
 | Validação de comprovativo | cliente (aprovado/rejeitado) |
 
-Sem `RESEND_API_KEY` os envios viram logs na consola (modo dev) — **a app nunca falha por causa do email**. Em produção usar um domínio verificado na variável `EMAIL_FROM`.
+Sem `BREVO_API_KEY` os envios viram logs na consola (modo dev) — **a app nunca falha por causa do email**. Em produção usar um domínio verificado na variável `EMAIL_FROM`.
 
 ---
 
@@ -406,7 +422,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 
 | Variável | Ativa |
 |---|---|
-| `RESEND_API_KEY` | envio real de emails (sem ela: modo log) |
+| `BREVO_API_KEY` | envio real de emails (sem ela: modo log) |
 | `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
 | `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
 | `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
@@ -516,7 +532,10 @@ auditoria, limite de 50 %). Limpa os dados de teste no fim.
 | 4 | `d2146cd` | **Fase 4: Favicon, Hot, Busca, Reputação, Carteira, Afiliados** |
 | 5 | `e3cde5e` | **feat: comissões, anúncios, chat, anti-burla, mapa, dashboard pro, UX, business config** |
 | 6 | `edae78d` | **feat: fase 6 — mini-loja, disputas, PWA, relatorios, mobile nav, seguranca** |
-| 7 | *atual* | **feat: propostas robustas, push notifications, gamificação, comissões flexíveis** |
+| 7 | `8655f3e` | **feat: propostas robustas, push notifications, gamificação, comissões flexíveis** |
+| 8 | `67a0ccb` | **feat: real-time tracking, disponibilidade, checkout condicional, e-books + PayPay/Multicaixa e upload de imagens** |
+| — | `71cb401` | **fix: replace Resend with Brevo for email delivery** (envio para qualquer destinatário, 300 emails/dia grátis) |
+| 9 | *atual* | **feat: mandatory BI, strong passwords, advanced affiliates (7+ sales / 2+ purchases), stores, Fiverr/Upwork features** |
 
 ## 🧪 Testes da Fase 5
 

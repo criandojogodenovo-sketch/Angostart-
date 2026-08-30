@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
  * POST /api/reviews — cria/atualiza a avaliação do utilizador autenticado.
  * 🔒 Só é permitido APÓS COMPRA CONFIRMADA (encomenda com estado
  * 'pago' ou 'entregue' que contenha o produto).
- * Corpo: { product_id, rating (1-5), comment }
+ * Corpo: { product_id, rating (1-5), comment, comunicacao?, qualidade?, prazo? }
+ * Fase 9: critérios detalhados (1-5, opcionais) estilo Upwork/Fiverr.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request); // qualquer conta válida (não bloqueada)
@@ -71,7 +72,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Aguarda um momento antes de avaliar novamente.' }, { status: 429 });
   }
 
-  let body: { product_id?: unknown; rating?: unknown; comment?: unknown };
+  let body: {
+    product_id?: unknown;
+    rating?: unknown;
+    comment?: unknown;
+    comunicacao?: unknown;
+    qualidade?: unknown;
+    prazo?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -91,6 +99,15 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  /* Fase 9: critérios detalhados (opcionais, 1-5). */
+  const criterio = (v: unknown): number | null => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
+  };
+  const comunicacao = criterio(body.comunicacao);
+  const qualidade = criterio(body.qualidade);
+  const prazo = criterio(body.prazo);
 
   try {
     const product = (await sql`
@@ -127,10 +144,12 @@ export async function POST(request: NextRequest) {
 
     // 1 avaliação por utilizador/produto (UPSERT)
     await sql`
-      INSERT INTO reviews (user_id, product_id, rating, comment)
-      VALUES (${auth.user.id}, ${productId}, ${rating}, ${comment})
+      INSERT INTO reviews (user_id, product_id, rating, comment, comunicacao, qualidade, prazo)
+      VALUES (${auth.user.id}, ${productId}, ${rating}, ${comment}, ${comunicacao}, ${qualidade}, ${prazo})
       ON CONFLICT (user_id, product_id)
-      DO UPDATE SET rating = ${rating}, comment = ${comment}, created_at = now()
+      DO UPDATE SET rating = ${rating}, comment = ${comment},
+                    comunicacao = ${comunicacao}, qualidade = ${qualidade}, prazo = ${prazo},
+                    created_at = now()
     `;
 
     // Média atualizada no produto (catálogo/estrelas)

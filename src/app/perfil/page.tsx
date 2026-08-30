@@ -47,11 +47,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
-import { authHeaders } from '@/context/AuthContext';
+import { authHeaders, getToken } from '@/context/AuthContext';
 import ProfileGamificationCard from '@/components/ProfileGamificationCard';
 import MyProposals from '@/components/MyProposals';
+import { MustChangePasswordCard, BiVerificationCard } from '@/components/ProfileSecurityCards';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
+import { validatePassword, passwordStrength } from '@/lib/password';
 import {
   ORDER_STATUS_BADGES,
   ORDER_STATUS_LABELS,
@@ -245,10 +247,30 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
     cidade: '',
     especialidade: '',
     portfolio_url: '',
+    /* Fase 9 */
+    bi_number: '',
+    birth_date: '',
+    ref_code: '',
   });
 
   const isClient = kind === 'cliente';
   const selectedRole = SELLER_ROLES.find((r) => r.value === form.role);
+
+  /* Fase 9: medidor de força + bloqueio de senha fraca no registo. */
+  const isRegisto = mode === 'registo';
+  const forca = passwordStrength(form.password);
+  const senhaValida = isRegisto ? validatePassword(form.password).ok : true;
+  const idadeInformada = form.birth_date
+    ? (() => {
+        const d = new Date(`${form.birth_date}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return null;
+        const agora = new Date();
+        let idade = agora.getUTCFullYear() - d.getUTCFullYear();
+        const m = agora.getUTCMonth() - d.getUTCMonth();
+        if (m < 0 || (m === 0 && agora.getUTCDate() < d.getUTCDate())) idade -= 1;
+        return idade;
+      })()
+    : null;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -268,6 +290,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           email: form.email,
           password: form.password,
           telefone: form.telefone,
+          ref_code: form.ref_code.trim() || undefined,
         });
         toast({
           title: 'Conta criada!',
@@ -285,10 +308,14 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           cidade: form.cidade,
           especialidade: form.especialidade,
           portfolio_url: form.portfolio_url,
+          bi_number: form.bi_number.trim(),
+          birth_date: form.birth_date,
+          ref_code: form.ref_code.trim() || undefined,
         });
         toast({
           title: 'Conta de vendedor criada!',
-          description: 'Já podes publicar o teu primeiro produto ou serviço.',
+          description:
+            'A tua loja já existe! Submete a foto do BI no perfil — a publicação desbloqueia após a verificação da equipa.',
         });
       }
       router.push('/perfil');
@@ -395,12 +422,36 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
               id="auth-password"
               type="password"
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={mode === 'registo' ? 'Mín. 8 caracteres, A-Z, a-z, 0-9 e símbolo' : 'A tua palavra-passe'}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="h-11"
               required
             />
+            {mode === 'registo' && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-1.5 flex-1 gap-1">
+                    {[1, 2, 3].map((n) => (
+                      <span
+                        key={n}
+                        className={`h-full flex-1 rounded-full ${
+                          forca.score >= n ? forca.color : 'bg-slate-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="w-12 text-right text-xs font-semibold text-slate-500">
+                    {form.password ? forca.label : ''}
+                  </span>
+                </div>
+                {!senhaValida && form.password.length > 0 && (
+                  <p className="text-xs text-slate-500">
+                    Usa 8+ caracteres com maiúscula, minúscula, número e símbolo (ex.: !@#$%).
+                  </p>
+                )}
+              </div>
+            )}
             {mode === 'login' && (
               <Link
                 href="/recuperar-senha"
@@ -468,6 +519,53 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
               )}
 
               {/* Campos condicionais por perfil de vendedor */}
+              {/* Fase 9: BI + data de nascimento obrigatórios para vendedores */}
+              {!isClient && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-bi">N.º do Bilhete de Identidade</Label>
+                    <Input
+                      id="auth-bi"
+                      type="text"
+                      placeholder="Ex.: 004587896LA038"
+                      value={form.bi_number}
+                      onChange={(e) => setForm({ ...form, bi_number: e.target.value.toUpperCase() })}
+                      className="h-11"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-birth">Data de nascimento</Label>
+                    <Input
+                      id="auth-birth"
+                      type="date"
+                      value={form.birth_date}
+                      onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+                      className="h-11"
+                      required
+                    />
+                    {idadeInformada !== null && idadeInformada < 15 && (
+                      <p className="text-xs font-semibold text-red-600">
+                        Idade mínima para aderir como vendedor é 15 anos.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Fase 9: código de afiliado (opcional, ambos os tipos) */}
+              <div className="space-y-2">
+                <Label htmlFor="auth-ref">Código de afiliado (opcional)</Label>
+                <Input
+                  id="auth-ref"
+                  type="text"
+                  placeholder="Ex.: AFG-3K9PQX"
+                  value={form.ref_code}
+                  onChange={(e) => setForm({ ...form, ref_code: e.target.value.toUpperCase() })}
+                  className="h-11"
+                />
+              </div>
+
               {!isClient && form.role === 'criador' && (
                 <div className="space-y-2">
                   <Label htmlFor="auth-bio">Biografia / o que vendes</Label>
@@ -544,12 +642,13 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
 
           <Button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || (mode === 'registo' && !senhaValida)}
             className={`h-12 w-full text-base font-semibold text-white ${
               isClient
                 ? 'bg-emerald-500 hover:bg-emerald-600'
                 : 'bg-amber-500 hover:bg-amber-600'
             }`}
+            title={mode === 'registo' && !senhaValida ? 'Escolhe uma palavra-passe mais forte para continuar.' : undefined}
           >
             {submitting ? (
               'A processar…'
@@ -607,6 +706,11 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: strin
 
 function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const { toast } = useToast();
+  const { applySession } = useAuth();
+  const updateUser = (patch: Partial<AuthUser>) => {
+    const t = getToken();
+    if (t) applySession(t, { ...user, ...patch });
+  };
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -735,6 +839,8 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Fase 9 — segurança: troca de senha obrigatória p/ utilizadores antigos */}
+      {user.must_change_password && <MustChangePasswordCard />}
       {/* Fase 7 — nível, pontos e notificações push */}
       <div className="mb-6">
         <ProfileGamificationCard />
@@ -944,6 +1050,11 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
 function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const { toast } = useToast();
+  const { applySession } = useAuth();
+  const updateUser = (patch: Partial<AuthUser>) => {
+    const t = getToken();
+    if (t) applySession(t, { ...user, ...patch });
+  };
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -1010,6 +1121,9 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Fase 9 — segurança: senha forte obrigatória + verificação de BI */}
+      {user.must_change_password && <MustChangePasswordCard />}
+      <BiVerificationCard user={user} onUpdated={updateUser} />
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Vendedor'} />
 

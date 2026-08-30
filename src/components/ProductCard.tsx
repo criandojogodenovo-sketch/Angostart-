@@ -13,6 +13,7 @@ import { formatKz } from '@/lib/format';
 import { useCart } from '@/context/StoreContext';
 import { useToast } from '@/hooks/use-toast';
 import ProductIcon from '@/components/ProductIcon';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -82,6 +83,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
             <UserRound className="h-3 w-3 text-emerald-600" />
             {product.seller_name}
+            {product.seller_verified && <VerifiedBadge size={12} />}
           </p>
         )}
 

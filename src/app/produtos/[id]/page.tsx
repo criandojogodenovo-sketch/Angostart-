@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/context/StoreContext';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import { PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-data';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +42,10 @@ interface DetailProduct extends Product {
   seller_username?: string | null;
   seller_cidade?: string | null;
   seller_especialidade?: string | null;
+  /** Fase 9 */
+  seller_verified?: boolean;
+  store_slug?: string | null;
+  store_name?: string | null;
 }
 
 interface Review {
@@ -85,6 +90,11 @@ export default function ProdutoDetalhePage() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [sendingReview, setSendingReview] = useState(false);
+  /* Fase 9: critérios detalhados (Upwork/Fiverr) + link de afiliado */
+  const [critComunicacao, setCritComunicacao] = useState(0);
+  const [critQualidade, setCritQualidade] = useState(0);
+  const [critPrazo, setCritPrazo] = useState(0);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
 
   /* ── Fase 5: chat interno + tempo estimado de chegada ── */
   const [chatStarting, setChatStarting] = useState(false);
@@ -218,6 +228,32 @@ export default function ProdutoDetalhePage() {
     loadReviews();
   }, [loadReviews]);
 
+  /* Fase 9: se o visitante é afiliado, permite copiar o link com ?ref=. */
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/affiliate', { headers: authHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { codigo_afiliado?: string } | null) => {
+        if (data?.codigo_afiliado) setAffiliateCode(data.codigo_afiliado);
+      })
+      .catch(() => {});
+  }, [user]);
+
+  /** Copia o link do produto com o código de afiliado (?ref=AFG-…). */
+  async function copyAffiliateLink() {
+    if (!affiliateCode) return;
+    const url = `${window.location.origin}/produtos/${productId}?ref=${affiliateCode}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Link de afiliado copiado!',
+        description: 'Partilha-o — ganhas comissão em cada compra feita pelo link.',
+      });
+    } catch {
+      toast({ title: 'Não foi possível copiar', description: url, variant: 'destructive' });
+    }
+  }
+
   async function submitReview(event: React.FormEvent) {
     event.preventDefault();
     if (!user || rating === 0) return;
@@ -226,7 +262,14 @@ export default function ProdutoDetalhePage() {
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ product_id: productId, rating, comment }),
+        body: JSON.stringify({
+          product_id: productId,
+          rating,
+          comment,
+          comunicacao: critComunicacao || undefined,
+          qualidade: critQualidade || undefined,
+          prazo: critPrazo || undefined,
+        }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
@@ -465,9 +508,18 @@ export default function ProdutoDetalhePage() {
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
                 <UserRound className="h-4 w-4" /> Vendedor
               </h2>
-              <p className="mt-3 text-lg font-bold text-slate-900">
+              <p className="mt-3 flex items-center gap-2 text-lg font-bold text-slate-900">
                 {product.seller_name ?? 'AngoStart'}
+                {product.seller_verified && <VerifiedBadge />}
               </p>
+              {product.store_name && product.store_slug && (
+                <p className="mt-1 text-sm text-slate-500">
+                  Loja:{' '}
+                  <Link href={`/loja/${product.store_slug}`} className="font-semibold text-emerald-700 hover:underline">
+                    {product.store_name}
+                  </Link>
+                </p>
+              )}
               {product.seller_role && (
                 <p className="text-sm text-emerald-600">
                   {ROLE_LABELS[product.seller_role as Role] ?? product.seller_role}
@@ -486,6 +538,15 @@ export default function ProdutoDetalhePage() {
                   <Link href={`/portfolio/${product.seller_username}`}>
                     Ver portfólio público
                   </Link>
+                </Button>
+              )}
+              {affiliateCode && (
+                <Button
+                  variant="outline"
+                  className="mt-2 h-10 w-full border-amber-400 text-amber-700 hover:bg-amber-50"
+                  onClick={copyAffiliateLink}
+                >
+                  Copiar link de afiliado
                 </Button>
               )}
             </div>
@@ -513,6 +574,38 @@ export default function ProdutoDetalhePage() {
                         className={`h-6 w-6 ${i <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
                       />
                     </button>
+                  ))}
+                </div>
+                {/* Fase 9: critérios detalhados (opcional) */}
+                <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Critérios detalhados (opcional)
+                  </p>
+                  {(
+                    [
+                      ['Comunicação', critComunicacao, setCritComunicacao],
+                      ['Qualidade', critQualidade, setCritQualidade],
+                      ['Prazo', critPrazo, setCritPrazo],
+                    ] as const
+                  ).map(([label, value, setter]) => (
+                    <div key={label} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-600">{label}</span>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setter(value === i ? 0 : i)}
+                            aria-label={`${label}: ${i} de 5`}
+                            className="rounded p-0.5 hover:scale-110 transition-transform"
+                          >
+                            <Star
+                              className={`h-4 w-4 ${i <= value ? 'fill-emerald-500 text-emerald-500' : 'text-slate-300'}`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
                 <Textarea

@@ -8,6 +8,7 @@ import {
   clientKey,
   rateLimit,
   requireAnyAdmin,
+  getRequestIp,
 } from '@/lib/security';
 import {
   parseAndValidateProof,
@@ -330,7 +331,7 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = (await sql`
-      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude)
+      INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz, status, delivery_type, delivery_address, notes, user_id, comprovativo_url, payment_method, payment_proof, payment_proof_name, payment_proof_type, affiliate_code, latitude, longitude, ip_address)
       VALUES (
         ${customerName},
         ${customerPhone},
@@ -349,7 +350,8 @@ export async function POST(request: NextRequest) {
         ${proof ? proof.mime : null},
         ${affiliateCode},
         ${clientLat},
-        ${clientLng}
+        ${clientLng},
+        ${getRequestIp(request)}
       )
       RETURNING id, created_at, total_kz, status
     `);
@@ -373,7 +375,31 @@ export async function POST(request: NextRequest) {
       }
       // Vendedores recebem em saldo_bloqueado (escrow até entrega)
       await creditSellersOnPaid(order.id);
-      await payAffiliateCommission(order.id, totalKz, affiliateCode);
+      await payAffiliateCommission(order.id, totalKz, affiliateCode, userId);
+    }
+
+    /* Fase 9 — push "Novo Pedido" aos vendedores + notificação in-app. */
+    try {
+      const { pushNotification } = await import('@/lib/notifications');
+      const sellerIds = new Set<number>();
+      for (const item of items) {
+        const sid = Number((item as { seller_id?: unknown }).seller_id);
+        if (Number.isInteger(sid) && sid > 0) sellerIds.add(sid);
+      }
+      for (const sid of sellerIds) {
+        await sql`
+          INSERT INTO notifications (user_id, title, body, link)
+          VALUES (${sid}, ${'Novo pedido recebido!'}, ${`${customerName} fez um pedido de ${totalKz} Kz — nº ${order.id}.`}, ${'/dashboard/vendedor'})
+        `;
+        await pushNotification(
+          sid,
+          'Novo pedido recebido!',
+          `${customerName} — ${totalKz} Kz (pedido nº ${order.id}).`,
+          '/dashboard/vendedor'
+        );
+      }
+    } catch (pushError) {
+      console.error('[API /api/orders] Push novo pedido falhou (não crítico):', pushError);
     }
 
     // Emails (não bloqueiam a encomenda em caso de falha)
