@@ -39,6 +39,10 @@ const PADRAO_GATE = 'gate.fase10.%.test.ao'; // vendedores gate (únicos por exe
     console.log(`A limpar ${ids.length} utilizadores de teste da Fase 10…`);
 
     if (ids.length > 0) {
+      // Defesa extra: os ids vêm da própria BD — garantir inteiros antes de interpolar
+      if (!ids.every((n) => Number.isInteger(n) && n > 0)) {
+        throw new Error('Ids inválidos detetados — limpeza abortada.');
+      }
       const ph = ids.join(',');
       await sql.query(
         `DELETE FROM affiliate_earnings WHERE affiliate_id IN (SELECT id FROM affiliates WHERE user_id IN (${ph}))

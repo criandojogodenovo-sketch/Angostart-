@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { validatePassword, passwordStrength } from '@/lib/password';
 
 function RedefinirForm() {
   const { toast } = useToast();
@@ -26,14 +27,9 @@ function RedefinirForm() {
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const validation =
-    password.length === 0
-      ? null
-      : password.length < 8
-        ? 'A senha deve ter pelo menos 8 caracteres.'
-        : !/[a-zA-Z]/.test(password) || !/\d/.test(password)
-          ? 'Mistura letras e números para uma senha mais forte.'
-          : null;
+  // Política forte da Fase 9 (a mesma validada no servidor)
+  const validation = password.length === 0 ? null : (validatePassword(password).error ?? null);
+  const strength = passwordStrength(password);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -101,7 +97,7 @@ function RedefinirForm() {
         </span>
         <h1 className="mt-4 text-2xl font-bold text-slate-900">Nova senha</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Define uma senha forte — pelo menos 8 caracteres, com letras e números.
+          Pelo menos 8 caracteres, com maiúsculas, minúsculas, números e um símbolo.
         </p>
       </div>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
@@ -117,6 +113,17 @@ function RedefinirForm() {
             required
           />
           {validation && <p className="text-xs text-amber-600">{validation}</p>}
+          <div className="flex items-center gap-2 pt-1">
+            <div className="flex h-1.5 flex-1 gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={`h-full flex-1 rounded-full ${i < strength.score ? strength.color : 'bg-slate-200'}`}
+                />
+              ))}
+            </div>
+            <span className="w-12 text-right text-[11px] font-medium text-slate-500">{strength.label}</span>
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm-password">Confirmar nova senha</Label>

@@ -440,8 +440,9 @@ export async function sendPasswordResetEmail(
        <p><a href="${resetLink}" style="display:inline-block;background:#10b981;color:#fff;
           padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">
           Redefinir senha</a></p>
-       <p style="font-size:13px;color:#64748b">O link expira em 1 hora e só funciona uma vez.
-       Se não foste tu, ignora este email — a tua senha continua igual.</p>`
+       <p style="font-size:13px;color:#64748b">O link expira em 2 horas e só funciona uma vez.
+       Se pediste mais do que um link, usa apenas o deste email (o mais recente) — os anteriores
+       deixam de valer. Se não foste tu, ignora este email — a tua senha continua igual.</p>`
     ),
   });
 }

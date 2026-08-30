@@ -49,17 +49,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) {
-    return NextResponse.json(
-      {
-        error:
-          'Armazenamento de imagens ainda não configurado. O administrador deve definir BLOB_READ_WRITE_TOKEN na Vercel.',
-      },
-      { status: 503 }
-    );
-  }
-
   let form: FormData;
   try {
     form = await request.formData();
@@ -118,6 +107,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'O ficheiro não parece uma imagem válida (assinatura ausente).' },
       { status: 400 }
+    );
+  }
+
+  // Auditoria: a validação de segurança ANTES do check de infraestrutura —
+  // sem BLOB token o vendedor recebe 400 de ficheiro inválido em vez de 503.
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!blobToken) {
+    return NextResponse.json(
+      {
+        error:
+          'Armazenamento de imagens ainda não configurado. O administrador deve definir BLOB_READ_WRITE_TOKEN na Vercel.',
+      },
+      { status: 503 }
     );
   }
 

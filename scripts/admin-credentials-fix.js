@@ -46,7 +46,7 @@ const ALVO = (process.env.ADMIN_EMAIL || 'hellyposk@gmail.com').toLowerCase();
     console.error(`❌ Admin principal «${ALVO}» (role='admin') não encontrado — nada alterado.`);
     process.exit(1);
   }
-  const hash = await bcrypt.hash(process.env.ADMIN_NEW_PASSWORD, 10);
+  const hash = await bcrypt.hash(process.env.ADMIN_NEW_PASSWORD, 12);
   await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${alvo.id}`;
   console.log(`\n🔑 Senha do admin principal atualizada: id=${alvo.id} ${alvo.email} ✓ (hash não exibido)`);
 

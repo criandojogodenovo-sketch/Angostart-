@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { clientKey, rateLimit } from '@/lib/security';
 import { signToken } from '@/lib/auth';
+import { validatePassword } from '@/lib/password';
 
 export const dynamic = 'force-dynamic';
+
+/** Mascara o token para logs (diagnóstico sem expor o segredo). */
+function maskToken(token: string): string {
+  return token.length > 12 ? `${token.slice(0, 8)}…${token.slice(-4)}` : '***';
+}
 
 /**
  * POST /api/auth/reset-password — redefinir senha com token do email.
  * Corpo: { token, password }
- * O token é de uso único e expira em 1 hora (guardado como SHA-256).
+ *
+ * Auditoria (bug "1º link inválido"):
+ *  - O token só é consumido AQUI (POST com a nova senha). Abrir o link
+ *    (GET da página) NÃO invalida nada — não existe handler GET.
+ *  - O token é de uso único e agora expira em 2 horas (antes: 1 h).
+ *  - Erros diferenciados (utilizado/expirado/inválido) para diagnóstico.
+ *  - Logs mascarados (nunca o token completo — é um segredo).
+ *  - Nova senha valida com a política forte da Fase 9 (validatePassword).
  */
 export async function POST(request: NextRequest) {
   if (!rateLimit(clientKey(request, 'reset-password'), 10, 15 * 60_000)) {
@@ -28,17 +41,11 @@ export async function POST(request: NextRequest) {
   if (!/^[a-f0-9]{64}$/.test(token)) {
     return NextResponse.json({ error: 'Link de recuperação inválido.' }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json(
-      { error: 'A nova senha deve ter pelo menos 8 caracteres.' },
-      { status: 400 }
-    );
-  }
-  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
-    return NextResponse.json(
-      { error: 'A nova senha deve misturar letras e números.' },
-      { status: 400 }
-    );
+
+  // Política forte da Fase 9 — mesma regra do registo e da troca de senha
+  const passwordCheck = validatePassword(password);
+  if (!passwordCheck.ok) {
+    return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
   }
 
   try {
@@ -47,23 +54,54 @@ export async function POST(request: NextRequest) {
       await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
     ).toString('hex');
 
-    const rows = (await sql`
-      SELECT r.id, r.user_id, u.email, u.role
+    // Diagnóstico: procura a linha SEM filtrar used/expiração para
+    // distinguir "inválido" de "já utilizado" e "expirado".
+    const candidates = (await sql`
+      SELECT r.id, r.user_id, r.used::boolean, r.expires_at,
+             u.email, u.role, u.blocked::boolean
       FROM password_resets r
-      JOIN users u ON u.id = r.user_id AND u.blocked = FALSE
+      JOIN users u ON u.id = r.user_id
       WHERE r.token_hash = ${tokenHash}
-        AND r.used = FALSE
-        AND r.expires_at > now()
+      ORDER BY r.created_at DESC
       LIMIT 1
-    `) as unknown as { id: number; user_id: number; email: string; role: string }[];
+    `) as unknown as {
+      id: number;
+      user_id: number;
+      used: boolean;
+      expires_at: string | Date;
+      email: string;
+      role: string;
+      blocked: boolean;
+    }[];
 
-    const reset = rows[0];
-    if (!reset) {
+    const reset = candidates[0];
+    if (!reset || reset.blocked) {
+      console.log(`[reset-password] Token validado: NÃO (${maskToken(token)}) — motivo: inexistente`);
       return NextResponse.json(
         { error: 'Link inválido ou expirado — pede um novo em "Esqueci a senha".' },
         { status: 400 }
       );
     }
+    if (reset.used) {
+      console.log(`[reset-password] Token validado: NÃO (${maskToken(token)}) — motivo: já utilizado/substituído — user: ${reset.user_id}`);
+      return NextResponse.json(
+        {
+          error:
+            'Este link já foi utilizado ou foi substituído por um pedido mais recente — ' +
+            'usa o email de recuperação mais recente ou pede um novo em "Esqueci a senha".',
+        },
+        { status: 400 }
+      );
+    }
+    if (new Date(reset.expires_at).getTime() <= Date.now()) {
+      console.log(`[reset-password] Token validado: NÃO (${maskToken(token)}) — motivo: expirado — user: ${reset.user_id}`);
+      return NextResponse.json(
+        { error: 'Este link expirou (validade de 2 horas) — pede um novo em "Esqueci a senha".' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[reset-password] Token validado: SIM (${maskToken(token)}) — user: ${reset.user_id}`);
 
     const passwordHash = await bcrypt.hash(password, 12);
 

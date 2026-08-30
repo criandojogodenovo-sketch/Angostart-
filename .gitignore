@@ -74,3 +74,6 @@ dev-restart.log
 /.next-build/
 /tool-results/
 /upload/
+
+# Auditoria de segurança (build local)
+/.next-sec/
