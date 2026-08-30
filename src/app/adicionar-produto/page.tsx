@@ -381,10 +381,17 @@ function AdicionarProdutoContent() {
       );
       const data = (await res.json()) as { product?: Product; error?: string; code?: string };
       if (!res.ok) {
-        // 🔒 KYC (Fase 6, ponto 12): sem BI confirmado, abre o cartão de verificação
-        if (data.code === 'KYC_REQUIRED') {
-          setKycOpen(true);
-          kycRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 🔒 KYC (Fase 12): documento recusado → aviso + orienta para o painel;
+        // pendente/sem documento NÃO bloqueia mais (pode vender normalmente).
+        if (data.code === 'KYC_REJECTED') {
+          toast({
+            title: 'Publicação bloqueada — verificação recusada',
+            description:
+              'Envia um novo documento no Painel de vendas → Verificação de Identidade para voltar a publicar.',
+            variant: 'destructive',
+          });
+          router.push('/dashboard/vendedor');
+          return;
         }
         throw new Error(data.error || 'Não foi possível guardar.');
       }
@@ -668,28 +675,29 @@ function AdicionarProdutoContent() {
               </div>
             )}
 
-            {/* Verificação de identidade — BI obrigatório para publicar (Fase 6) */}
+            {/* Verificação de identidade — Fase 12: opcional para publicar */}
             <details
               ref={kycRef}
               open={kycOpen}
               onToggle={(e) => setKycOpen(e.currentTarget.open)}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-4"
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
             >
               <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                 <BadgeCheck className="mr-1.5 inline h-4 w-4 text-emerald-600" />
-                Verificação de identidade — BI obrigatório para publicar
+                Verificação de identidade (opcional) — ganha o selo azul
               </summary>
               <p className="mt-2 text-xs text-slate-500">
-                Guardamos apenas o número do documento — nunca a imagem. Sem o
-                BI confirmado não é possível publicar produtos; o NIF é
-                opcional e aumenta a confiança dos clientes.
+                Publicar NÃO exige verificação: podes vender já. Para o selo
+                azul de vendedor verificado, envia a foto do documento no
+                Painel de vendas → Verificação de Identidade. Aqui podes
+                apenas guardar o número do BI/NIF para dar mais confiança
+                aos clientes.
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="kyc-bi">Nº do BI (obrigatório)</Label>
+                  <Label htmlFor="kyc-bi">Nº do BI (opcional)</Label>
                   <Input
                     id="kyc-bi"
-                    required
                     value={kycBi}
                     onChange={(e) => setKycBi(e.target.value.toUpperCase())}
                     placeholder="Ex.: 004587896LA038"
@@ -711,12 +719,12 @@ function AdicionarProdutoContent() {
               <Button
                 type="button"
                 onClick={handleKycSave}
-                disabled={kycSaving}
+                disabled={kycSaving || (kycBi.trim().length === 0 && kycNif.trim().length === 0)}
                 variant="outline"
-                className="mt-3 h-10 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                className="mt-3 h-10 border-emerald-300 text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
               >
                 {kycSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar verificação
+                Guardar dados de confiança
               </Button>
             </details>
 

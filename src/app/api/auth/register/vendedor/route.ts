@@ -10,25 +10,34 @@ import {
   type UserRow,
 } from '@/lib/auth';
 import { clientKey, rateLimit, sanitizeMultiline, sanitizeText, isSafeHttpUrl, getRequestIp } from '@/lib/security';
-import { validatePassword, validateBiAndBirth } from '@/lib/password';
+import { validatePassword, BI_REGEX, calcularIdade } from '@/lib/password';
+import { isKycDocumentUrl, KYC_DOCUMENT_TYPES, type KycDocumentType } from '@/lib/kyc';
 import { getOrCreateStoreForUser } from '@/lib/stores';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/auth/register/vendedor
- * Corpo: { name, email, password, telefone, role, bi_number, birth_date,
+ * Corpo: { name, email, password, telefone, role, bi_number?, birth_date?,
+ *          kyc_document_url?, kyc_document_type?,
  *          bio?, area_atuacao?, cidade?, especialidade?, portfolio_url?, ref_code? }
  * role deve ser um perfil de vendedor: criador | prestador_domicilio | prestador_remoto
  * Campos condicionais:
  *   - criador            → bio
  *   - prestador_domicilio → area_atuacao + cidade
  *   - prestador_remoto    → especialidade (+ portfolio_url opcional)
- * Fase 9: BI + data de nascimento OBRIGATÓRIOS (idade mínima 15 anos,
- * BI validado no formato angolano; a VERIFICAÇÃO do documento é feita
- * pelo admin — sem aprovação, não publica produtos). Senha forte
- * obrigatória. Loja virtual criada automaticamente. ref_code opcional
- * (código de afiliado que indicou a conta).
+ * Fase 12 — KYC flexível orientado a fotos:
+ *  - bi_number é OPCIONAL (validado no formato angolano se preenchido).
+ *  - birth_date é OPCIONAL (se preenchida valida idade ≥ 15 anos —
+ *    mesma regra da Fase 9; se faltar, o admin é alertado na revisão KYC).
+ *  - kyc_document_url (foto do documento, BI/Passaporte/Cartão de Eleitor)
+ *    é OPCIONAL e tem de vir do upload da AngoStart:
+ *      · enviado   → kyc_status = 'pending'  (admin revê a foto)
+ *      · não enviado → kyc_status = 'not_submitted'
+ *  Em ambos os casos o vendedor pode vender normalmente — o selo azul
+ *  chega após a aprovação do admin. Senha forte obrigatória. Loja
+ *  virtual criada automaticamente. ref_code opcional (código de afiliado
+ *  que indicou a conta).
  */
 export async function POST(request: NextRequest) {
   let body: {
@@ -39,6 +48,8 @@ export async function POST(request: NextRequest) {
     role?: string;
     bi_number?: string;
     birth_date?: string;
+    kyc_document_url?: string;
+    kyc_document_type?: string;
     bio?: string;
     area_atuacao?: string;
     cidade?: string;
@@ -92,14 +103,55 @@ export async function POST(request: NextRequest) {
   if (!senhaForte.ok) {
     return NextResponse.json({ error: senhaForte.error }, { status: 400 });
   }
-  /* Fase 9: BI + idade mínima (15 anos) obrigatórios no registo. */
-  const biBirth = validateBiAndBirth(body.bi_number ?? '', body.birth_date ?? '');
-  if (!biBirth.ok) {
+  /* Fase 12: BI OPCIONAL — validado no formato angolano apenas se preenchido. */
+  const biRaw = (body.bi_number ?? '').toUpperCase().replace(/[\s-]/g, '');
+  if (biRaw && !BI_REGEX.test(biRaw)) {
     return NextResponse.json(
-      { error: biBirth.error },
+      { error: 'BI inválido — usa o formato do documento (ex.: 004587896LA038) ou deixa vazio.' },
       { status: 400 }
     );
   }
+
+  /* Fase 12: data de nascimento OPCIONAL — se preenchida, idade ≥ 15 (regra da Fase 9). */
+  const birthRaw = (body.birth_date ?? '').trim();
+  if (birthRaw) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthRaw) || Number.isNaN(new Date(`${birthRaw}T00:00:00Z`).getTime())) {
+      return NextResponse.json(
+        { error: 'Data de nascimento inválida — usa o formato AAAA-MM-DD.' },
+        { status: 400 }
+      );
+    }
+    const idade = calcularIdade(birthRaw);
+    if (idade < 0 || idade > 120) {
+      return NextResponse.json(
+        { error: 'Data de nascimento inválida — verifica o ano.' },
+        { status: 400 }
+      );
+    }
+    if (idade < 15) {
+      return NextResponse.json(
+        { error: 'Idade mínima para aderir como vendedor é 15 anos' },
+        { status: 400 }
+      );
+    }
+  }
+
+  /* Fase 12: foto do documento KYC OPCIONAL (URL do upload autorizado).
+     O upload exige sessão — na prática o frontend submete após criar a
+     conta; a API aceita o campo para flexibilidade (testes/integrações). */
+  const kycDocUrlRaw = (body.kyc_document_url ?? '').trim();
+  if (kycDocUrlRaw && !isKycDocumentUrl(kycDocUrlRaw)) {
+    return NextResponse.json(
+      { error: 'A foto do documento deve ser enviada pelo upload da AngoStart (/api/kyc/upload).' },
+      { status: 400 }
+    );
+  }
+  const kycDocType: KycDocumentType | null =
+    typeof body.kyc_document_type === 'string' &&
+    (KYC_DOCUMENT_TYPES as readonly string[]).includes(body.kyc_document_type)
+      ? (body.kyc_document_type as KycDocumentType)
+      : null;
+  const kycStatus = kycDocUrlRaw ? 'pending' : 'not_submitted';
   if (telefone.replace(/\D/g, '').length < 9) {
     return NextResponse.json(
       { error: 'Telefone inválido — indica pelo menos 9 dígitos (ex.: 958 176 915).' },
@@ -191,13 +243,13 @@ export async function POST(request: NextRequest) {
 
     const inserted = (await sql`
       INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url,
-                         bi_number, birth_date, kyc_status, is_verified_bi, signup_ip, referred_by)
+                         bi_number, birth_date, kyc_status, kyc_document_url, kyc_document_type, kyc_submitted_at, is_verified_bi, signup_ip, referred_by)
       VALUES (
         ${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone},
         ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl},
-        ${biBirth.bi}, ${biBirth.birthDate}, 'pending', FALSE, ${getRequestIp(request)}, ${referredBy}
+        ${biRaw || null}, ${birthRaw || null}, ${kycStatus}, ${kycDocUrlRaw || null}, ${kycDocType}, ${kycDocUrlRaw ? new Date().toISOString() : null}, FALSE, ${getRequestIp(request)}, ${referredBy}
       )
-      RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
+      RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean, kyc_status, is_verified_bi::boolean
     `) as unknown as UserRow[];
 
     const user = publicUser(inserted[0]);

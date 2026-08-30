@@ -182,28 +182,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 🔒 KYC (Fase 6 + Fase 9): o BI é obrigatório E o admin tem de o
-  // VERIFICAR (is_verified_bi) — vendedores pendentes não publicam
-  // novos produtos.
+  // 🔒 KYC (Fase 12): vendedor pode vender normalmente enquanto a
+  // verificação está pendente ou nem foi submetida — a publicação só
+  // fica BLOQUEADA quando o admin REJEITA o documento (até nova
+  // submissão). 'verified' dá o selo azul.
   const kycRows = (await sql`
-    SELECT bi_number, is_verified_bi::boolean, kyc_status FROM users WHERE id = ${user.id} LIMIT 1
-  `) as unknown as { bi_number: string | null; is_verified_bi: boolean; kyc_status: string }[];
-  if (!kycRows[0]?.bi_number) {
+    SELECT kyc_status FROM users WHERE id = ${user.id} LIMIT 1
+  `) as unknown as { kyc_status: string | null }[];
+  const kycStatus = kycRows[0]?.kyc_status ?? 'not_submitted';
+  if (kycStatus === 'rejected') {
     return NextResponse.json(
       {
         error:
-          'Verificação de identidade necessária: confirma o teu BI (bilhete de identidade) no teu perfil antes de publicar.',
-        code: 'KYC_REQUIRED',
-      },
-      { status: 403 }
-    );
-  }
-  if (!kycRows[0].is_verified_bi) {
-    return NextResponse.json(
-      {
-        error:
-          'O teu BI está em análise pela equipa AngoStart — a publicação de novos produtos desbloqueia assim que a verificação for aprovada (normalmente em poucas horas).',
-        code: 'KYC_PENDING',
+          'A tua verificação de identidade foi recusada pela equipa AngoStart — envia um novo documento no Painel de vendas (Verificação de Identidade) para voltar a publicar.',
+        code: 'KYC_REJECTED',
       },
       { status: 403 }
     );

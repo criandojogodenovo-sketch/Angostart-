@@ -69,10 +69,14 @@ export interface RegisterVendedorData {
   cidade?: string;
   especialidade?: string;
   portfolio_url?: string;
-  /** Fase 9: BI obrigatório (formato angolano). */
+  /** Fase 9: BI opcional (formato angolano) — validado se preenchido. */
   bi_number?: string;
-  /** Fase 9: data de nascimento obrigatória (AAAA-MM-DD, idade mínima 15). */
+  /** Fase 12: data de nascimento opcional (AAAA-MM-DD, idade mínima 15). */
   birth_date?: string;
+  /** Fase 12: foto do documento KYC (URL do /api/kyc/upload) — opcional. */
+  kyc_document_url?: string;
+  /** Fase 12: tipo do documento ('bi' | 'passaporte' | 'cartao_eleitor'). */
+  kyc_document_type?: string;
   /** Fase 9: código de afiliado que indicou a conta (opcional). */
   ref_code?: string;
 }

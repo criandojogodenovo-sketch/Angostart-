@@ -1,17 +1,23 @@
 'use client';
 
 /**
- * AngoStart — Aba «Verificação de Identidade» do admin (Fase 9).
- * Aprovar/rejeitar o BI dos vendedores. Aprovado → selo azul + pode
- * publicar; rejeitado → limpa o BI e obriga a reenvio.
+ * AngoStart — Aba «Verificação de Identidade» do admin (Fase 12).
+ * KYC orientado a FOTOS: lista vendedores com documento submetido
+ * (BI / Passaporte / Cartão de Eleitor), mostra a foto em miniatura
+ * (ampliável) e permite Aprovar (selo azul) ou Rejeitar (com motivo
+ * — bloqueia publicação até reenvio).
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Clock, Info, Loader2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { authHeaders } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
+import SecureImage from '@/components/SecureImage';
+import { KYC_DOCUMENT_TYPE_LABELS, type KycDocumentType } from '@/lib/kyc';
 
 interface KycSeller {
   id: number;
@@ -20,23 +26,42 @@ interface KycSeller {
   role: string;
   username: string | null;
   telefone: string | null;
-  bi_number: string;
+  bi_number: string | null;
   nif_number: string | null;
+  birth_date: string | null;
   kyc_status: string;
   is_verified_bi: boolean;
-  bi_document_url: string | null;
-  bi_verified_at: string | null;
+  kyc_document_url: string | null;
+  kyc_document_type: string | null;
+  kyc_rejection_reason: string | null;
+  kyc_submitted_at: string | null;
+  kyc_reviewed_at: string | null;
   created_at: string;
 }
+
+interface KycStats {
+  not_submitted: number;
+  sem_data_nascimento: number;
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  criador: 'Criador',
+  prestador_domicilio: 'Prestador ao domicílio',
+  prestador_remoto: 'Freelancer remoto',
+};
 
 export default function AdminKycTab() {
   const { toast } = useToast();
   const [pending, setPending] = useState<KycSeller[]>([]);
   const [verified, setVerified] = useState<KycSeller[]>([]);
-  const [semBi, setSemBi] = useState(0);
+  const [rejected, setRejected] = useState<KycSeller[]>([]);
+  const [stats, setStats] = useState<KycStats>({ not_submitted: 0, sem_data_nascimento: 0 });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ src: string; name: string } | null>(null);
+  /* Rejeição: id em edição + motivo */
+  const [rejectId, setRejectId] = useState<number | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,12 +70,16 @@ export default function AdminKycTab() {
       const data = (await res.json()) as {
         pending?: KycSeller[];
         verified?: KycSeller[];
-        sellers_without_bi?: number;
+        rejected?: KycSeller[];
+        stats?: KycStats;
       };
       if (res.ok) {
         setPending(data.pending ?? []);
         setVerified(data.verified ?? []);
-        setSemBi(data.sellers_without_bi ?? 0);
+        setRejected(data.rejected ?? []);
+        setStats(
+          data.stats ?? { not_submitted: 0, sem_data_nascimento: 0 }
+        );
       }
     } catch {
       /* silencioso */
@@ -63,26 +92,32 @@ export default function AdminKycTab() {
     load();
   }, [load]);
 
-  async function decide(userId: number, action: 'aprovar' | 'rejeitar') {
+  async function decide(userId: number, action: 'aprovar' | 'rejeitar', note?: string) {
     setBusyId(userId);
     try {
       const res = await fetch('/api/admin/kyc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ user_id: userId, action }),
+        body: JSON.stringify({ user_id: userId, action, note }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
-        toast({ title: `Não foi possível ${action}`, description: data.error, variant: 'destructive' });
+        toast({
+          title: `Não foi possível ${action}`,
+          description: data.error,
+          variant: 'destructive',
+        });
         return;
       }
       toast({
-        title: action === 'aprovar' ? 'BI aprovado ✓' : 'BI recusado',
+        title: action === 'aprovar' ? 'Documento aprovado ✓' : 'Documento recusado',
         description:
           action === 'aprovar'
-            ? 'O vendedor já tem o selo azul e pode publicar.'
-            : 'O vendedor terá de reenviar o documento.',
+            ? 'O vendedor já tem o selo azul.'
+            : 'Publicação bloqueada até reenvio; email enviado com o motivo.',
       });
+      setRejectId(null);
+      setRejectNote('');
       load();
     } catch {
       toast({ title: 'Erro de rede', variant: 'destructive' });
@@ -91,45 +126,98 @@ export default function AdminKycTab() {
     }
   }
 
-  const ROLE_LABEL: Record<string, string> = {
-    criador: 'Criador',
-    prestador_domicilio: 'Prestador ao domicílio',
-    prestador_remoto: 'Freelancer remoto',
-  };
-
-  const renderSeller = (s: KycSeller, pendente: boolean) => (
+  const renderSeller = (s: KycSeller, estado: 'pending' | 'verified' | 'rejected') => (
     <li key={s.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
             {s.name}
-            {!pendente && <BadgeCheck className="h-4 w-4 text-sky-500" />}
+            {estado === 'verified' && <BadgeCheck className="h-4 w-4 text-sky-500" />}
+            {estado === 'rejected' && <XCircle className="h-4 w-4 text-rose-500" />}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
             {ROLE_LABEL[s.role] ?? s.role} · {s.email}
             {s.telefone ? ` · ${s.telefone}` : ''}
           </p>
           <p className="mt-1 text-sm text-slate-700">
-            BI: <span className="font-mono font-semibold">{s.bi_number}</span>
+            {s.bi_number ? (
+              <>
+                BI: <span className="font-mono font-semibold">{s.bi_number}</span>
+              </>
+            ) : (
+              <span className="text-slate-400">Sem número de BI indicado (opcional)</span>
+            )}
             {s.nif_number ? ` · NIF: ${s.nif_number}` : ''}
           </p>
           <p className="text-xs text-slate-400">
             Conta criada em {formatDateTime(s.created_at)}
-            {s.bi_verified_at ? ` · verificada em ${formatDateTime(s.bi_verified_at)}` : ''}
+            {s.kyc_submitted_at ? ` · documento submetido em ${formatDateTime(s.kyc_submitted_at)}` : ''}
+            {s.kyc_reviewed_at ? ` · revisão em ${formatDateTime(s.kyc_reviewed_at)}` : ''}
           </p>
+          {/* Fase 12: alerta de data de nascimento em falta (idade ≥ 15) */}
+          {!s.birth_date && estado === 'pending' && (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" /> Sem data de nascimento — pede ao vendedor
+              (idade mínima 15 anos) durante a revisão.
+            </p>
+          )}
+          {estado === 'rejected' && s.kyc_rejection_reason && (
+            <p className="mt-1 text-xs text-rose-600">
+              <span className="font-semibold">Motivo da recusa:</span> {s.kyc_rejection_reason}
+            </p>
+          )}
+
+          {/* Formulário de rejeição inline */}
+          {rejectId === s.id && (
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+              <Label htmlFor={`reject-note-${s.id}`} className="text-xs font-semibold text-rose-700">
+                Motivo da rejeição (enviado ao vendedor por email)
+              </Label>
+              <Input
+                id={`reject-note-${s.id}`}
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                placeholder="Ex.: foto desfocada — envia uma foto legível do documento"
+                className="mt-1.5 h-9 border-rose-200 bg-white"
+                maxLength={500}
+              />
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={busyId === s.id || rejectNote.trim().length === 0}
+                  onClick={() => decide(s.id, 'rejeitar', rejectNote.trim())}
+                  className="h-8 bg-rose-500 font-semibold text-white hover:bg-rose-600"
+                >
+                  {busyId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Confirmar rejeição
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setRejectId(null);
+                    setRejectNote('');
+                  }}
+                  className="h-8 border-slate-300 text-slate-600"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+
         <div className="flex shrink-0 flex-col items-end gap-2">
-          {s.bi_document_url ? (
+          {s.kyc_document_url ? (
             <button
               type="button"
-              onClick={() => setPreview(s.bi_document_url)}
+              onClick={() => setPreview({ src: s.kyc_document_url!, name: s.name })}
               className="group relative"
-              aria-label="Ver foto do BI"
+              aria-label={`Ver documento de ${s.name}`}
             >
-              { }
-              <img
-                src={s.bi_document_url}
-                alt={`BI de ${s.name}`}
+              <SecureImage
+                src={s.kyc_document_url}
+                alt={`Documento de ${s.name}`}
                 className="h-16 w-24 rounded-lg border border-slate-200 object-cover transition group-hover:opacity-80"
               />
               <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/0 text-[10px] font-bold text-transparent group-hover:bg-slate-900/40 group-hover:text-white">
@@ -141,7 +229,12 @@ export default function AdminKycTab() {
               Sem foto submetida
             </span>
           )}
-          {pendente && (
+          <p className="text-[11px] font-medium text-slate-400">
+            {s.kyc_document_type
+              ? KYC_DOCUMENT_TYPE_LABELS[s.kyc_document_type as KycDocumentType] ?? s.kyc_document_type
+              : 'Tipo não indicado'}
+          </p>
+          {estado === 'pending' && (
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -149,14 +242,21 @@ export default function AdminKycTab() {
                 onClick={() => decide(s.id, 'aprovar')}
                 className="h-9 bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
               >
-                {busyId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-1 h-4 w-4" />}
+                {busyId === s.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BadgeCheck className="mr-1 h-4 w-4" />
+                )}
                 Aprovar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={busyId === s.id}
-                onClick={() => decide(s.id, 'rejeitar')}
+                onClick={() => {
+                  setRejectId(s.id);
+                  setRejectNote('');
+                }}
                 className="h-9 border-rose-200 text-rose-600 hover:bg-rose-50"
               >
                 <XCircle className="mr-1 h-4 w-4" /> Recusar
@@ -172,7 +272,7 @@ export default function AdminKycTab() {
     <section className="mt-6" aria-label="Verificação de identidade">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <BadgeCheck className="h-5 w-5 text-sky-500" /> Verificação de Identidade
+          <ShieldCheck className="h-5 w-5 text-sky-500" /> Verificação de Identidade
         </h2>
         <Button
           variant="outline"
@@ -184,9 +284,18 @@ export default function AdminKycTab() {
         </Button>
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        Vendedores sem BI aprovado não podem publicar novos produtos.{' '}
-        {semBi > 0 && `(${semBi} vendedor(es) ainda nem submeteram BI.)`}
+        Vendedores podem vender sem verificação — aprovar dá o selo azul; recusar bloqueia a
+        publicação de novos produtos até reenvio.
       </p>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
+          <Info className="h-3.5 w-3.5" /> {stats.not_submitted} sem documento submetido
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
+          <AlertTriangle className="h-3.5 w-3.5" /> {stats.sem_data_nascimento} sem data de
+          nascimento
+        </span>
+      </div>
 
       {loading ? (
         <p className="flex items-center justify-center py-10 text-sm text-slate-400">
@@ -194,42 +303,54 @@ export default function AdminKycTab() {
         </p>
       ) : (
         <>
-          <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-amber-600">
-            Pendentes ({pending.length})
+          <h3 className="mt-5 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-amber-600">
+            <Clock className="h-4 w-4" /> Pendentes ({pending.length})
           </h3>
           {pending.length === 0 ? (
             <p className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
-              Sem BIs à espera de validação.
+              Sem documentos à espera de validação.
             </p>
           ) : (
-            <ul className="mt-2 space-y-3">{pending.map((s) => renderSeller(s, true))}</ul>
+            <ul className="mt-2 space-y-3">{pending.map((s) => renderSeller(s, 'pending'))}</ul>
           )}
 
-          <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-sky-600">
-            Verificados ({verified.length})
+          <h3 className="mt-6 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-rose-600">
+            <XCircle className="h-4 w-4" /> Recusados ({rejected.length})
+          </h3>
+          {rejected.length === 0 ? (
+            <p className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
+              Nenhum documento recusado.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-3">{rejected.map((s) => renderSeller(s, 'rejected'))}</ul>
+          )}
+
+          <h3 className="mt-6 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-sky-600">
+            <BadgeCheck className="h-4 w-4" /> Verificados ({verified.length})
           </h3>
           {verified.length === 0 ? (
             <p className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
               Ainda nenhum vendedor verificado.
             </p>
           ) : (
-            <ul className="mt-2 space-y-3 opacity-90">{verified.map((s) => renderSeller(s, false))}</ul>
+            <ul className="mt-2 space-y-3 opacity-90">
+              {verified.map((s) => renderSeller(s, 'verified'))}
+            </ul>
           )}
         </>
       )}
 
-      {/* Ampliar foto do BI */}
+      {/* Ampliar documento (imagem já carregada de forma segura) */}
       {preview && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/70 p-6"
           onClick={() => setPreview(null)}
           role="dialog"
-          aria-label="Foto do BI"
+          aria-label={`Documento de ${preview.name}`}
         >
-          { }
-          <img
-            src={preview}
-            alt="BI ampliado"
+          <SecureImage
+            src={preview.src}
+            alt={`Documento de ${preview.name} (ampliado)`}
             className="max-h-[85dvh] max-w-full rounded-2xl border-4 border-white object-contain shadow-2xl"
           />
         </div>

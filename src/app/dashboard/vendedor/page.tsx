@@ -18,12 +18,15 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Award,
+  BadgeCheck,
   Bike,
+  Clock,
   ClipboardList,
   Copy,
   Crosshair,
   ExternalLink,
   Flame,
+  Info,
   Link2,
   Loader2,
   Lock,
@@ -41,6 +44,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  XCircle,
 } from 'lucide-react';
 import {
   Bar,
@@ -57,11 +61,12 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { authHeaders } from '@/context/AuthContext';
+import { authHeaders, getToken, type AuthUser } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import ServiceMap from '@/components/ServiceMap';
 import StoreEditorCard from '@/components/StoreEditorCard';
+import KycVerificationCard from '@/components/KycVerificationCard';
 
 interface DashboardData {
   cards: {
@@ -212,7 +217,7 @@ const STATUS_STYLE: Record<string, { label: string; className: string }> = {
 };
 
 export default function DashboardVendedorPage() {
-  const { user, loading: authLoading, isSeller } = useAuth();
+  const { user, loading: authLoading, isSeller, applySession } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -571,6 +576,66 @@ export default function DashboardVendedorPage() {
           </Button>
         </div>
       </div>
+
+      {/* Fase 12 — Verificação de Identidade: aviso de estado + cartão KYC.
+          Verified → sem aviso (selo azul já ativo). Pending/not_submitted →
+          aviso suave «Verifica a tua identidade…». Rejected → aviso vermelho:
+          publicação bloqueada até reenvio do documento. */}
+      {user && user.kyc_status !== 'verified' && !user.is_verified_bi && (
+        <div
+          className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 ${
+            user.kyc_status === 'rejected'
+              ? 'border-rose-300 bg-rose-50'
+              : 'border-amber-300 bg-amber-50'
+          }`}
+          role="status"
+        >
+          <div className="flex items-start gap-3">
+            {user.kyc_status === 'rejected' ? (
+              <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
+            ) : (
+              <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            )}
+            <div>
+              <p
+                className={`text-sm font-bold ${
+                  user.kyc_status === 'rejected' ? 'text-rose-800' : 'text-amber-900'
+                }`}
+              >
+                {user.kyc_status === 'rejected'
+                  ? 'Verificação recusada — publicação de novos produtos bloqueada'
+                  : 'Verifica a tua identidade para ganhares mais confiança'}
+              </p>
+              <p
+                className={`mt-0.5 text-xs ${
+                  user.kyc_status === 'rejected' ? 'text-rose-700' : 'text-amber-800'
+                }`}
+              >
+                {user.kyc_status === 'rejected'
+                  ? 'Envia um novo documento (BI, Passaporte ou Cartão de Eleitor) abaixo — a publicação desbloqueia após envio.'
+                  : 'Podes vender já; com o documento aprovado ganhas o selo azul de vendedor verificado.'}
+              </p>
+            </div>
+          </div>
+          <BadgeCheck
+            className={`h-6 w-6 shrink-0 ${
+              user.kyc_status === 'rejected' ? 'text-rose-300' : 'text-amber-300'
+            }`}
+          />
+        </div>
+      )}
+      {user && (
+        <div className="mt-4">
+          <KycVerificationCard
+            user={user}
+            onUpdated={(patch: Partial<AuthUser>) => {
+              const t = getToken();
+              if (t && user) applySession(t, { ...user, ...patch });
+            }}
+            compact
+          />
+        </div>
+      )}
 
       {/* Fase 9 — Loja virtual: editor + página pública */}
       <div className="mt-4">

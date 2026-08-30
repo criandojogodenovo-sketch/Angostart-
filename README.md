@@ -93,7 +93,20 @@
 | 🏅 Níveis de vendedor | Bronze → Prata (10) → Ouro (25) → Platina (50) por vendas concluídas (`src/lib/levels.ts`) |
 | 🔔 Push de novo pedido | Vendedor recebe **Web Push + notificação in-app** assim que um cliente finaliza a encomenda |
 
-### Fase 11 (atual)
+### Fase 12 (atual) — KYC flexível orientado a fotos
+| Módulo | Descrição |
+|---|---|
+| 🪪 Registo sem BI obrigatório | `POST /api/auth/register/vendedor`: **BI e data de nascimento passam a OPCIONAIS** (validados apenas se preenchidos — formato angolano e idade ≥ 15). O vendedor cria conta e **vende normalmente**: com foto do documento → `kyc_status='pending'`; sem → `'not_submitted'` |
+| 📸 Upload do documento | Nova rota `POST /api/kyc/upload` (vendedores): foto do **BI, Passaporte ou Cartão de Eleitor** (JPG/PNG/WebP, máx. 5 MB) com MIME + magic bytes + extensão; vai para o Vercel Blob com **`access: 'private'`** no namespace `kyc/<userId>/` — nunca público |
+| 🔐 Documento privado | Nova rota `GET /api/kyc/document/[...path]` **autorizada**: só o próprio vendedor ou admin/admin_limitado veem a foto (Bearer JWT → stream server-side); regex estrita anti-traversal, `Cache-Control: private, no-store`, 60/min. UI usa `SecureImage` (fetch com token → objectURL) |
+| ✅ Submissão/reenvio | Nova rota `POST /api/kyc/submit`: valida que o URL do documento é do **próprio** vendedor (+ `head()` no Blob quando o token existe), grava `kyc_document_url/kyc_document_type`, estado → `pending`, limpa motivo de rejeição; aceita BI/data opcionais; notifica admins (in-app + email) |
+| 🏛️ Painel admin | `/admin → Verificação de Identidade` reescrita: filas **Pendentes / Recusados / Verificados** com foto em miniatura ampliável, tipo de documento, alerta **«sem data de nascimento»** (pedir na revisão), **Aprovar** (selo azul) e **Recusar com motivo obrigatório** (email ao vendedor + bloqueio de publicação) |
+| 🛒 Gate de publicação invertido | `POST /api/products`: pendente/sem documento **publica normalmente**; só `kyc_status='rejected'` devolve **403 `KYC_REJECTED`** até novo documento — reenvio desbloqueia sem intervenção admin |
+| 👤 Painel do vendedor | Dashboard com aviso «**Verifica a tua identidade para ganhares mais confiança**» (pendente/sem documento) ou aviso vermelho de publicação bloqueada (recusado) + cartão **Verificação de Identidade**: estado, tipo de documento, upload, BI/data opcionais e botão «Reenviar documento»; mesmo cartão no `/perfil` |
+| 📧 Emails de decisão | Aprovação («selo azul ativo») e recusa (com **motivo** + instruções de reenvio) via Brevo, com notificação in-app correspondente |
+| 🧪 Testes | `scripts/test-fase12.js` E2E: **34 verificações** (registo sem BI, publicação sem/pending/rejected, 401/400/403 de upload e documento, anti-traversal, fila admin, rejeição→bloqueio→reenvio→aprovação→selo); auditoria de segurança mantém-se **123/125 · 0 falhas** |
+
+### Fase 11
 | Módulo | Descrição |
 |---|---|
 | ⭐ Correção: «Sem avaliações» | Produtos novos **nascem com `rating = NULL`** (o antigo 4.5 por omissão fazia produtos sem avaliações parecerem avaliados); `ProductCard`, detalhe do produto e portfólio mostram **«Sem avaliações»** quando `rating_count = 0`; migração limpa os ratings falsos (`scripts/migrate-fase11.js`) |
@@ -549,7 +562,12 @@ auditoria, limite de 50 %). Limpa os dados de teste no fim.
 | 7 | `8655f3e` | **feat: propostas robustas, push notifications, gamificação, comissões flexíveis** |
 | 8 | `67a0ccb` | **feat: real-time tracking, disponibilidade, checkout condicional, e-books + PayPay/Multicaixa e upload de imagens** |
 | — | `71cb401` | **fix: replace Resend with Brevo for email delivery** (envio para qualquer destinatário, 300 emails/dia grátis) |
-| 9 | *atual* | **feat: mandatory BI, strong passwords, advanced affiliates (7+ sales / 2+ purchases), stores, Fiverr/Upwork features** |
+| 9 | `db2855a` | **feat: mandatory BI, strong passwords, advanced affiliates (7+ sales / 2+ purchases), stores, Fiverr/Upwork features** |
+| 10 | `c66b82c` | **feat: affiliate upgrades based on Shopee/Amazon models** (5 vendas, Sub-ID, atribuição 30 dias, gerador em massa) |
+| — | `fa30f50` | chore: admin credentials rotation script + access tests (secrets via env only) |
+| — | `a259e7b` | **fix: password reset token bug + security audit hardening** (CSP, HSTS, 126 testes) |
+| 11 | `075af87` | **feat: comments, category search, store button, affiliate links, bug fixes, cleanup** |
+| 12 | *atual* | **feat: flexible KYC with document upload** (BI opcional no registo, foto BI/Passaporte/Cartão de Eleitor em Blob privado, revisão admin com selo/bloqueio, reenvio automático) |
 
 ## 🧪 Testes da Fase 5
 

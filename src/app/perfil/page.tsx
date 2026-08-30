@@ -11,7 +11,7 @@
  *   seus produtos com editar/eliminar.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -40,6 +40,7 @@ import {
   UserRound,
   UserRoundPlus,
   Globe,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,10 +51,12 @@ import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders, getToken } from '@/context/AuthContext';
 import ProfileGamificationCard from '@/components/ProfileGamificationCard';
 import MyProposals from '@/components/MyProposals';
-import { MustChangePasswordCard, BiVerificationCard } from '@/components/ProfileSecurityCards';
+import { MustChangePasswordCard } from '@/components/ProfileSecurityCards';
+import KycVerificationCard from '@/components/KycVerificationCard';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import { validatePassword, passwordStrength } from '@/lib/password';
+import { KYC_DOCUMENT_TYPES, KYC_DOCUMENT_TYPE_LABELS, KYC_FILE_ACCEPT, KYC_MAX_FILE_MB, type KycDocumentType } from '@/lib/kyc';
 import {
   ORDER_STATUS_BADGES,
   ORDER_STATUS_LABELS,
@@ -247,11 +250,18 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
     cidade: '',
     especialidade: '',
     portfolio_url: '',
-    /* Fase 9 */
+    /* Fase 9 (agora opcional na Fase 12) */
     bi_number: '',
     birth_date: '',
     ref_code: '',
   });
+  /* Fase 12: foto do documento KYC no registo (opcional).
+     O upload exige sessão — o ficheiro fica em memória e é enviado
+     logo após a criação da conta (upload + submit). */
+  const kycFileRef = useRef<HTMLInputElement>(null);
+  const [kycFile, setKycFile] = useState<File | null>(null);
+  const [kycPreview, setKycPreview] = useState<string | null>(null);
+  const [kycRegType, setKycRegType] = useState<KycDocumentType>('bi');
 
   const isClient = kind === 'cliente';
   const selectedRole = SELLER_ROLES.find((r) => r.value === form.role);
@@ -308,14 +318,49 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           cidade: form.cidade,
           especialidade: form.especialidade,
           portfolio_url: form.portfolio_url,
-          bi_number: form.bi_number.trim(),
-          birth_date: form.birth_date,
+          bi_number: form.bi_number.trim() || undefined,
+          birth_date: form.birth_date || undefined,
           ref_code: form.ref_code.trim() || undefined,
         });
+        /* Fase 12: se o vendedor escolheu foto do documento, enviamos já
+           (upload + submit) com o token da nova sessão. Não bloqueia a
+           criação da conta — em caso de falha, o cartão KYC do dashboard
+           permite reenviar. */
+        if (kycFile) {
+          try {
+            const fd = new FormData();
+            fd.append('file', kycFile);
+            const up = await fetch('/api/kyc/upload', {
+              method: 'POST',
+              headers: authHeaders(),
+              body: fd,
+            });
+            const upData = (await up.json()) as { url?: string; error?: string };
+            if (up.ok && upData.url) {
+              await fetch('/api/kyc/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({
+                  kyc_document_url: upData.url,
+                  kyc_document_type: kycRegType,
+                  bi_number: form.bi_number.trim() || undefined,
+                  birth_date: form.birth_date || undefined,
+                }),
+              });
+            }
+          } catch {
+            toast({
+              title: 'Conta criada, mas o documento não foi enviado',
+              description: 'Envia a foto do documento no Painel de vendas → Verificação de Identidade.',
+              variant: 'destructive',
+            });
+          }
+        }
         toast({
           title: 'Conta de vendedor criada!',
-          description:
-            'A tua loja já existe! Submete a foto do BI no perfil — a publicação desbloqueia após a verificação da equipa.',
+          description: kycFile
+            ? 'A tua loja já existe e o documento está em análise — podes vender desde já!'
+            : 'A tua loja já existe! Podes vender desde já — envia a foto do teu documento para ganhares o selo azul.',
         });
       }
       router.push('/perfil');
@@ -518,12 +563,11 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                 </div>
               )}
 
-              {/* Campos condicionais por perfil de vendedor */}
-              {/* Fase 9: BI + data de nascimento obrigatórios para vendedores */}
+              {/* Campos do vendedor — Fase 12: BI e nascimento OPCIONAIS */}
               {!isClient && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="auth-bi">N.º do Bilhete de Identidade</Label>
+                    <Label htmlFor="auth-bi">N.º do BI (opcional)</Label>
                     <Input
                       id="auth-bi"
                       type="text"
@@ -531,23 +575,88 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                       value={form.bi_number}
                       onChange={(e) => setForm({ ...form, bi_number: e.target.value.toUpperCase() })}
                       className="h-11"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="auth-birth">Data de nascimento</Label>
+                    <Label htmlFor="auth-birth">Data de nascimento (opcional)</Label>
                     <Input
                       id="auth-birth"
                       type="date"
                       value={form.birth_date}
                       onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
                       className="h-11"
-                      required
                     />
                     {idadeInformada !== null && idadeInformada < 15 && (
                       <p className="text-xs font-semibold text-red-600">
                         Idade mínima para aderir como vendedor é 15 anos.
                       </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Fase 12: foto do documento (opcional) — substitui a obrigatoriedade do BI */}
+              {!isClient && (
+                <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <Label>Foto do documento (opcional — para o selo azul)</Label>
+                  <p className="text-xs text-slate-500">
+                    BI, Passaporte ou Cartão de Eleitor (JPG, PNG ou WebP, máx. {KYC_MAX_FILE_MB} MB).
+                    Podes vender sem isto — a foto só é vista pela equipa de verificação.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de documento">
+                    {KYC_DOCUMENT_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        role="radio"
+                        aria-checked={kycRegType === t}
+                        onClick={() => setKycRegType(t)}
+                        className={`rounded-xl border px-2 py-1.5 text-xs font-semibold transition-all ${
+                          kycRegType === t
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'
+                        }`}
+                      >
+                        {KYC_DOCUMENT_TYPE_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    ref={kycFileRef}
+                    type="file"
+                    accept={KYC_FILE_ACCEPT}
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setKycFile((old) => {
+                        if (old && kycPreview) URL.revokeObjectURL(kycPreview);
+                        return f;
+                      });
+                      setKycPreview((old) => {
+                        if (old) URL.revokeObjectURL(old);
+                        return f ? URL.createObjectURL(f) : null;
+                      });
+                      e.target.value = '';
+                    }}
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => kycFileRef.current?.click()}
+                      className="gap-2 bg-white"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {kycFile ? 'Trocar foto' : 'Escolher foto do documento'}
+                    </Button>
+                    {kycPreview && (
+                       
+                      <img
+                        src={kycPreview}
+                        alt="Pré-visualização do documento"
+                        className="h-12 w-16 rounded-lg border border-slate-200 object-cover"
+                      />
                     )}
                   </div>
                 </div>
@@ -1121,9 +1230,9 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      {/* Fase 9 — segurança: senha forte obrigatória + verificação de BI */}
+      {/* Fase 12 — KYC flexível: foto do documento, estado e reenvio */}
       {user.must_change_password && <MustChangePasswordCard />}
-      <BiVerificationCard user={user} onUpdated={updateUser} />
+      <KycVerificationCard user={user} onUpdated={updateUser} />
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Vendedor'} />
 
