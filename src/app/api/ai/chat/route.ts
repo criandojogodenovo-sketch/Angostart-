@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { clientKey, rateLimit, sanitizeText } from '@/lib/security';
-import { groqAvailable, groqChatTurns, containsPromptInjection } from '@/lib/groq';
+import { aiAvailable, aiChatTurns } from '@/lib/ai/chat';
+import { containsPromptInjection } from '@/lib/ai/security';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/ai/chat — Fase 14: chatbot de suporte AngoStart (Groq).
+ * POST /api/ai/chat — Fase 14: chatbot de suporte AngoStart (IA multi-provider).
  *
- * - Modelo: llama-3.1-8b-instant (grátis) via lib/groq.ts — server-only,
- *   `GROQ_API_KEY` nunca exposta ao cliente.
+ * - Cadeia de fallback: OpenRouter → Gemini → Groq → Cerebras → SambaNova
+ *   (lib/ai/chat.ts) — server-only, chaves nunca expostas ao cliente.
  * - Rate limit: máx. 10 req/min por utilizador (ou IP se anónimo).
  * - Segurança: filtro anti-injeção ANTES do modelo + system prompt
  *   comprometido com a AngoStart (não promete o que não pode, nunca pede
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (!groqAvailable()) {
+  if (!aiAvailable()) {
     return NextResponse.json(
       {
         error:
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const reply = await groqChatTurns(SYSTEM_PROMPT, turns, { maxTokens: 400 });
+  const reply = await aiChatTurns(SYSTEM_PROMPT, turns, { maxTokens: 400 });
   if (!reply) {
     return NextResponse.json(
       {

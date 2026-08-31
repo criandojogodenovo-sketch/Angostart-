@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, clientKey, rateLimit } from '@/lib/security';
-import { groqAvailable } from '@/lib/groq';
+import { aiAvailable } from '@/lib/ai/chat';
 import { verifyOrderProof } from '@/lib/ai-proof';
 
 export const dynamic = 'force-dynamic';
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!groqAvailable()) {
+  if (!aiAvailable()) {
     return NextResponse.json(
       { error: 'Verificação por IA temporariamente indisponível.', code: 'AI_UNAVAILABLE' },
       { status: 503 }

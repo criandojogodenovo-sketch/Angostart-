@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser, isSellerRole } from '@/lib/auth';
 import { requireAdmin, clientKey, rateLimit, sanitizeText } from '@/lib/security';
-import { groqAvailable } from '@/lib/groq';
+import { aiAvailable } from '@/lib/ai/chat';
 import { analyzeSellerBio, saveSellerRating, type SellerRatingResult } from '@/lib/ai-seller';
 
 export const dynamic = 'force-dynamic';
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
   const role = sanitizeText(typeof body.role === 'string' ? body.role : 'criador', 40);
   const name = sanitizeText(typeof body.name === 'string' ? body.name : 'Vendedor', 80);
 
-  if (!groqAvailable()) {
+  if (!aiAvailable()) {
     return NextResponse.json(
       { error: 'Análise por IA temporariamente indisponível.', code: 'AI_UNAVAILABLE' },
       { status: 503 }

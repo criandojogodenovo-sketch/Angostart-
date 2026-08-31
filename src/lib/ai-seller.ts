@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14: análise de perfil de vendedor por IA (Groq).
+ * AngoStart — Fase 14: análise de perfil de vendedor por IA (multi-provider).
  *
  * A nota 0-10 avalia a QUALIDADE DO PERFIL (clareza da bio, credibilidade,
  * especificidade) — NUNCA a pessoa. É um sinal de destaque para os
@@ -11,7 +11,8 @@ import 'server-only';
  */
 
 import { sql } from '@/lib/db';
-import { groqChatJSON, groqAvailable, containsPromptInjection } from '@/lib/groq';
+import { aiChatJSON, aiAvailable } from '@/lib/ai/chat';
+import { containsPromptInjection } from '@/lib/ai/security';
 
 export interface SellerRatingResult {
   /** Nota 0-10 (1 casa decimal). */
@@ -53,15 +54,16 @@ function clampRating(value: unknown): number {
 }
 
 /**
- * Analisa uma bio com o Groq. Devolve `null` se a IA estiver indisponível
- * ou responder algo inválido — o chamador mantém a nota anterior nesse caso.
+ * Analisa uma bio com a IA multi-provider. Devolve `null` se a IA estiver
+ * indisponível ou responder algo inválido — o chamador mantém a nota
+ * anterior nesse caso.
  */
 export async function analyzeSellerBio(
   name: string,
   role: string,
   bio: string
 ): Promise<SellerRatingResult | null> {
-  if (!groqAvailable()) return null;
+  if (!aiAvailable()) return null;
 
   const cleanBio = bio.trim().slice(0, 1200);
   if (cleanBio.length < 10) return null; // nada analyzável
@@ -69,19 +71,21 @@ export async function analyzeSellerBio(
   /* Bio é INPUT do utilizador — filtro anti-injeção antes do modelo. */
   if (containsPromptInjection(cleanBio)) return null;
 
-  const out = await groqChatJSON<{
-    rating?: unknown;
-    summary?: unknown;
-    suggestions?: unknown;
-  }>(
-    ANALYSIS_SYSTEM,
-    JSON.stringify({
-      nome: name.slice(0, 80),
-      tipo_de_vendedor: ROLE_LABELS[role] ?? role,
-      bio: cleanBio,
-    }),
-    { maxTokens: 350, temperature: 0.2 }
-  );
+  const out = (
+    await aiChatJSON<{
+      rating?: unknown;
+      summary?: unknown;
+      suggestions?: unknown;
+    }>(
+      ANALYSIS_SYSTEM,
+      JSON.stringify({
+        nome: name.slice(0, 80),
+        tipo_de_vendedor: ROLE_LABELS[role] ?? role,
+        bio: cleanBio,
+      }),
+      { maxTokens: 350, temperature: 0.2 }
+    )
+  )?.data;
 
   if (!out || typeof out.rating === 'undefined') return null;
 

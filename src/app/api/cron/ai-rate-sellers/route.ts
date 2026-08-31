@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { rateSeller } from '@/lib/ai-seller';
-import { groqAvailable } from '@/lib/groq';
+import { aiAvailable } from '@/lib/ai/chat';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +51,8 @@ function authorizeCron(request: NextRequest): NextResponse | null {
 }
 
 async function runRateSellers() {
-  if (!groqAvailable()) {
-    return { skipped: true, reason: 'GROQ_API_KEY não configurada.', avaliados: 0 };
+  if (!aiAvailable()) {
+    return { skipped: true, reason: 'Nenhum provider de IA configurado (ex.: OPENROUTER_API_KEY, GEMINI_API_KEY).', avaliados: 0 };
   }
 
   /* Vendedores ativos com bio analisável, nunca avaliados ou antigos. */

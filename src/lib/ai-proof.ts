@@ -2,7 +2,7 @@ import 'server-only';
 
 /**
  * AngoStart — Fase 14: verificação de comprovativos de pagamento por IA
- * de visão (VLM da Groq).
+ * de visão (VLM multi-provider com fallback).
  *
  * Fluxo: cliente anexa comprovativo à encomenda → o VLM extrai
  * {valor, data, referencia} → regra de segurança decide:
@@ -20,7 +20,8 @@ import 'server-only';
  */
 
 import { sql } from '@/lib/db';
-import { groqVisionJSON, groqAvailable, GROQ_MODEL_VISION } from '@/lib/groq';
+import { aiAvailable } from '@/lib/ai/chat';
+import { aiVisionJSON } from '@/lib/ai/vision';
 import { sendAdminAlertEmail, sendOrderValidatedEmail } from '@/lib/email';
 
 export interface ProofExtraction {
@@ -157,7 +158,7 @@ export async function verifyOrderProof(
   | { ok: true; verdict: ProofVerdict; extraction: ProofExtraction; autoApproved: boolean }
   | { ok: false; error: string }
 > {
-  if (!groqAvailable()) return { ok: false, error: 'IA indisponível.' };
+  if (!aiAvailable()) return { ok: false, error: 'IA indisponível.' };
 
   const order = await loadOrderForProof(orderId);
   if (!order) return { ok: false, error: 'Encomenda não encontrada.' };
@@ -170,12 +171,13 @@ export async function verifyOrderProof(
     return { ok: false, error: 'Imagem demasiado grande para análise.' };
   }
 
-  const extraction = await groqVisionJSON<ProofExtraction>(
+  const vision = await aiVisionJSON<ProofExtraction>(
     VISION_SYSTEM,
     proofDataUrl,
     { maxTokens: 350 }
   );
-  if (!extraction) return { ok: false, error: 'Falha na extração.' };
+  if (!vision) return { ok: false, error: 'Falha na extração.' };
+  const extraction = vision.data;
 
   /* Normaliza campos (o modelo pode desobedecer ao schema). */
   const clean: ProofExtraction = {
@@ -201,7 +203,8 @@ export async function verifyOrderProof(
     matched: { valor: verdict.valorCoincide, referencia: verdict.referenciaCoincide },
     verdict: verdict.verdict,
     motivo: verdict.motivo,
-    model: GROQ_MODEL_VISION,
+    model: vision.model,
+    provider: vision.provider,
     at: new Date().toISOString(),
   };
 
