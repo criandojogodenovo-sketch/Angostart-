@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { clientKey, rateLimit } from '@/lib/security';
@@ -124,9 +124,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
       WHERE id = ${id}
     `;
 
+    /* 🤖 Fase 14: verificação IA do comprovativo DEPOIS da resposta —
+       com valor + referência certos e confiança alta, passa a `pago`
+       automaticamente; senão fica em revisão com parecer gravado. */
+    after(async () => {
+      try {
+        const { verifyOrderProof } = await import('@/lib/ai-proof');
+        const ai = await verifyOrderProof(id, proof.dataUrl);
+        if (ai.ok && ai.autoApproved) {
+          console.info(`[AI] Encomenda #${id} auto-aprovada pelo VLM.`);
+        }
+      } catch {
+        /* best-effort */
+      }
+    });
+
     return NextResponse.json({
       ok: true,
       order: { id, status: 'aguardando_validacao', proof_name: proof.name },
+      ai_check: 'em_curso',
     });
   } catch (error) {
     console.error('[API orders/proof] Erro:', error);

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import VerifiedBadge from '@/components/VerifiedBadge';
-import { Search, MapPin, Package } from 'lucide-react';
+import { Search, MapPin, Package, Sparkles } from 'lucide-react';
 import { CIDADES_ANGOLA } from '@/lib/cidades-angola';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +80,7 @@ export default async function LojasPage({
     logo_url: string | null;
     owner_name: string;
     verified: boolean;
+    ai_rating: number | null;
     product_count: number;
     follower_count: number;
   }[] = [];
@@ -88,6 +89,7 @@ export default async function LojasPage({
     stores = (await sql`
       SELECT s.id, s.name, s.slug, s.description, s.logo_url,
              u.name AS owner_name, u.is_verified_bi::boolean AS verified,
+             u.ai_seller_rating::float8 AS ai_rating,
              (SELECT COUNT(*)::int FROM products p WHERE p.user_id = s.owner_id) AS product_count,
              (SELECT COUNT(*)::int FROM store_followers f WHERE f.store_id = s.id) AS follower_count
       FROM stores s
@@ -105,7 +107,7 @@ export default async function LojasPage({
         AND (${cidadeValida}::text IS NULL OR u.cidade ILIKE ${cidadeValida})
         AND (${onlyWithProducts}::boolean = FALSE
              OR (SELECT COUNT(*) FROM products p2 WHERE p2.user_id = s.owner_id) > 0)
-      ORDER BY product_count DESC, s.created_at DESC
+      ORDER BY u.ai_seller_rating DESC NULLS LAST, product_count DESC, s.created_at DESC
       LIMIT 100
     `) as unknown as typeof stores;
   } catch {
@@ -213,6 +215,14 @@ export default async function LojasPage({
                     {s.verified && <VerifiedBadge size={14} />}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">Por {s.owner_name}</p>
+                  {s.ai_rating !== null && (
+                    <p
+                      className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700"
+                      title="Nota de qualidade do perfil atribuída por análise IA."
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-violet-500" /> IA {s.ai_rating.toFixed(1)}
+                    </p>
+                  )}
                   {s.description && (
                     <p className="mt-2 line-clamp-2 text-sm text-slate-600">{s.description}</p>
                   )}

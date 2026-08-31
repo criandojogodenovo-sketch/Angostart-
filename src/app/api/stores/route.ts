@@ -40,12 +40,14 @@ export async function GET(request: NextRequest) {
     const rows = (await sql`
       SELECT s.id, s.owner_id, s.name, s.slug, s.description, s.logo_url, s.banner_url, s.created_at,
              u.name AS owner_name, u.is_verified_bi::boolean AS verified, u.role AS owner_role,
+             u.ai_seller_rating::float8 AS ai_rating,
              (SELECT COUNT(*)::int FROM products p WHERE p.user_id = s.owner_id) AS product_count,
              (SELECT COUNT(*)::int FROM store_followers f WHERE f.store_id = s.id) AS follower_count
       FROM stores s
       JOIN users u ON u.id = s.owner_id
       WHERE u.blocked = FALSE
-      ORDER BY product_count DESC, s.created_at DESC
+      /* Fase 14: destaque IA primeiro, depois tamanho da loja. */
+      ORDER BY u.ai_seller_rating DESC NULLS LAST, product_count DESC, s.created_at DESC
       LIMIT 100
     `) as unknown as {
       id: number;
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
       owner_name: string;
       verified: boolean;
       owner_role: string;
+      ai_rating: number | null;
       product_count: number;
       follower_count: number;
     }[];

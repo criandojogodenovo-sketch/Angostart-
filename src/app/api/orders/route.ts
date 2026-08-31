@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import {
@@ -463,6 +463,25 @@ export async function POST(request: NextRequest) {
       );
     } catch (emailError) {
       console.error('[API /api/orders] Email falhou (não crítico):', emailError);
+    }
+
+    /* 🤖 Fase 14: verificação IA do comprovativo DEPOIS da resposta
+       (after() do Next — não atrasa o checkout). Com valor + referência
+       a coincidir e confiança alta, a encomenda passa a `pago` sem
+       esperar pelo admin; caso contrário fica em revisão com o parecer
+       da IA gravado (orders.ai_verification). */
+    if (proof && initialStatus === 'aguardando_validacao') {
+      after(async () => {
+        try {
+          const { verifyOrderProof } = await import('@/lib/ai-proof');
+          const ai = await verifyOrderProof(order.id, proof.dataUrl);
+          if (ai.ok && ai.autoApproved) {
+            console.info(`[AI] Encomenda #${order.id} auto-aprovada pelo VLM.`);
+          }
+        } catch {
+          /* best-effort — a fila admin cobre o resto */
+        }
+      });
     }
 
     return NextResponse.json(

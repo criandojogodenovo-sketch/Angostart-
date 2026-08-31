@@ -40,6 +40,8 @@ interface PrestadorRow {
   especialidade: string | null;
   bio: string | null;
   portfolio_image: string | null;
+  ai_rating: number | null;
+  ai_summary: string | null;
   produtos: number;
   media_avaliacoes: number | null;
   total_avaliacoes: number;
@@ -87,17 +89,21 @@ export async function GET(request: NextRequest) {
 
   const like = q ? `%${q}%` : null;
   const catTerms = categoriaTerms(categoriaParam);
+  /* Fase 14: ordenação padrão começa pela nota IA (destaque de perfis
+     de qualidade — users.ai_seller_rating), depois reputação clássica. */
   const orderBy =
     ordenar === 'nome'
       ? sql`u.name ASC`
       : ordenar === 'recentes'
         ? sql`u.created_at DESC`
-        : sql`media_avaliacoes DESC NULLS LAST, total_avaliacoes DESC, u.name ASC`;
+        : sql`u.ai_seller_rating DESC NULLS LAST, media_avaliacoes DESC NULLS LAST, total_avaliacoes DESC, u.name ASC`;
 
   try {
     const rows = (await sql`
       SELECT u.id, u.name, u.username, u.role, u.cidade, u.especialidade,
              u.bio, u.portfolio_image,
+             u.ai_seller_rating::float8 AS ai_rating,
+             u.ai_rating_summary AS ai_summary,
              (SELECT count(*)::int FROM products p WHERE p.user_id = u.id) AS produtos,
              (SELECT AVG(r.rating)::float8 FROM reviews r
                 JOIN products p2 ON p2.id = r.product_id

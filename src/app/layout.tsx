@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import SupportChatWidget from "@/components/SupportChatWidget";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import RefCapture from "@/components/RefCapture";
@@ -67,6 +68,8 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
             <WhatsAppButton />
+            {/* Fase 14: assistente de suporte IA (canto inferior esquerdo) */}
+            <SupportChatWidget />
             {/* Barra de navegação mobile (Fase 6, ponto 4) */}
             <BottomNav />
             {/* PWA (Fase 6, ponto 10) */}

@@ -20,6 +20,7 @@ import {
   Package,
   Search,
   SearchX,
+  Sparkles,
   Star,
   Wrench,
 } from 'lucide-react';
@@ -37,6 +38,8 @@ interface Prestador {
   especialidade: string | null;
   bio: string | null;
   portfolio_image: string | null;
+  ai_rating: number | null;
+  ai_summary: string | null;
   produtos: number;
   media_avaliacoes: number | null;
   total_avaliacoes: number;
@@ -322,6 +325,21 @@ export default function PrestadoresPage() {
                         {p.produtos}{' '}
                         {p.produtos === 1 ? 'serviço/produto' : 'serviços/produtos'}
                       </span>
+                      {/* 🤖 Fase 14: nota IA da qualidade do perfil (0-10) —
+                          perfis claros e completos destacam-se primeiro. */}
+                      {p.ai_rating !== null && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700"
+                          title={
+                            p.ai_summary
+                              ? `Análise IA: ${p.ai_summary}`
+                              : 'Nota de qualidade do perfil atribuída por análise IA.'
+                          }
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                          IA {p.ai_rating.toFixed(1)}
+                        </span>
+                      )}
                     </div>
 
                     {p.especialidade && (
