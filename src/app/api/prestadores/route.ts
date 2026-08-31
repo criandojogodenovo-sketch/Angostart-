@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { sanitizeText, clientKey, rateLimit } from '@/lib/security';
 import { CIDADES_ANGOLA } from '@/lib/cidades-angola';
+import { keywordsReady, isUndefinedColumnError, markKeywordsUnavailable } from '@/lib/keywords-db';
+import { isGenericKeyword } from '@/lib/keywords';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,8 @@ interface PrestadorRow {
   portfolio_image: string | null;
   ai_rating: number | null;
   ai_summary: string | null;
+  /** Fase 15: nº de produtos com keywords que correspondem à pesquisa. */
+  kw_matches?: number;
   produtos: number;
   media_avaliacoes: number | null;
   total_avaliacoes: number;
@@ -59,6 +63,12 @@ interface PrestadorRow {
  *
  * 🔒 Apenas contas de prestadores ativas e não bloqueadas; expõe apenas
  * dados públicos (sem email, sem telefone — Fase 6: contacto é pelo chat).
+ *
+ * Fase 15: a pesquisa também percorre as KEYWORDS dos produtos do
+ * prestador (ex.: procurar "design" encontra quem tenha "design" nas
+ * keywords dos serviços) e quem tem correspondências fica À FRENTE —
+ * exceto para palavras genéricas ("barato", "grátis"…), que nunca
+ * recebem o boost (anti-manipulação).
  */
 export async function GET(request: NextRequest) {
   if (!rateLimit(clientKey(request, 'prestadores-get'), 60, 60_000)) {
@@ -68,6 +78,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  try {
+    return await handleSearch(request, true);
+  } catch (error) {
+    /* Coluna keywords em falta (deploy antes da migração) → repete sem. */
+    if (isUndefinedColumnError(error)) {
+      markKeywordsUnavailable();
+      return handleSearch(request, false);
+    }
+    throw error;
+  }
+}
+
+async function handleSearch(
+  request: NextRequest,
+  withKeywords: boolean
+): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const q = sanitizeText(searchParams.get('q') ?? '', 80);
   const cidade = sanitizeText(searchParams.get('cidade') ?? '', 60);
@@ -89,21 +115,41 @@ export async function GET(request: NextRequest) {
 
   const like = q ? `%${q}%` : null;
   const catTerms = categoriaTerms(categoriaParam);
+  const kwReady = withKeywords && (await keywordsReady());
+
+  /* Fase 15: nº de produtos cujas keywords correspondem à pesquisa —
+     ordenação dá-lhes prioridade (só quando há pesquisa não-genérica). */
+  const kwMatchesSelect =
+    kwReady && like && !isGenericKeyword(q)
+      ? sql`, (SELECT count(*)::int FROM products pk
+                JOIN unnest(pk.keywords) kk ON TRUE
+               WHERE pk.user_id = u.id AND kk ILIKE ${like}) AS kw_matches`
+      : sql``;
+  const kwSearchOr =
+    kwReady && like
+      ? sql`OR EXISTS (SELECT 1 FROM products pk2
+                        JOIN unnest(pk2.keywords) kk2 ON TRUE
+                       WHERE pk2.user_id = u.id AND kk2 ILIKE ${like})`
+      : sql``;
+
   /* Fase 14: ordenação padrão começa pela nota IA (destaque de perfis
-     de qualidade — users.ai_seller_rating), depois reputação clássica. */
+     de qualidade — users.ai_seller_rating), depois reputação clássica.
+     Fase 15: com pesquisa por keywords, quem tem correspondências sobe. */
   const orderBy =
     ordenar === 'nome'
       ? sql`u.name ASC`
       : ordenar === 'recentes'
         ? sql`u.created_at DESC`
-        : sql`u.ai_seller_rating DESC NULLS LAST, media_avaliacoes DESC NULLS LAST, total_avaliacoes DESC, u.name ASC`;
+        : kwReady && like && !isGenericKeyword(q)
+          ? sql`kw_matches DESC NULLS LAST, u.ai_seller_rating DESC NULLS LAST, media_avaliacoes DESC NULLS LAST, total_avaliacoes DESC, u.name ASC`
+          : sql`u.ai_seller_rating DESC NULLS LAST, media_avaliacoes DESC NULLS LAST, total_avaliacoes DESC, u.name ASC`;
 
   try {
     const rows = (await sql`
       SELECT u.id, u.name, u.username, u.role, u.cidade, u.especialidade,
              u.bio, u.portfolio_image,
              u.ai_seller_rating::float8 AS ai_rating,
-             u.ai_rating_summary AS ai_summary,
+             u.ai_rating_summary AS ai_summary${kwMatchesSelect},
              (SELECT count(*)::int FROM products p WHERE p.user_id = u.id) AS produtos,
              (SELECT AVG(r.rating)::float8 FROM reviews r
                 JOIN products p2 ON p2.id = r.product_id
@@ -118,7 +164,8 @@ export async function GET(request: NextRequest) {
              OR u.name ILIKE ${like}
              OR u.especialidade ILIKE ${like}
              OR u.bio ILIKE ${like}
-             OR u.cidade ILIKE ${like})
+             OR u.cidade ILIKE ${like}
+             ${kwSearchOr})
         AND (${cidadeValida}::text IS NULL OR u.cidade ILIKE ${cidadeValida})
         AND (
           ${catTerms === null}::boolean

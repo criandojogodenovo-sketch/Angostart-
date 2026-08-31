@@ -50,6 +50,12 @@ export interface Product {
   /* Fase 11 — botão "Ver loja" / "Ver vendedor" nos cartões */
   seller_username?: string | null;
   store_slug?: string | null;
+  /**
+   * Fase 15 — palavras-chave de busca (até 10, lowercase, sem acentos
+   * normalizados em minúsculas). NULL/vazio quando o vendedor não definiu
+   * ou a migração Fase 15 ainda não correu.
+   */
+  keywords?: string[] | null;
 }
 
 export const PRODUCT_TYPES: Record<

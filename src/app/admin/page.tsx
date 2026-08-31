@@ -81,6 +81,8 @@ interface AdminProduct {
   type: string;
   user_id: number | null;
   seller_name?: string | null;
+  /** Fase 15: palavras-chave de busca declaradas pelo vendedor. */
+  keywords?: string[] | null;
 }
 
 interface CommissionRate {
@@ -1181,6 +1183,21 @@ function AdminPanel() {
                     <p className="text-xs text-slate-500">
                       {p.type} · vendedor: {p.seller_name ?? '—'}
                     </p>
+                    {p.keywords && p.keywords.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Keywords:
+                        </span>
+                        {p.keywords.map((k) => (
+                          <span
+                            key={k}
+                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                          >
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-emerald-600">{formatKz(p.price_kz)}</span>

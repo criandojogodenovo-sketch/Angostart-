@@ -4,6 +4,8 @@ import { isProductType, type Product } from '@/lib/products-data';
 import { getAuthUser, isAdminRole } from '@/lib/auth';
 import { sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
 import { isInternalMediaUrl } from '@/lib/payments-manual';
+import { keywordsReady, isUndefinedColumnError, markKeywordsUnavailable } from '@/lib/keywords-db';
+import { parseKeywords, MAX_KEYWORDS } from '@/lib/keywords';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +21,12 @@ function parseCoord(value: unknown, range: readonly [number, number]): number | 
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Carrega um produto pelo id (ou null). */
-async function loadProduct(id: number): Promise<Product | null> {
+/** Carrega um produto pelo id (ou null). Keywords só quando a migração já correu. */
+async function loadProduct(id: number, withKeywords = false): Promise<Product | null> {
+  const kwSelect = withKeywords ? sql`, keywords` : sql``;
   const rows = (await sql`
     SELECT id, name, description, price_kz, type, icon, gradient, image_url,
-           featured::boolean, is_hot::boolean, rating::float8, stock, user_id, file_url
+           featured::boolean, is_hot::boolean, rating::float8, stock, user_id, file_url${kwSelect}
     FROM products
     WHERE id = ${id}
     LIMIT 1
@@ -49,10 +52,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   try {
+    const kwReady = await keywordsReady();
+    const kwSelect = kwReady ? sql`, p.keywords` : sql``;
     const rows = (await sql`
       SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
              p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id,
-             p.service_lat, p.service_lng, p.file_url,
+             p.service_lat, p.service_lng, p.file_url${kwSelect},
              u.name AS seller_name, u.role AS seller_role, u.username AS seller_username,
              u.cidade AS seller_cidade, u.especialidade AS seller_especialidade,
              u.telefone AS seller_telefone, u.portfolio_image AS seller_portfolio_image,
@@ -88,6 +93,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       product: { ...publicProduct, available: (Number(stock ?? -1)) !== 0 },
     });
   } catch (error) {
+    /* Coluna keywords em falta (deploy antes da migração) → desativa e o
+       próximo pedido já funciona sem as colunas novas. */
+    if (isUndefinedColumnError(error)) markKeywordsUnavailable();
     console.error('[API products/[id]] Erro no GET:', error);
     return NextResponse.json(
       { error: 'Não foi possível carregar o produto agora.' },
@@ -125,6 +133,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     service_lat?: number | string | null;
     service_lng?: number | string | null;
     file_url?: string | null;
+    /** Fase 15: palavras-chave (string separada por vírgulas ou array). */
+    keywords?: unknown;
   };
   try {
     body = await request.json();
@@ -135,8 +145,33 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     );
   }
 
+  /* Fase 15: keywords enviadas? (undefined = não mexer; array/vírgulas = substituir) */
+  const keywordsProvided = body.keywords !== undefined;
+  let nextKeywords: string[] = [];
+  if (keywordsProvided) {
+    const parsed = parseKeywords(body.keywords);
+    if (parsed.invalid.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Palavras-chave inválidas: ${parsed.invalid
+            .slice(0, 5)
+            .join(', ')} — usa apenas letras, números e hífens (entre 2 e 30 caracteres).`,
+        },
+        { status: 400 }
+      );
+    }
+    if (parsed.truncated) {
+      return NextResponse.json(
+        { error: `Máximo de ${MAX_KEYWORDS} palavras-chave — remove as que sobrarem.` },
+        { status: 400 }
+      );
+    }
+    nextKeywords = parsed.keywords;
+  }
+
   try {
-    const product = await loadProduct(id);
+    const kwReady = await keywordsReady();
+    const product = await loadProduct(id, kwReady);
     if (!product) {
       return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
     }
@@ -224,20 +259,36 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
+    /* Fase 15: grava keywords só se mudaram (keywords_updated_at reinicia o
+       ciclo de análise IA — o cron reavalia perfis com keywords novas). */
+    const oldKeywords = product.keywords ?? [];
+    const keywordsChanged =
+      keywordsProvided &&
+      kwReady &&
+      JSON.stringify(nextKeywords) !== JSON.stringify(oldKeywords);
+    const kwSet = keywordsChanged
+      ? sql`, keywords = ${nextKeywords}::text[], keywords_updated_at = NOW()`
+      : sql``;
+    const kwReturn = kwReady ? sql`, keywords` : sql``;
+
     const updated = (await sql`
       UPDATE products
       SET name = ${name}, description = ${description}, price_kz = ${priceKz},
           type = ${type}, image_url = ${imageUrl},
           service_lat = ${nextType === 'servico_domicilio' ? serviceLat : null},
           service_lng = ${nextType === 'servico_domicilio' ? serviceLng : null},
-          file_url = ${fileUrl}
+          file_url = ${fileUrl}${kwSet}
       WHERE id = ${id}
       RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, is_hot::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url
+                featured::boolean, is_hot::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url${kwReturn}
     `) as unknown as Product[];
 
     return NextResponse.json({ product: updated[0] });
   } catch (error) {
+    /* Coluna keywords em falta → desativa no processo; o cliente repete e
+       o guard `keywordsReady()` devolve false (produto é guardado sem
+       keywords — comportamento idêntico à Fase 14). */
+    if (isUndefinedColumnError(error)) markKeywordsUnavailable();
     console.error('[API products/[id]] Erro no PUT:', error);
     return NextResponse.json(
       { error: 'Não foi possível guardar as alterações agora.' },

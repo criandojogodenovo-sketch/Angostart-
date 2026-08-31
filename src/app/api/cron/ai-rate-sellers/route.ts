@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { rateSeller } from '@/lib/ai-seller';
+import { rateSeller, type SellerProductInfo } from '@/lib/ai-seller';
 import { aiAvailable } from '@/lib/ai/chat';
+import { keywordsReady } from '@/lib/keywords-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,20 +80,50 @@ async function runRateSellers() {
     return { skipped: true, reason: 'Nenhum provider de IA configurado (ex.: B_AI_API_KEY, OPENROUTER_API_KEY).', avaliados: 0 };
   }
 
-  /* Vendedores ativos com bio analisável, nunca avaliados ou antigos. */
+  const kwReady = await keywordsReady();
+  /* Fase 15: quem mudou keywords depois da última análise volta à fila
+     (a IA tem de reavaliar a coerência com os produtos atuais). */
+  const kwChanged = kwReady
+    ? sql`OR EXISTS (
+            SELECT 1 FROM products pk
+             WHERE pk.user_id = users.id
+               AND pk.keywords_updated_at > users.ai_rated_at
+          )`
+    : sql``;
+
+  /* Vendedores ativos com bio analisável, nunca avaliados, antigos ou
+     com keywords novas desde a última avaliação. */
   const sellers = (await sql`
     SELECT id, name, role, COALESCE(bio, '') AS bio
       FROM users
      WHERE role IN ('criador', 'prestador_domicilio', 'prestador_remoto')
        AND blocked = FALSE
        AND LENGTH(TRIM(COALESCE(bio, ''))) >= 10
-       AND (ai_rated_at IS NULL OR ai_rated_at < NOW() - INTERVAL '7 days')
+       AND (ai_rated_at IS NULL OR ai_rated_at < NOW() - INTERVAL '7 days' ${kwChanged})
      ORDER BY ai_rated_at NULLS FIRST, id
      LIMIT ${BATCH_LIMIT}
   `) as unknown as SellerRow[];
 
+  /* Fase 15: produtos + keywords de cada vendedor (1 query para o lote). */
+  const productsBySeller = new Map<number, SellerProductInfo[]>();
+  if (sellers.length > 0 && kwReady) {
+    const ids = sellers.map((s) => s.id);
+    const productRows = (await sql`
+      SELECT user_id, name, keywords
+        FROM products
+       WHERE user_id = ANY(${ids})
+       ORDER BY id
+    `) as unknown as { user_id: number; name: string; keywords: string[] | null }[];
+    for (const row of productRows) {
+      const list = productsBySeller.get(row.user_id) ?? [];
+      list.push({ name: row.name, keywords: row.keywords });
+      productsBySeller.set(row.user_id, list);
+    }
+  }
+
   let avaliados = 0;
   let falhas = 0;
+  let keywordAbusivos = 0;
   let index = 0;
 
   /* ── Token bucket por TEMPO: o 1.º pedido arranca já; cada arranque
@@ -121,9 +152,19 @@ async function runRateSellers() {
         return;
       }
       try {
-        const result = await rateSeller(current.id, current.name, current.role, current.bio);
-        if (result) avaliados += 1;
-        else falhas += 1;
+        const result = await rateSeller(
+          current.id,
+          current.name,
+          current.role,
+          current.bio,
+          productsBySeller.get(current.id)
+        );
+        if (result) {
+          avaliados += 1;
+          if (result.keywordAbuse) keywordAbusivos += 1;
+        } else {
+          falhas += 1;
+        }
       } catch {
         falhas += 1;
       }
@@ -139,6 +180,7 @@ async function runRateSellers() {
     total: sellers.length,
     avaliados,
     falhas,
+    keyword_abusivos: keywordAbusivos,
     processados,
     pendentes: sellers.length - processados,
     ritmo_por_minuto: ratePerMin(),

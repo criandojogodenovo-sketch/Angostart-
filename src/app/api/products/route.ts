@@ -10,6 +10,8 @@ import {
   rateLimit,
 } from '@/lib/security';
 import { isInternalMediaUrl } from '@/lib/payments-manual';
+import { keywordsReady, isUndefinedColumnError, markKeywordsUnavailable } from '@/lib/keywords-db';
+import { parseKeywords, isGenericKeyword, MAX_KEYWORDS } from '@/lib/keywords';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,35 @@ interface ProductInput {
   service_lng?: number | string | null;
   /** URL do PDF do infoproduto (devolvido por /api/products/upload). */
   file_url?: string;
+  /** Fase 15: palavras-chave (string separada por vírgulas ou array). */
+  keywords?: unknown;
+}
+
+/**
+ * Valida e normaliza as keywords do corpo. Devolve o array pronto (ou
+ * `null` quando o campo não foi enviado) — ou um erro 400 para mostrar ao
+ * vendedor. Duplicados são removidos silenciosamente.
+ */
+function parseBodyKeywords(
+  input: unknown
+): { keywords: string[] | null; error?: string } {
+  if (input === undefined || input === null) return { keywords: null };
+  const parsed = parseKeywords(input);
+  if (parsed.invalid.length > 0) {
+    return {
+      keywords: null,
+      error: `Palavras-chave inválidas: ${parsed.invalid
+        .slice(0, 5)
+        .join(', ')} — usa apenas letras, números e hífens (entre 2 e 30 caracteres).`,
+    };
+  }
+  if (parsed.truncated) {
+    return {
+      keywords: null,
+      error: `Máximo de ${MAX_KEYWORDS} palavras-chave — remove as que sobrarem.`,
+    };
+  }
+  return { keywords: parsed.keywords };
 }
 
 /**
@@ -44,14 +75,47 @@ interface ProductInput {
  * ?meu=1 devolve apenas os produtos do vendedor autenticado.
  * Fase 4: catálogo REAL — se o Neon estiver inacessível devolve vazio
  * (nunca produtos de exemplo).
+ *
+ * Fase 15: com a migração de keywords aplicada (keywordsReady()), a busca
+ * ?q= também percorre products.keywords e os produtos cujas keywords
+ * correspondem à pesquisa ficam NO TOPO (ranking boost) — exceto quando a
+ * pesquisa é uma palavra genérica ("barato", "grátis"…), que nunca recebe
+ * prioridade (anti-manipulação).
  */
 export async function GET(request: NextRequest) {
+  try {
+    return await handleGetProducts(request, true);
+  } catch (error) {
+    /* Rede de segurança: coluna keywords em falta (deploy antes da
+       migração) → desativa keywords neste processo e repete SEM elas —
+       o catálogo continua a funcionar normalmente. */
+    if (isUndefinedColumnError(error)) {
+      markKeywordsUnavailable();
+      try {
+        return await handleGetProducts(request, false);
+      } catch (retryError) {
+        console.error('[API /api/products] Erro no retry sem keywords:', retryError);
+        return NextResponse.json({ products: [], source: 'fallback' }, { status: 200 });
+      }
+    }
+    throw error;
+  }
+}
+
+async function handleGetProducts(
+  request: NextRequest,
+  withKeywords: boolean
+): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const q = searchParams.get('q')?.trim();
   const featured = searchParams.get('featured');
   const hot = searchParams.get('hot') === '1';
   const mine = searchParams.get('meu') === '1';
+
+  const kwReady = withKeywords && (await keywordsReady());
+  /* Fragmento de colunas extra (vazio quando a migração ainda não correu). */
+  const kwSelect = kwReady ? sql`, p.keywords` : sql``;
 
   // Catálogo do vendedor autenticado (perfil → "Os meus produtos")
   if (mine) {
@@ -65,7 +129,7 @@ export async function GET(request: NextRequest) {
     try {
       const rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, p.stock, p.user_id, p.file_url${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
@@ -89,7 +153,7 @@ export async function GET(request: NextRequest) {
     if (type && isProductType(type)) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
@@ -101,7 +165,7 @@ export async function GET(request: NextRequest) {
     } else if (hot) {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
@@ -112,21 +176,30 @@ export async function GET(request: NextRequest) {
       `) as unknown as Product[];
     } else if (q) {
       const like = `%${q}%`;
+      /* Fase 15: busca também nas keywords + prioridade a quem as tem.
+         Palavras genéricas nunca recebem o boost (anti-manipulação). */
+      const kwSearch = kwReady
+        ? sql`OR EXISTS (SELECT 1 FROM unnest(p.keywords) k WHERE k ILIKE ${like})`
+        : sql``;
+      const kwBoost =
+        kwReady && !isGenericKeyword(q)
+          ? sql`(CASE WHEN EXISTS (SELECT 1 FROM unnest(p.keywords) k WHERE k ILIKE ${like}) THEN 1 ELSE 0 END) DESC, `
+          : sql``;
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
         LEFT JOIN users u ON u.id = p.user_id
         LEFT JOIN stores s ON s.owner_id = p.user_id
-        WHERE p.name ILIKE ${like} OR p.description ILIKE ${like}
-        ORDER BY p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
+        WHERE p.name ILIKE ${like} OR p.description ILIKE ${like} ${kwSearch}
+        ORDER BY ${kwBoost}p.is_hot DESC, p.featured DESC, p.created_at DESC, p.id DESC
       `) as unknown as Product[];
     } else if (featured === '1') {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
@@ -138,7 +211,7 @@ export async function GET(request: NextRequest) {
     } else {
       rows = (await sql`
         SELECT p.id, p.name, p.description, p.price_kz, p.type, p.icon, p.gradient, p.image_url,
-               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id,
+               p.featured::boolean, p.is_hot::boolean, p.rating::float8, (COALESCE(p.stock, -1) <> 0)::boolean AS available, p.user_id${kwSelect},
                u.name AS seller_name, u.role AS seller_role, u.is_verified_bi::boolean AS seller_verified,
                u.username AS seller_username, s.slug AS store_slug
         FROM products p
@@ -151,13 +224,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ products: rows, source: 'neon' });
   } catch (error) {
     console.error('[API /api/products] Erro no Neon:', error);
-
-    // BD indisponível — catálogo REAL: devolvemos vazio em vez de dados
-    // de exemplo, para nunca anunciar produtos que não existem.
-    return NextResponse.json(
-      { products: [], source: 'fallback' },
-      { status: 200 }
-    );
+    throw error;
   }
 }
 
@@ -304,24 +371,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* Fase 15: keywords opcionais (até 10; validação anti-spam). */
+  const kwParsed = parseBodyKeywords(body.keywords);
+  if (kwParsed.error) {
+    return NextResponse.json({ error: kwParsed.error }, { status: 400 });
+  }
+  const keywords = kwParsed.keywords ?? [];
+
   try {
-    /* Fase 11: rating nasce NULL — "Sem avaliações" até haver reviews
-       reais (o antigo 4.5 por omissão fazia novos produtos parecerem
-       avaliados — bug corrigido). */
-    const inserted = (await sql`
-      INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng, file_url)
-      VALUES (
-        ${name}, ${description}, ${priceKz}, ${type},
-        ${defaultIconFor(type)}, ${defaultGradientFor(type)},
-        ${imageUrl}, ${user.id}, FALSE, NULL,
-        ${type === 'produto_fisico' ? 1 : -1},
-        ${type === 'servico_domicilio' ? serviceLat : null},
-        ${type === 'servico_domicilio' ? serviceLng : null},
-        ${type === 'infoproduto' ? fileUrl : null}
-      )
-      RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
-                featured::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url
-    `) as unknown as Product[];
+    try {
+      const inserted = await insertProduct({
+        name, description, priceKz, type, imageUrl, user, serviceLat, serviceLng,
+        fileUrl, keywords,
+        withKeywords: await keywordsReady(),
+      });
 
     // Gamificação (Fase 7): selo «Criador de Infoprodutos» a partir de 5
     if (inserted[0]?.user_id) {
@@ -344,6 +407,19 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ product: inserted[0] }, { status: 201 });
+    } catch (error) {
+      /* Deploy antes da migração → repete uma vez SEM as colunas novas. */
+      if (isUndefinedColumnError(error)) {
+        markKeywordsUnavailable();
+        const inserted = await insertProduct({
+          name, description, priceKz, type, imageUrl, user, serviceLat, serviceLng,
+          fileUrl, keywords,
+          withKeywords: false,
+        });
+        return NextResponse.json({ product: inserted[0] }, { status: 201 });
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('[API /api/products] Erro ao inserir:', error);
     return NextResponse.json(
@@ -351,6 +427,47 @@ export async function POST(request: NextRequest) {
       { status: 503 }
     );
   }
+}
+
+interface InsertProductArgs {
+  name: string;
+  description: string;
+  priceKz: number;
+  type: string;
+  imageUrl: string | null;
+  user: { id: number };
+  serviceLat: number | null;
+  serviceLng: number | null;
+  fileUrl: string | null;
+  keywords: string[];
+  withKeywords: boolean;
+}
+
+/** INSERT de produto — as colunas de keywords entram só quando a migração já correu. */
+async function insertProduct(args: InsertProductArgs): Promise<Product[]> {
+  const { name, description, priceKz, type, imageUrl, user, serviceLat, serviceLng, fileUrl, keywords } = args;
+  const kwReady = args.withKeywords;
+  const kwCols = kwReady ? sql`, keywords` : sql``;
+  const kwVals = kwReady ? sql`, ${keywords}::text[], NOW()` : sql``;
+  const kwReturn = kwReady ? sql`, keywords` : sql``;
+
+  /* Fase 11: rating nasce NULL — "Sem avaliações" até haver reviews
+     reais (o antigo 4.5 por omissão fazia novos produtos parecerem
+     avaliados — bug corrigido). */
+  return (await sql`
+    INSERT INTO products (name, description, price_kz, type, icon, gradient, image_url, user_id, featured, rating, stock, service_lat, service_lng, file_url${kwCols})
+    VALUES (
+      ${name}, ${description}, ${priceKz}, ${type},
+      ${defaultIconFor(type)}, ${defaultGradientFor(type)},
+      ${imageUrl}, ${user.id}, FALSE, NULL,
+      ${type === 'produto_fisico' ? 1 : -1},
+      ${type === 'servico_domicilio' ? serviceLat : null},
+      ${type === 'servico_domicilio' ? serviceLng : null},
+      ${fileUrl}${kwVals}
+    )
+    RETURNING id, name, description, price_kz, type, icon, gradient, image_url,
+              featured::boolean, rating::float8, stock, user_id, service_lat, service_lng, file_url${kwReturn}
+  `) as unknown as Product[];
 }
 
 /* Gradiente/ícone por defeito consoante o tipo (mesmo estilo do catálogo) */

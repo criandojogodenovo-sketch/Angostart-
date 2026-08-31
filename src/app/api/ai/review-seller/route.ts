@@ -3,7 +3,8 @@ import { sql } from '@/lib/db';
 import { getAuthUser, isSellerRole } from '@/lib/auth';
 import { requireAdmin, clientKey, rateLimit, sanitizeText } from '@/lib/security';
 import { aiAvailable } from '@/lib/ai/chat';
-import { analyzeSellerBio, saveSellerRating, type SellerRatingResult } from '@/lib/ai-seller';
+import { analyzeSellerBio, saveSellerRating, type SellerProductInfo, type SellerRatingResult } from '@/lib/ai-seller';
+import { keywordsReady } from '@/lib/keywords-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await analyzeSellerBio(seller.name, seller.role, seller.bio);
+    /* Fase 15: produtos + keywords entram na análise (mesma lógica do cron). */
+    let products: SellerProductInfo[] | undefined;
+    if (await keywordsReady()) {
+      const productRows = (await sql`
+        SELECT name, keywords FROM products WHERE user_id = ${userId} ORDER BY id
+      `) as unknown as { name: string; keywords: string[] | null }[];
+      products = productRows.map((p) => ({ name: p.name, keywords: p.keywords }));
+    }
+
+    const result = await analyzeSellerBio(seller.name, seller.role, seller.bio, products);
     if (!result) {
       return NextResponse.json(
         { error: 'A IA não conseguiu analisar esta bio agora (sem chave ou resposta inválida).', code: 'AI_UNAVAILABLE' },
