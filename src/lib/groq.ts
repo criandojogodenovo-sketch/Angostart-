@@ -6,12 +6,17 @@ import 'server-only';
  * ⚠️ SERVER-ONLY: `GROQ_API_KEY` nunca chega ao cliente — todas as chamadas
  * passam por aqui (importado apenas por rotas de API e crons).
  *
- * Modelos (configuráveis via env — valores por omissão verificados na Groq):
+ * Modelos (configuráveis via env — valores por omissão estáveis na Groq):
  *  - Chat/texto : GROQ_MODEL_CHAT  (omissão `llama-3.1-8b-instant` — rápido,
  *                 gratuito: ~14.400 req/dia no tier free).
- *  - Visão (VLM): GROQ_MODEL_VISION (omissão `meta-llama/llama-4-scout-17b-16e-instruct`
- *                 — multimodal de produção na Groq; o nome «qwen-3.6-27b» do
- *                 briefing não existe no catálogo da Groq, daí a env var).
+ *  - Visão (VLM): GROQ_MODEL_VISION (omissão `openai/gpt-oss-120b`).
+ *
+ * ⚠️ baseURL: NÃO passar `https://api.groq.com/openai/v1` ao SDK — o groq-sdk
+ * já acrescenta o prefixo `/openai/v1/...` nos seus próprios caminhos internos
+ * (ex.: `/openai/v1/chat/completions`). Passar o prefixo duplicava-o e a Groq
+ * devolvia 404 «Unknown request URL: POST /openai/v1/openai/v1/chat/completions».
+ * Fix: deixar o default do SDK (`https://api.groq.com`) — a base canónica fica
+ * registada em GROQ_BASE_URL apenas para documentação/verificação estática.
  *
  * Design defensivo:
  *  - `groqAvailable()` — as features de IA são OPCIONAIS: sem chave, as rotas
@@ -24,13 +29,13 @@ import 'server-only';
 
 import Groq from 'groq-sdk';
 
-const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
+/** Base canónica da API Groq — o SDK acrescenta `/openai/v1/...` sozinho. */
+const GROQ_BASE_URL = 'https://api.groq.com';
 
 export const GROQ_MODEL_CHAT =
   process.env.GROQ_MODEL_CHAT?.trim() || 'llama-3.1-8b-instant';
 export const GROQ_MODEL_VISION =
-  process.env.GROQ_MODEL_VISION?.trim() ||
-  'meta-llama/llama-4-scout-17b-16e-instruct';
+  process.env.GROQ_MODEL_VISION?.trim() || 'openai/gpt-oss-120b';
 
 /** Timeout por chamada (ms) — chat curto; visão um pouco mais folgada. */
 const CHAT_TIMEOUT_MS = 20_000;
@@ -49,7 +54,9 @@ function groqClient(): Groq {
     throw new Error('GROQ_API_KEY não configurada.');
   }
   if (!client) {
-    client = new Groq({ apiKey, baseURL: GROQ_BASE_URL, maxRetries: 0 });
+    // Sem `baseURL`: o default do SDK (`https://api.groq.com`) é o correto —
+    // os paths internos já contêm `/openai/v1/...`. Ver nota no topo.
+    client = new Groq({ apiKey, maxRetries: 0 });
   }
   return client;
 }
