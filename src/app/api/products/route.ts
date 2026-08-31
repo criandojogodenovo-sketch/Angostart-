@@ -182,10 +182,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 🔒 KYC (Fase 12): vendedor pode vender normalmente enquanto a
-  // verificação está pendente ou nem foi submetida — a publicação só
-  // fica BLOQUEADA quando o admin REJEITA o documento (até nova
-  // submissão). 'verified' dá o selo azul.
+  // 🔒 KYC (Fase 12 + Fase 13): vendedor pode vender normalmente enquanto a
+  // verificação está pendente ou nem foi submetida (dentro da carência de
+  // 30 dias). Publicação BLOQUEADA quando:
+  //  - 'rejected' → admin recusou o documento (até nova submissão);
+  //  - 'overdue'  → (Fase 13) prazo de 30 dias expirou sem documento.
+  // 'verified' dá o selo azul.
   const kycRows = (await sql`
     SELECT kyc_status FROM users WHERE id = ${user.id} LIMIT 1
   `) as unknown as { kyc_status: string | null }[];
@@ -196,6 +198,16 @@ export async function POST(request: NextRequest) {
         error:
           'A tua verificação de identidade foi recusada pela equipa AngoStart — envia um novo documento no Painel de vendas (Verificação de Identidade) para voltar a publicar.',
         code: 'KYC_REJECTED',
+      },
+      { status: 403 }
+    );
+  }
+  if (kycStatus === 'overdue') {
+    return NextResponse.json(
+      {
+        error:
+          'O prazo de 30 dias para verificar a tua identidade expirou — envia a foto do documento no Painel de vendas (Verificação de Identidade) para voltar a publicar. As tuas vendas existentes continuam normais.',
+        code: 'KYC_OVERDUE',
       },
       { status: 403 }
     );

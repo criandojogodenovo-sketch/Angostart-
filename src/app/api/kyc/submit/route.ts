@@ -147,7 +147,12 @@ export async function POST(request: NextRequest) {
           kyc_submitted_at = NOW(),
           kyc_rejection_reason = NULL,
           bi_number = COALESCE(${biRaw}, bi_number),
-          birth_date = COALESCE(${birthRaw}, birth_date)
+          birth_date = COALESCE(${birthRaw}, birth_date),
+          /* Fase 13: documento submetido = carência cumprida — o prazo deixa
+             de correr (o cron nunca marca 'overdue' quem já submeteu) e a
+             marca de aviso é limpa para um ciclo futuro poder reavisar. */
+          kyc_deadline = NULL,
+          kyc_overdue_notified_at = NULL
       WHERE id = ${auth.user.id}
       RETURNING id, kyc_status
     `) as unknown as { id: number; kyc_status: string }[];

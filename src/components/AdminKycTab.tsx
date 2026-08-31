@@ -1,15 +1,19 @@
 'use client';
 
 /**
- * AngoStart — Aba «Verificação de Identidade» do admin (Fase 12).
+ * AngoStart — Aba «Verificação de Identidade» do admin (Fase 12 + Fase 13).
  * KYC orientado a FOTOS: lista vendedores com documento submetido
  * (BI / Passaporte / Cartão de Eleitor), mostra a foto em miniatura
  * (ampliável) e permite Aprovar (selo azul) ou Rejeitar (com motivo
  * — bloqueia publicação até reenvio).
+ * Fase 13 — supervisão: lista vendedores OVERDUE (prazo de 30 dias
+ * expirado sem documento) com ações «Reenviar aviso», «Aceitar
+ * justificação» (reabre prazo de 30 dias e desbloqueia publicação) e
+ * «Bloquear conta» (impede login e vendas).
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Clock, Info, Loader2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Clock, Info, Loader2, RefreshCw, ShieldCheck, ShieldOff, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,10 +41,15 @@ interface KycSeller {
   kyc_submitted_at: string | null;
   kyc_reviewed_at: string | null;
   created_at: string;
+  /* Fase 13 */
+  kyc_deadline: string | null;
+  kyc_overdue_notified_at: string | null;
+  blocked?: boolean;
 }
 
 interface KycStats {
   not_submitted: number;
+  overdue: number;
   sem_data_nascimento: number;
 }
 
@@ -53,9 +62,10 @@ const ROLE_LABEL: Record<string, string> = {
 export default function AdminKycTab() {
   const { toast } = useToast();
   const [pending, setPending] = useState<KycSeller[]>([]);
+  const [overdue, setOverdue] = useState<KycSeller[]>([]);
   const [verified, setVerified] = useState<KycSeller[]>([]);
   const [rejected, setRejected] = useState<KycSeller[]>([]);
-  const [stats, setStats] = useState<KycStats>({ not_submitted: 0, sem_data_nascimento: 0 });
+  const [stats, setStats] = useState<KycStats>({ not_submitted: 0, overdue: 0, sem_data_nascimento: 0 });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [preview, setPreview] = useState<{ src: string; name: string } | null>(null);
@@ -69,16 +79,18 @@ export default function AdminKycTab() {
       const res = await fetch('/api/admin/kyc', { headers: authHeaders(), cache: 'no-store' });
       const data = (await res.json()) as {
         pending?: KycSeller[];
+        overdue?: KycSeller[];
         verified?: KycSeller[];
         rejected?: KycSeller[];
         stats?: KycStats;
       };
       if (res.ok) {
         setPending(data.pending ?? []);
+        setOverdue(data.overdue ?? []);
         setVerified(data.verified ?? []);
         setRejected(data.rejected ?? []);
         setStats(
-          data.stats ?? { not_submitted: 0, sem_data_nascimento: 0 }
+          data.stats ?? { not_submitted: 0, overdue: 0, sem_data_nascimento: 0 }
         );
       }
     } catch {
@@ -92,7 +104,11 @@ export default function AdminKycTab() {
     load();
   }, [load]);
 
-  async function decide(userId: number, action: 'aprovar' | 'rejeitar', note?: string) {
+  async function decide(
+    userId: number,
+    action: 'aprovar' | 'rejeitar' | 'avisar' | 'aceitar_justificacao' | 'bloquear',
+    note?: string
+  ) {
     setBusyId(userId);
     try {
       const res = await fetch('/api/admin/kyc', {
@@ -103,19 +119,20 @@ export default function AdminKycTab() {
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
         toast({
-          title: `Não foi possível ${action}`,
+          title: 'Ação não concluída',
           description: data.error,
           variant: 'destructive',
         });
         return;
       }
-      toast({
-        title: action === 'aprovar' ? 'Documento aprovado ✓' : 'Documento recusado',
-        description:
-          action === 'aprovar'
-            ? 'O vendedor já tem o selo azul.'
-            : 'Publicação bloqueada até reenvio; email enviado com o motivo.',
-      });
+      const sucesso: Record<string, string> = {
+        aprovar: 'Documento aprovado — o vendedor já tem o selo azul.',
+        rejeitar: 'Documento recusado — publicação bloqueada; email enviado com o motivo.',
+        avisar: 'Aviso reenviado — o vendedor recebe novo email e notificação.',
+        aceitar_justificacao: 'Justificação aceite — prazo de 30 dias reaberto e publicação desbloqueada.',
+        bloquear: 'Conta bloqueada — o vendedor não consegue entrar nem vender.',
+      };
+      toast({ title: 'Feito ✓', description: sucesso[action] });
       setRejectId(null);
       setRejectNote('');
       load();
@@ -126,7 +143,7 @@ export default function AdminKycTab() {
     }
   }
 
-  const renderSeller = (s: KycSeller, estado: 'pending' | 'verified' | 'rejected') => (
+  const renderSeller = (s: KycSeller, estado: 'pending' | 'overdue' | 'verified' | 'rejected') => (
     <li key={s.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -134,6 +151,7 @@ export default function AdminKycTab() {
             {s.name}
             {estado === 'verified' && <BadgeCheck className="h-4 w-4 text-sky-500" />}
             {estado === 'rejected' && <XCircle className="h-4 w-4 text-rose-500" />}
+            {estado === 'overdue' && <AlertTriangle className="h-4 w-4 text-orange-500" />}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
             {ROLE_LABEL[s.role] ?? s.role} · {s.email}
@@ -155,10 +173,19 @@ export default function AdminKycTab() {
             {s.kyc_reviewed_at ? ` · revisão em ${formatDateTime(s.kyc_reviewed_at)}` : ''}
           </p>
           {/* Fase 12: alerta de data de nascimento em falta (idade ≥ 15) */}
-          {!s.birth_date && estado === 'pending' && (
+          {!s.birth_date && (estado === 'pending' || estado === 'overdue') && (
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
               <AlertTriangle className="h-3.5 w-3.5" /> Sem data de nascimento — pede ao vendedor
               (idade mínima 15 anos) durante a revisão.
+            </p>
+          )}
+          {estado === 'overdue' && (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-700">
+              <Clock className="h-3.5 w-3.5" /> Prazo expirado em{' '}
+              {s.kyc_deadline ? formatDateTime(s.kyc_deadline) : '—'}
+              {s.kyc_overdue_notified_at
+                ? ` · aviso enviado em ${formatDateTime(s.kyc_overdue_notified_at)}`
+                : ' · sem aviso registado'}
             </p>
           )}
           {estado === 'rejected' && s.kyc_rejection_reason && (
@@ -263,6 +290,68 @@ export default function AdminKycTab() {
               </Button>
             </div>
           )}
+          {/* Fase 13: ações de supervisão para vendedores com prazo expirado */}
+          {estado === 'overdue' && (
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busyId === s.id}
+                  onClick={() => decide(s.id, 'avisar')}
+                  className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  {busyId === s.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Reenviar aviso
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busyId === s.id}
+                  onClick={() => decide(s.id, 'aceitar_justificacao')}
+                  className="h-8 bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                >
+                  {busyId === s.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Aceitar justificação
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busyId === s.id}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Bloquear a conta de ${s.name}? Deixa de conseguir entrar e vender (reversível na gestão de utilizadores).`
+                      )
+                    ) {
+                      decide(s.id, 'bloquear');
+                    }
+                  }}
+                  className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                >
+                  {busyId === s.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldOff className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Bloquear conta
+                </Button>
+              </div>
+              {s.kyc_document_url && (
+                <p className="text-[11px] text-slate-400">
+                  Este vendedor tem documento submetido — podes aprovar ou recusar na fila
+                  correspondente após nova submissão.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </li>
@@ -284,12 +373,15 @@ export default function AdminKycTab() {
         </Button>
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        Vendedores podem vender sem verificação — aprovar dá o selo azul; recusar bloqueia a
-        publicação de novos produtos até reenvio.
+        Vendedores podem vender sem verificação dentro da carência de 30 dias — aprovar dá o selo
+        azul; recusar ou prazo expirado bloqueia a publicação de novos produtos até reenvio.
       </p>
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
           <Info className="h-3.5 w-3.5" /> {stats.not_submitted} sem documento submetido
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 font-semibold text-orange-700">
+          <AlertTriangle className="h-3.5 w-3.5" /> {stats.overdue} com prazo expirado (30 dias)
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
           <AlertTriangle className="h-3.5 w-3.5" /> {stats.sem_data_nascimento} sem data de
@@ -312,6 +404,20 @@ export default function AdminKycTab() {
             </p>
           ) : (
             <ul className="mt-2 space-y-3">{pending.map((s) => renderSeller(s, 'pending'))}</ul>
+          )}
+
+          {/* Fase 13: fila de supervisão — prazo de 30 dias expirado sem documento */}
+          <h3 className="mt-6 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-orange-600">
+            <AlertTriangle className="h-4 w-4" /> Em supervisão — prazo expirado ({overdue.length})
+          </h3>
+          {overdue.length === 0 ? (
+            <p className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
+              Nenhum vendedor excedeu o prazo de 30 dias.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-3 border-l-4 border-orange-300 pl-3">
+              {overdue.map((s) => renderSeller(s, 'overdue'))}
+            </ul>
           )}
 
           <h3 className="mt-6 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-rose-600">

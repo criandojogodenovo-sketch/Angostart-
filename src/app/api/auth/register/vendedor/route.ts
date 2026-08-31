@@ -38,6 +38,9 @@ export const dynamic = 'force-dynamic';
  *  chega após a aprovação do admin. Senha forte obrigatória. Loja
  *  virtual criada automaticamente. ref_code opcional (código de afiliado
  *  que indicou a conta).
+ * Fase 13 — carência de 30 dias: kyc_deadline = NOW() + 30 dias (a partir
+ *  da criação da conta). Dentro do prazo vende normalmente; expirado sem
+ *  documento → 'overdue' (via cron diário) e não publica novos produtos.
  */
 export async function POST(request: NextRequest) {
   let body: {
@@ -243,11 +246,16 @@ export async function POST(request: NextRequest) {
 
     const inserted = (await sql`
       INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url,
-                         bi_number, birth_date, kyc_status, kyc_document_url, kyc_document_type, kyc_submitted_at, is_verified_bi, signup_ip, referred_by)
+                         bi_number, birth_date, kyc_status, kyc_document_url, kyc_document_type, kyc_submitted_at, is_verified_bi, signup_ip, referred_by,
+                         kyc_deadline)
       VALUES (
         ${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone},
         ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl},
-        ${biRaw || null}, ${birthRaw || null}, ${kycStatus}, ${kycDocUrlRaw || null}, ${kycDocType}, ${kycDocUrlRaw ? new Date().toISOString() : null}, FALSE, ${getRequestIp(request)}, ${referredBy}
+        ${biRaw || null}, ${birthRaw || null}, ${kycStatus}, ${kycDocUrlRaw || null}, ${kycDocType}, ${kycDocUrlRaw ? new Date().toISOString() : null}, FALSE, ${getRequestIp(request)}, ${referredBy},
+        /* Fase 13: carência de 30 dias para verificar a identidade
+           (conta a partir da criação; 'pending' por submissão posterior via
+           /api/kyc/submit limpa o prazo — carência cumprida). */
+        NOW() + INTERVAL '30 days'
       )
       RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean, kyc_status, is_verified_bi::boolean
     `) as unknown as UserRow[];

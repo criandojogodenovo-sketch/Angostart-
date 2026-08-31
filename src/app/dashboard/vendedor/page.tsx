@@ -580,18 +580,19 @@ export default function DashboardVendedorPage() {
       {/* Fase 12 — Verificação de Identidade: aviso de estado + cartão KYC.
           Verified → sem aviso (selo azul já ativo). Pending/not_submitted →
           aviso suave «Verifica a tua identidade…». Rejected → aviso vermelho:
-          publicação bloqueada até reenvio do documento. */}
+          publicação bloqueada até reenvio do documento. Fase 13: overdue →
+          aviso vermelho: prazo de 30 dias expirou, publicação bloqueada. */}
       {user && user.kyc_status !== 'verified' && !user.is_verified_bi && (
         <div
           className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 ${
-            user.kyc_status === 'rejected'
+            user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
               ? 'border-rose-300 bg-rose-50'
               : 'border-amber-300 bg-amber-50'
           }`}
           role="status"
         >
           <div className="flex items-start gap-3">
-            {user.kyc_status === 'rejected' ? (
+            {user.kyc_status === 'rejected' || user.kyc_status === 'overdue' ? (
               <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
             ) : (
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
@@ -599,27 +600,37 @@ export default function DashboardVendedorPage() {
             <div>
               <p
                 className={`text-sm font-bold ${
-                  user.kyc_status === 'rejected' ? 'text-rose-800' : 'text-amber-900'
+                  user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
+                    ? 'text-rose-800'
+                    : 'text-amber-900'
                 }`}
               >
                 {user.kyc_status === 'rejected'
                   ? 'Verificação recusada — publicação de novos produtos bloqueada'
-                  : 'Verifica a tua identidade para ganhares mais confiança'}
+                  : user.kyc_status === 'overdue'
+                    ? 'Prazo de 30 dias expirou — publicação de novos produtos bloqueada'
+                    : 'Verifica a tua identidade para ganhares mais confiança'}
               </p>
               <p
                 className={`mt-0.5 text-xs ${
-                  user.kyc_status === 'rejected' ? 'text-rose-700' : 'text-amber-800'
+                  user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
+                    ? 'text-rose-700'
+                    : 'text-amber-800'
                 }`}
               >
                 {user.kyc_status === 'rejected'
                   ? 'Envia um novo documento (BI, Passaporte ou Cartão de Eleitor) abaixo — a publicação desbloqueia após envio.'
-                  : 'Podes vender já; com o documento aprovado ganhas o selo azul de vendedor verificado.'}
+                  : user.kyc_status === 'overdue'
+                    ? 'O prazo de 30 dias terminou sem documento. Envia a foto do documento abaixo — a publicação desbloqueia após envio (as vendas existentes continuam).'
+                    : 'Podes vender já; com o documento aprovado ganhas o selo azul de vendedor verificado.'}
               </p>
             </div>
           </div>
           <BadgeCheck
             className={`h-6 w-6 shrink-0 ${
-              user.kyc_status === 'rejected' ? 'text-rose-300' : 'text-amber-300'
+              user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
+                ? 'text-rose-300'
+                : 'text-amber-300'
             }`}
           />
         </div>

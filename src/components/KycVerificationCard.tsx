@@ -1,12 +1,14 @@
 'use client';
 
 /**
- * AngoStart — Cartão «Verificação de Identidade» (Fase 12).
+ * AngoStart — Cartão «Verificação de Identidade» (Fase 12 + Fase 13).
  *
- * KYC flexível orientado a FOTOS:
- *  - not_submitted → CTA de upload («Verifica a tua identidade…»); pode vender.
+ * KYC flexível orientado a FOTOS com carência de 30 dias:
+ *  - not_submitted → CTA de upload + countdown «Faltam X dias»; pode vender.
  *  - pending       → documento em análise; pode vender; selo após aprovação.
  *  - verified      → selo azul ativo.
+ *  - overdue       → (Fase 13) prazo de 30 dias expirou sem documento →
+ *                    publicação bloqueada + upload obrigatório para desbloquear.
  *  - rejected      → motivo + upload obrigatório de NOVO documento
  *                    (publicação de novos produtos bloqueada até reenvio).
  *
@@ -16,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Clock, Info, Loader2, ShieldAlert, Upload, XCircle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Clock, Info, Loader2, ShieldAlert, Upload, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +31,7 @@ import {
   KYC_DOCUMENT_TYPE_LABELS,
   KYC_FILE_ACCEPT,
   KYC_MAX_FILE_MB,
+  kycDaysLeft,
   type KycDocumentType,
 } from '@/lib/kyc';
 
@@ -41,6 +44,8 @@ interface KycState {
   kyc_document_type: string | null;
   kyc_rejection_reason: string | null;
   kyc_submitted_at: string | null;
+  /** Fase 13: prazo da carência (ISO) — countdown no cartão. */
+  kyc_deadline: string | null;
 }
 
 export default function KycVerificationCard({
@@ -183,9 +188,13 @@ export default function KycVerificationCard({
   const status = kyc.kyc_status ?? user.kyc_status ?? 'not_submitted';
   const verified = status === 'verified' || kyc.is_verified_bi === true;
   const rejected = status === 'rejected';
-  const pending = !verified && !rejected && status === 'pending';
+  const overdue = status === 'overdue'; /* Fase 13: prazo expirado */
+  const pending = !verified && !rejected && !overdue && status === 'pending';
   /* not_submitted (ou estado desconhecido) → pode submeter documento */
   const podeSubmeter = !verified && !pending;
+
+  /* Fase 13: countdown da carência (mostrado enquanto houver prazo ativo) */
+  const diasRestantes = kycDaysLeft(kyc.kyc_deadline ?? null);
 
   return (
     <div
@@ -216,6 +225,17 @@ export default function KycVerificationCard({
             Envia um novo documento abaixo para desbloquear a publicação.
           </p>
         </div>
+      ) : overdue ? (
+        <div className="mt-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="h-4 w-4" /> Prazo de 30 dias expirado — publicação de novos
+            produtos bloqueada.
+          </p>
+          <p className="mt-1 text-rose-600">
+            As tuas vendas existentes continuam normais. Envia a foto do teu documento abaixo para
+            desbloqueares a publicação de imediato — a conta é reavaliada pela equipa.
+          </p>
+        </div>
       ) : pending ? (
         <p className="mt-2 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-700">
           <Clock className="h-4 w-4" /> Documento em análise pela equipa — podes continuar a vender
@@ -229,6 +249,23 @@ export default function KycVerificationCard({
             confiança.</span> Podes vender já sem verificação, mas o selo azul só aparece depois de
             aprovarmos a foto do teu documento (BI, Passaporte ou Cartão de Eleitor).
           </span>
+        </p>
+      )}
+
+      {/* Fase 13: contador regressivo da carência (prazo ativo, ainda não expirado) */}
+      {!verified && diasRestantes !== null && !overdue && (
+        <p
+          className={`mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+            diasRestantes <= 7
+              ? 'bg-rose-50 text-rose-700'
+              : 'bg-slate-50 text-slate-600'
+          }`}
+          role="timer"
+        >
+          <Clock className="h-4 w-4 shrink-0" />
+          {diasRestantes > 0
+            ? `Faltam ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'} para enviares os documentos`
+            : 'O prazo termina hoje — envia o documento ainda hoje'}
         </p>
       )}
 
@@ -343,7 +380,7 @@ export default function KycVerificationCard({
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A enviar…
               </>
-            ) : rejected ? (
+            ) : rejected || overdue ? (
               'Reenviar documento'
             ) : (
               'Enviar para verificação'

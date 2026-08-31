@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/perfil/kyc — estado de verificação do utilizador autenticado
- * (documento KYC, BI mascarado, estado, motivo de rejeição). Usado pelo
- * cartão «Verificação de Identidade» do perfil e do Painel de vendas
- * (Fase 9 + Fase 12).
+ * (documento KYC, BI mascarado, estado, motivo de rejeição, prazo da
+ * carência de 30 dias). Usado pelo cartão «Verificação de Identidade» do
+ * perfil e do Painel de vendas (Fase 9 + Fase 12 + Fase 13).
  */
 export async function GET(request: NextRequest) {
   const auth = await requireRole(request);
@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
       SELECT bi_number, nif_number, bi_document_url,
              kyc_status, is_verified_bi::boolean,
              kyc_document_url, kyc_document_type,
-             kyc_rejection_reason, kyc_submitted_at
+             kyc_rejection_reason, kyc_submitted_at,
+             kyc_deadline
       FROM users WHERE id = ${auth.user.id} LIMIT 1
     `) as unknown as {
       bi_number: string | null;
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       kyc_document_type: string | null;
       kyc_rejection_reason: string | null;
       kyc_submitted_at: string | null;
+      kyc_deadline: string | null;
     }[];
 
     const row = rows[0];
@@ -52,6 +54,8 @@ export async function GET(request: NextRequest) {
       nif_number: row?.nif_number ?? null,
       kyc_status: row?.kyc_status ?? 'none',
       is_verified_bi: Boolean(row?.is_verified_bi),
+      /* Fase 13: prazo da carência (ISO) — o cartão mostra o countdown. */
+      kyc_deadline: row?.kyc_deadline ?? null,
     });
   } catch (error) {
     console.error('[API perfil/kyc] Erro no GET:', error);

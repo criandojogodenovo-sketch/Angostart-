@@ -381,13 +381,24 @@ function AdicionarProdutoContent() {
       );
       const data = (await res.json()) as { product?: Product; error?: string; code?: string };
       if (!res.ok) {
-        // 🔒 KYC (Fase 12): documento recusado → aviso + orienta para o painel;
-        // pendente/sem documento NÃO bloqueia mais (pode vender normalmente).
+        // 🔒 KYC (Fase 12 + 13): documento recusado OU prazo de 30 dias
+        // expirado → aviso + orienta para o painel; pendente/sem documento
+        // dentro da carência NÃO bloqueia (pode vender normalmente).
         if (data.code === 'KYC_REJECTED') {
           toast({
             title: 'Publicação bloqueada — verificação recusada',
             description:
               'Envia um novo documento no Painel de vendas → Verificação de Identidade para voltar a publicar.',
+            variant: 'destructive',
+          });
+          router.push('/dashboard/vendedor');
+          return;
+        }
+        if (data.code === 'KYC_OVERDUE') {
+          toast({
+            title: 'Publicação bloqueada — prazo de verificação expirou',
+            description:
+              'O prazo de 30 dias terminou sem documento. Envia a foto do teu documento no Painel de vendas → Verificação de Identidade para desbloquear.',
             variant: 'destructive',
           });
           router.push('/dashboard/vendedor');
