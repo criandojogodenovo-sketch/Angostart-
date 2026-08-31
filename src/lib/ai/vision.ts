@@ -4,6 +4,7 @@ import 'server-only';
  * AngoStart — Fase 14b: visão (VLM) com cadeia de fallback.
  *
  * Cadeia de VISÃO (só providers multimodais e com chave):
+ *   B.AI (deepseek-v4-flash-vision-exp) →
  *   OpenRouter (google/gemma-4-31b-it:free) →
  *   Gemini (gemini-2.5-flash) →
  *   Groq (llama-4-scout)

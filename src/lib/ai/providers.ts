@@ -7,17 +7,21 @@ import 'server-only';
  * indisponível de um único fornecedor. Custo zero (planos gratuitos).
  *
  * CADEIA DE FALLBACK (ordem de prioridade, definida pelo CTO):
+ *   0. bai          — B.AI (gateway unificado estilo Z.ai): UMA chave, OpenAI-
+ *                     compat, modelos flagship gratuitos (glm-5.3-flash,
+ *                     deepseek-v4-flash; visão: deepseek-v4-flash-vision-exp).
+ *                     PRINCIPAL — se responder, nada mais é chamado.
  *   1. openrouter  — 18 modelos :free (50 req/dia; 1000/dia com ≥10 créditos
  *                    na conta; 20 req/min). Texto E visão (:free com imagem).
  *   2. gemini      — endpoint OpenAI-compat do Google (texto E visão;
- *                    free tier reduzido em 2025-26 — fica em 2.º lugar a
- *                    absorver picos de visão quando a OpenRouter falha).
+ *                    free tier reduzido em 2025-26 — fica em 3.º lugar a
+ *                    absorver picos de visão quando bai/openrouter falham).
  *   3. groq        — ~14.400 req/dia no tier free (texto E visão).
  *   4. cerebras    — free trial (texto; catálogo podado, ~5 req/min).
  *   5. sambanova   — texto (Llama 3.3 70B; free tier migrado para créditos).
  *
  * O sistema funciona com QUALQUER subconjunto de chaves (mínimo 1; com 2+
- * já há redundância real — recomendado: OpenRouter + Gemini).
+ * já há redundância real — recomendado: B_AI_API_KEY + 1 fallback).
  *
  * ⚠️ SERVER-ONLY: nenhuma chave de provider chega ao cliente — este módulo
  * só é importado por rotas de API e crons.
@@ -31,7 +35,8 @@ import 'server-only';
  * saiu do catálogo OpenRouter; a Cerebras podou o free tier em 2026) — TODOS
  * os modelos são overridáveis via env sem novo deploy de código:
  *   OPENROUTER_MODEL_TEXT / OPENROUTER_MODEL_VISION / GEMINI_MODEL /
- *   GROQ_MODEL_CHAT / GROQ_MODEL_VISION / CEREBRAS_MODEL / SAMBANOVA_MODEL
+ *   GROQ_MODEL_CHAT / GROQ_MODEL_VISION / CEREBRAS_MODEL / SAMBANOVA_MODEL /
+ *   B_AI_MODEL_CHAT / B_AI_MODEL_VISION
  *
  * Licenças (uso comercial): modelos open-weight — verificar os termos no
  * Hugging Face antes de uso comercial pesado (Llama Community License,
@@ -79,6 +84,22 @@ function envOr(key: string, fallback: string): string {
  * prioridade global — nada mais precisa ser editado.
  */
 export const PROVIDERS: ProviderConfig[] = [
+  {
+    name: 'bai',
+    label: 'B.AI (principal)',
+    baseURL: 'https://api.b.ai/v1',
+    apiKeyEnv: 'B_AI_API_KEY',
+    // Defaults = modelos gratuitos do catálogo B.AI indicados pelo CTO
+    // (glm-5.3-flash para texto; deepseek-v4-flash-vision-exp para visão).
+    // Endpoint verificado por curl (OpenAI-compat, 401 sem chave). IDs
+    // overridáveis — validar com a chave real em produção; se um ID estiver
+    // errado, a cadeia salta para o provider seguinte.
+    textModel: () => envOr('B_AI_MODEL_CHAT', 'glm-5.3-flash'),
+    visionModel: () => envOr('B_AI_MODEL_VISION', 'deepseek-v4-flash-vision-exp'),
+    jsonMode: true,
+    extraHeaders: () => ({}),
+    timeoutMs: 30_000,
+  },
   {
     name: 'openrouter',
     label: 'OpenRouter (:free)',
@@ -278,8 +299,9 @@ export async function runFallbackChain(
   const chain = configuredProviders(type);
   if (chain.length === 0) {
     console.error(
-      '[lib/ai] nenhum provider configurado — define OPENROUTER_API_KEY, ' +
-        'GEMINI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY ou SAMBANOVA_API_KEY.'
+      '[lib/ai] nenhum provider configurado — define B_AI_API_KEY, ' +
+        'OPENROUTER_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY ' +
+        'ou SAMBANOVA_API_KEY.'
     );
     return null;
   }

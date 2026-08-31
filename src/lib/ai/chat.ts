@@ -4,7 +4,7 @@ import 'server-only';
  * AngoStart — Fase 14b: chamadas de TEXTO com cadeia de fallback.
  *
  * Ordem tentada (providers com chave configurada):
- *   OpenRouter → Gemini → Groq → Cerebras → SambaNova
+ *   B.AI → OpenRouter → Gemini → Groq → Cerebras → SambaNova
  *
  * Contrato (igual ao antigo lib/groq.ts): NUNCA lança — devolve `null`
  * quando a IA não está disponível ou todos os providers falham; o chamador

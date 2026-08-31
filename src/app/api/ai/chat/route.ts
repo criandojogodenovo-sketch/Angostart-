@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/ai/chat — Fase 14: chatbot de suporte AngoStart (IA multi-provider).
  *
- * - Cadeia de fallback: OpenRouter → Gemini → Groq → Cerebras → SambaNova
- *   (lib/ai/chat.ts) — server-only, chaves nunca expostas ao cliente.
+ * - Cadeia de fallback: B.AI → OpenRouter → Gemini → Groq → Cerebras →
+ *   SambaNova (lib/ai/chat.ts) — server-only, chaves nunca expostas ao cliente.
  * - Rate limit: máx. 10 req/min por utilizador (ou IP se anónimo).
  * - Segurança: filtro anti-injeção ANTES do modelo + system prompt
  *   comprometido com a AngoStart (não promete o que não pode, nunca pede
