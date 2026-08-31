@@ -26,6 +26,8 @@ import {
   Package,
   Rocket,
   GraduationCap,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +44,7 @@ import type { Product, ProductType } from '@/lib/products-data';
 import ProductIcon from '@/components/ProductIcon';
 import ServiceMap, { centerForCity } from '@/components/ServiceMap';
 import { MapPin } from 'lucide-react';
+import { parseKeywords, MAX_KEYWORDS } from '@/lib/keywords';
 
 const TYPE_OPTIONS: {
   value: ProductType;
@@ -96,6 +99,8 @@ interface FormState {
   service_lat: number | null;
   service_lng: number | null;
   file_url: string;
+  /** Fase 15: palavras-chave separadas por vírgulas (opcional). */
+  keywords: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -107,6 +112,7 @@ const EMPTY_FORM: FormState = {
   service_lat: null,
   service_lng: null,
   file_url: '',
+  keywords: '',
 };
 
 function AdicionarProdutoContent() {
@@ -119,6 +125,11 @@ function AdicionarProdutoContent() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
+
+  /* ── Fase 15b: sugestões de keywords pela IA (botão ✨) ── */
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsSource, setSuggestionsSource] = useState<'ai' | 'heuristica' | null>(null);
 
   /* ── Upload real de foto do produto (Vercel Blob via /api/upload/image) ── */
   const [imageUploading, setImageUploading] = useState(false);
@@ -153,6 +164,7 @@ function AdicionarProdutoContent() {
         service_lng:
           (p as unknown as { service_lng?: number | null }).service_lng ?? null,
         file_url: p.file_url ?? '',
+        keywords: Array.isArray(p.keywords) ? p.keywords.join(', ') : '',
       });
     } catch (error) {
       toast({
@@ -342,11 +354,104 @@ function AdicionarProdutoContent() {
     }
   }
 
+  /**
+   * Fase 15b: pede sugestões de keywords à IA (endpoint server-side — a
+   * chave nunca chega ao cliente). Em caso de falha mostra aviso amigável
+   * e o formulário continua manual (nunca bloqueia).
+   */
+  async function handleSuggestKeywords() {
+    if (suggesting) return;
+    if (form.name.trim().length < 3 || form.description.trim().length < 10) {
+      toast({
+        title: 'Falta conteúdo',
+        description: 'Escreve primeiro o nome e a descrição do produto.',
+      });
+      return;
+    }
+    setSuggesting(true);
+    try {
+      const res = await fetch('/api/ai/suggest-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ title: form.name, description: form.description }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        keywords?: string[];
+        source?: 'ai' | 'heuristica';
+        error?: string;
+      };
+      if (!res.ok || !data.ok || !Array.isArray(data.keywords)) {
+        toast({
+          title: 'Sugestões indisponíveis agora',
+          description: data.error || 'Podes escrever as palavras-chave manualmente.',
+        });
+        return;
+      }
+      if (data.keywords.length === 0) {
+        toast({
+          title: 'Sem sugestões para este texto',
+          description: 'Tenta descrever melhor o produto ou escreve as keywords tu mesmo.',
+        });
+        return;
+      }
+      setSuggestions(data.keywords);
+      setSuggestionsSource(data.source ?? 'ai');
+      toast({
+        title: `${data.keywords.length} sugestões prontas ✓`,
+        description:
+          data.source === 'heuristica'
+            ? 'IA indisponível — sugestões automáticas offline. Toca numa sugestão para a usar.'
+            : 'Toca numa sugestão para a adicionar ou escreve as tuas.',
+      });
+    } catch {
+      toast({
+        title: 'Sugestões indisponíveis agora',
+        description: 'Verifica a ligação — ou preenche as palavras-chave manualmente.',
+      });
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  /** Adiciona uma sugestão ao campo (respeitando o máximo e dedupe). */
+  function addSuggestion(kw: string) {
+    const current = parseKeywords(form.keywords);
+    if (current.keywords.some((k) => k.toLowerCase() === kw.toLowerCase())) {
+      setSuggestions((prev) => prev.filter((s) => s !== kw));
+      return;
+    }
+    if (current.keywords.length >= MAX_KEYWORDS) {
+      toast({
+        title: 'Máximo de 10 palavras-chave',
+        description: 'Remove uma antes de adicionar outra.',
+      });
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      keywords: prev.keywords.trim()
+        ? `${prev.keywords.replace(/,\s*$/, '')}, ${kw}`
+        : kw,
+    }));
+    setSuggestions((prev) => prev.filter((s) => s !== kw));
+  }
+
+  /** Usa TODAS as sugestões por cima do campo atual (dedupe incluído). */
+  function useAllSuggestions() {
+    const merged = parseKeywords(
+      [...parseKeywords(form.keywords).keywords, ...suggestions].join(',')
+    );
+    setForm((prev) => ({ ...prev, keywords: merged.keywords.join(', ') }));
+    setSuggestions([]);
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (submitting) return;
     setSubmitting(true);
 
+    const parsedKeywords = parseKeywords(form.keywords);
     const payload = {
       name: form.name,
       description: form.description,
@@ -356,7 +461,21 @@ function AdicionarProdutoContent() {
       service_lat: form.type === 'servico_domicilio' ? form.service_lat : null,
       service_lng: form.type === 'servico_domicilio' ? form.service_lng : null,
       file_url: form.type === 'infoproduto' && form.file_url ? form.file_url : undefined,
+      keywords: parsedKeywords.keywords,
     };
+
+    /* Fase 15: validação leve no cliente (a API revalida autoritativamente).
+       Avisar cedo evita o vendedor perder o preenchimento no erro 400. */
+    if (parsedKeywords.truncated || parsedKeywords.invalid.length > 0) {
+      toast({
+        title: 'Palavras-chave inválidas',
+        description: parsedKeywords.truncated
+          ? `Usa no máximo ${MAX_KEYWORDS} palavras-chave.`
+          : `Revisa: ${parsedKeywords.invalid.slice(0, 3).join(', ')} — apenas letras, números e hífens (2-30 caracteres).`,
+      });
+      setSubmitting(false);
+      return;
+    }
 
     if (
       form.type === 'servico_domicilio' &&
@@ -480,6 +599,135 @@ function AdicionarProdutoContent() {
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 required
               />
+            </div>
+
+            {/* Fase 15: palavras-chave de busca (opcional) + sugestões IA */}
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="prod-keywords" className="flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  Palavras-chave{' '}
+                  <span className="font-normal text-slate-400">(opcional)</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSuggestKeywords}
+                  disabled={
+                    suggesting ||
+                    form.name.trim().length < 3 ||
+                    form.description.trim().length < 10
+                  }
+                  className="h-8 border-amber-400 text-amber-600 hover:bg-amber-50 disabled:opacity-50"
+                >
+                  {suggesting ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {suggesting ? 'A pensar…' : 'Sugerir keywords'}
+                </Button>
+              </div>
+              <Input
+                id="prod-keywords"
+                type="text"
+                placeholder="ex: design, ebook, marketing digital"
+                value={form.keywords}
+                onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+                className="h-11 bg-white"
+                autoComplete="off"
+              />
+              {(() => {
+                const parsed = parseKeywords(form.keywords);
+                if (parsed.keywords.length === 0) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-1">
+                    {parsed.keywords.map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            keywords: parsed.keywords
+                              .filter((x) => x !== k)
+                              .join(', '),
+                          }))
+                        }
+                        className="group inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-rose-50 hover:text-rose-600 hover:ring-rose-200"
+                        title="Remover"
+                      >
+                        {k}
+                        <X className="h-3 w-3 opacity-40 group-hover:opacity-100" />
+                      </button>
+                    ))}
+                    <span className="ml-1 text-[11px] font-semibold text-slate-400">
+                      {parsed.keywords.length}/{MAX_KEYWORDS}
+                    </span>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const parsed = parseKeywords(form.keywords);
+                if (parsed.invalid.length === 0 && !parsed.truncated) return null;
+                return (
+                  <p className="text-xs font-medium text-rose-500">
+                    {parsed.truncated
+                      ? `Máximo de ${MAX_KEYWORDS} palavras-chave.`
+                      : `Inválidas: ${parsed.invalid.slice(0, 3).join(', ')} — usa apenas letras, números e hífens (2-30 caracteres).`}
+                  </p>
+                );
+              })()}
+              <p className="text-xs text-slate-500">
+                Até {MAX_KEYWORDS} palavras separadas por vírgulas — ajudam os
+                clientes a encontrar o teu produto na busca. Palavras que não
+                correspondem ao produto são detetadas pela IA e reduzem a nota
+                do teu perfil.
+              </p>
+
+              {/* Chips de sugestão da IA / heurística */}
+              {suggestions.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-amber-700">
+                      {suggestionsSource === 'heuristica'
+                        ? 'Sugestões automáticas (IA offline)'
+                        : 'Sugestões da IA'}
+                      — toca para adicionar:
+                    </p>
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={useAllSuggestions}
+                        className="text-xs font-semibold text-amber-700 underline-offset-2 hover:underline"
+                      >
+                        Usar todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSuggestions([])}
+                        className="text-slate-400 transition-colors hover:text-slate-600"
+                        title="Fechar sugestões"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => addSuggestion(s)}
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-amber-300 transition-colors hover:bg-amber-500 hover:text-white hover:ring-amber-500"
+                      >
+                        <Sparkles className="h-3 w-3" /> {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
