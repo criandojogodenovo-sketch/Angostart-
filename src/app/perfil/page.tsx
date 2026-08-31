@@ -282,6 +282,37 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
       })()
     : null;
 
+  /* ── Correção «Criar conta» desativado: validação EM TEMPO REAL de todos
+     os campos obrigatórios do modo/tipo atual. O botão só fica inativo
+     quando algo está em falta — e a lista abaixo do botão diz exatamente
+     o quê. A foto do documento (KYC) NÃO entra aqui: é opcional desde a
+     Fase 12 e nunca bloqueia a criação da conta. */
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  const camposEmFalta: string[] = [];
+  if (isRegisto) {
+    if (!form.name.trim()) camposEmFalta.push('nome');
+    if (!emailOk) camposEmFalta.push('email válido');
+    if (!form.telefone.trim()) camposEmFalta.push('telefone');
+    if (!senhaValida) camposEmFalta.push('palavra-passe forte');
+    if (!isClient) {
+      if (form.role === 'criador' && !form.bio.trim()) camposEmFalta.push('biografia');
+      if (form.role === 'prestador_domicilio') {
+        if (!form.area_atuacao.trim()) camposEmFalta.push('área de atuação');
+        if (!form.cidade.trim()) camposEmFalta.push('cidade');
+      }
+      if (form.role === 'prestador_remoto' && !form.especialidade.trim()) {
+        camposEmFalta.push('especialidade');
+      }
+    }
+  }
+  /* Evita «gritar» com o formulário ainda virgem — só orienta após o
+     utilizador começar a preencher. */
+  const algumPreenchido =
+    form.name.length > 0 ||
+    form.email.length > 0 ||
+    form.password.length > 0 ||
+    form.telefone.length > 0;
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (submitting) return;
@@ -486,14 +517,36 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                       />
                     ))}
                   </div>
+                  {/* Só mostra «média/forte» quando a senha CUMPRE a política —
+                      evita o CONTRA-SENTO de «forte» com botão bloqueado
+                      (ex.: «AnaKiala2024» era forte sem símbolo). */}
                   <span className="w-12 text-right text-xs font-semibold text-slate-500">
-                    {form.password ? forca.label : ''}
+                    {form.password && senhaValida ? forca.label : ''}
                   </span>
                 </div>
+                {/* Checklist em tempo real: diz QUAL regra falta em vez de
+                    uma frase cinzenta que ninguém lia (causa do botão
+                    «sempre desativado»). */}
                 {!senhaValida && form.password.length > 0 && (
-                  <p className="text-xs text-slate-500">
-                    Usa 8+ caracteres com maiúscula, minúscula, número e símbolo (ex.: !@#$%).
-                  </p>
+                  <ul className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 text-xs">
+                    {[
+                      { ok: form.password.length >= 8, label: '8+ caracteres' },
+                      { ok: /[A-Z]/.test(form.password), label: '1 letra maiúscula' },
+                      { ok: /[a-z]/.test(form.password), label: '1 letra minúscula' },
+                      { ok: /[0-9]/.test(form.password), label: '1 número' },
+                      { ok: /[^A-Za-z0-9]/.test(form.password), label: '1 símbolo (!@#$%)' },
+                    ].map((regra) => (
+                      <li
+                        key={regra.label}
+                        className={`flex items-center gap-1 font-medium ${
+                          regra.ok ? 'text-emerald-600' : 'text-slate-400'
+                        }`}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        {regra.label}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             )}
@@ -749,15 +802,22 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
             </>
           )}
 
+          {/* Ativo = MESMA cor vibrante do «Entrar» (amber-500 / emerald-500).
+              Inativo = cinzento INTENCIONAL (não o antigo branco pálido de
+              opacity-50 sobre laranja, que parecia botão partido). */}
           <Button
             type="submit"
-            disabled={submitting || (mode === 'registo' && !senhaValida)}
-            className={`h-12 w-full text-base font-semibold text-white ${
+            disabled={submitting || (isRegisto && camposEmFalta.length > 0)}
+            className={`h-12 w-full text-base font-semibold text-white transition-colors ${
               isClient
                 ? 'bg-emerald-500 hover:bg-emerald-600'
                 : 'bg-amber-500 hover:bg-amber-600'
-            }`}
-            title={mode === 'registo' && !senhaValida ? 'Escolhe uma palavra-passe mais forte para continuar.' : undefined}
+            } disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:opacity-100`}
+            title={
+              isRegisto && camposEmFalta.length > 0
+                ? 'Completa os campos assinalados para continuar.'
+                : undefined
+            }
           >
             {submitting ? (
               'A processar…'
@@ -771,6 +831,13 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
               </>
             )}
           </Button>
+
+          {/* Diz exatamente o que falta — em tempo real. */}
+          {isRegisto && camposEmFalta.length > 0 && algumPreenchido && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800">
+              Para criares a conta falta: {camposEmFalta.join(' · ')}.
+            </p>
+          )}
 
           <p className="text-center text-xs text-slate-400">
             {mode === 'login'
