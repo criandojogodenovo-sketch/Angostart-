@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
+import { uploadFileSmart, safeFileName } from '@/lib/upload-client';
 import {
   PRODUCT_IMAGE_ACCEPT,
   PRODUCT_IMAGE_MAX_BYTES,
@@ -133,11 +134,13 @@ function AdicionarProdutoContent() {
 
   /* ── Upload real de foto do produto (Vercel Blob via /api/upload/image) ── */
   const [imageUploading, setImageUploading] = useState(false);
+  const [imageProgress, setImageProgress] = useState<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Fase 5: PDF de infoproduto + KYC ── */
   /* Fase 6 (ponto 12): BI é OBRIGATÓRIO para publicar; NIF opcional. */
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<number | null>(null);
   const [kycBi, setKycBi] = useState('');
   const [kycNif, setKycNif] = useState('');
   const [kycSaving, setKycSaving] = useState(false);
@@ -243,89 +246,93 @@ function AdicionarProdutoContent() {
 
   /* ─────────── Submissão ─────────── */
 
-  /** Upload real da FOTO do produto (galeria) para o Vercel Blob. */
+  /** Upload real da FOTO do produto — CLIENT-SIDE via Vercel Blob
+   *  (contorna o limite de 4.5 MB de corpo serverless; com retry e
+   *  mensagens de erro claras para redes móveis). */
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
     event.target.value = ''; // permite re-selecionar o mesmo ficheiro
-
-    if (file.type && !(PRODUCT_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
-      toast({
-        title: 'Formato não suportado',
-        description: 'Usa uma foto JPG, PNG ou WebP.',
-      });
-      return;
-    }
-    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
-      toast({
-        title: 'Foto demasiado grande',
-        description: 'O limite é 5 MB — escolhe uma foto mais leve.',
-      });
-      return;
-    }
 
     setImageUploading(true);
-    try {
-      const body = new FormData();
-      body.append('file', file);
-      const res = await fetch('/api/upload/image', {
-        method: 'POST',
-        headers: authHeaders(),
-        body,
-      });
-      const data = (await res.json()) as { ok?: boolean; url?: string; error?: string };
-      if (!res.ok || !data.ok || !data.url) {
-        toast({ title: 'Upload falhou', description: data.error });
-        return;
-      }
-      setForm((prev) => ({ ...prev, image_url: data.url as string }));
+    setImageProgress(null);
+    const result = await uploadFileSmart({
+      file,
+      pathname: `produtos/${user.id}/${safeFileName(file.name, 'produto.jpg')}`,
+      handleUploadUrl: '/api/upload/image',
+      maxBytes: PRODUCT_IMAGE_MAX_BYTES,
+      allowedTypes: PRODUCT_IMAGE_MIME_TYPES,
+      acceptExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      makeUrl: (pathname) => `/api/media/${pathname}`,
+      onProgress: setImageProgress,
+    });
+    setImageUploading(false);
+    setImageProgress(null);
+
+    if (!result.ok) {
       toast({
-        title: 'Foto carregada ✓',
-        description: 'A imagem fica visível no catálogo para todos os clientes.',
+        title:
+          result.kind === 'too-large'
+            ? 'Foto demasiado grande'
+            : result.kind === 'network'
+              ? 'Sem ligação'
+              : result.kind === 'timeout'
+                ? 'O envio demorou demasiado'
+                : 'Upload falhou',
+        description: result.error,
+        variant: 'destructive',
       });
-    } catch {
-      toast({ title: 'Erro de ligação', description: 'Tenta enviar a foto novamente.' });
-    } finally {
-      setImageUploading(false);
+      return;
     }
+
+    setForm((prev) => ({ ...prev, image_url: result.url }));
+    toast({
+      title: 'Foto carregada ✓',
+      description: 'A imagem fica visível no catálogo para todos os clientes.',
+    });
   }
 
-  /** Upload do PDF do infoproduto para o Vercel Blob (Fase 5). */
+  /** Upload do PDF do infoproduto — CLIENT-SIDE via Vercel Blob
+   *  (PDFs de até 20 MB; o corpo nunca passa pela função serverless). */
   async function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
     event.target.value = ''; // permite re-selecionar o mesmo ficheiro
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast({ title: 'Formato inválido', description: 'Seleciona um ficheiro PDF.' });
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      toast({ title: 'PDF demasiado grande', description: 'O limite é 20 MB.' });
+    setPdfUploading(true);
+    setPdfProgress(null);
+    const result = await uploadFileSmart({
+      file,
+      pathname: `ebooks/${user.id}/${safeFileName(file.name, 'infoproduto.pdf')}`,
+      handleUploadUrl: '/api/products/upload',
+      maxBytes: 20 * 1024 * 1024,
+      allowedTypes: ['application/pdf', 'application/x-pdf', ''],
+      acceptExtensions: ['pdf'],
+      makeUrl: (_pathname, blobUrl) => blobUrl, // URL absoluto do blob (segredo server-side)
+      timeoutMs: 180_000, // PDFs grandes precisam de mais tempo
+      onProgress: setPdfProgress,
+    });
+    setPdfUploading(false);
+    setPdfProgress(null);
+
+    if (!result.ok) {
+      toast({
+        title:
+          result.kind === 'too-large'
+            ? 'PDF demasiado grande'
+            : result.kind === 'network'
+              ? 'Sem ligação'
+              : result.kind === 'timeout'
+                ? 'O envio demorou demasiado'
+                : 'Upload falhou',
+        description: result.error,
+        variant: 'destructive',
+      });
       return;
     }
 
-    setPdfUploading(true);
-    try {
-      const body = new FormData();
-      body.append('file', file);
-      const res = await fetch('/api/products/upload', {
-        method: 'POST',
-        headers: authHeaders(),
-        body,
-      });
-      const data = (await res.json()) as { ok?: boolean; url?: string; error?: string };
-      if (!res.ok || !data.ok || !data.url) {
-        toast({ title: 'Upload falhou', description: data.error });
-        return;
-      }
-      setForm((prev) => ({ ...prev, file_url: data.url as string }));
-      toast({ title: 'PDF carregado ✓', description: 'O comprador descarrega após o pagamento confirmado.' });
-    } catch {
-      toast({ title: 'Erro de ligação', description: 'Tenta enviar o PDF novamente.' });
-    } finally {
-      setPdfUploading(false);
-    }
+    setForm((prev) => ({ ...prev, file_url: result.url }));
+    toast({ title: 'PDF carregado ✓', description: 'O comprador descarrega após o pagamento confirmado.' });
   }
 
   /** KYC opcional — BI/NIF para aumentar confiança (Fase 5). */
@@ -787,6 +794,17 @@ function AdicionarProdutoContent() {
                   )}
                   {form.image_url ? 'Substituir foto' : 'Escolher foto'}
                 </label>
+                {imageUploading && imageProgress !== null && (
+                  <div className="flex w-full items-center gap-2">
+                    <div className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
+                        style={{ width: `${imageProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-blue-600">{imageProgress}%</span>
+                  </div>
+                )}
                 <input
                   ref={imageInputRef}
                   id="prod-imagem-upload"
@@ -883,6 +901,17 @@ function AdicionarProdutoContent() {
                     )}
                     {form.file_url ? 'Substituir PDF' : 'Escolher PDF'}
                   </label>
+                  {pdfUploading && pdfProgress !== null && (
+                    <div className="flex w-full items-center gap-2">
+                      <div className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
+                          style={{ width: `${pdfProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-blue-600">{pdfProgress}%</span>
+                    </div>
+                  )}
                   <input
                     id="prod-pdf"
                     type="file"

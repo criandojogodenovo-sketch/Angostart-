@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { authHeaders } from '@/context/AuthContext';
+import { useAuth, authHeaders } from '@/context/AuthContext';
+import { uploadFileSmart, safeFileName } from '@/lib/upload-client';
 
 interface StoreData {
   id: number;
@@ -26,6 +27,7 @@ interface StoreData {
 
 export default function StoreEditorCard() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const logoRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
   const [store, setStore] = useState<StoreData | null>(null);
@@ -59,16 +61,26 @@ export default function StoreEditorCard() {
   }, [load]);
 
   async function uploadImage(file: File, kind: 'logo' | 'banner') {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/upload/image', { method: 'POST', headers: authHeaders(), body: fd });
-    const data = (await res.json()) as { url?: string; error?: string };
-    if (!res.ok || !data.url) {
-      toast({ title: 'Upload falhou', description: data.error ?? 'Tenta outra imagem.', variant: 'destructive' });
+    if (!user?.id) {
+      toast({ title: 'Sessão expirada', description: 'Entra novamente na conta.', variant: 'destructive' });
       return;
     }
-    if (kind === 'logo') setLogoUrl(data.url!);
-    else setBannerUrl(data.url!);
+    // CLIENT-SIDE upload com validação + retry (antes não havia validação nenhuma)
+    const result = await uploadFileSmart({
+      file,
+      pathname: `produtos/${user.id}/${safeFileName(file.name, kind === 'logo' ? 'logo.jpg' : 'banner.jpg')}`,
+      handleUploadUrl: '/api/upload/image',
+      maxBytes: 5 * 1024 * 1024,
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      acceptExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      makeUrl: (pathname) => `/api/media/${pathname}`,
+    });
+    if (!result.ok) {
+      toast({ title: 'Upload falhou', description: result.error, variant: 'destructive' });
+      return;
+    }
+    if (kind === 'logo') setLogoUrl(result.url);
+    else setBannerUrl(result.url);
   }
 
   async function save() {

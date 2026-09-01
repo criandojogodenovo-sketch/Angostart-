@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { authHeaders, type AuthUser } from '@/context/AuthContext';
+import { uploadFileSmart, safeFileName } from '@/lib/upload-client';
 import SecureImage from '@/components/SecureImage';
 import { calcularIdade } from '@/lib/password';
 import {
@@ -96,43 +97,40 @@ export default function KycVerificationCard({
   }, [loadKyc]);
 
   async function pickPhoto(file: File) {
-    if (file.size > KYC_MAX_FILE_MB * 1024 * 1024) {
+    if (!user?.id) return;
+    setUploading(true);
+    // CLIENT-SIDE upload: contorna o limite de 4.5 MB da Vercel, com retry
+    // automático para redes móveis e mensagens de erro claras.
+    const result = await uploadFileSmart({
+      file,
+      pathname: `kyc/${user.id}/${safeFileName(file.name, 'documento.jpg')}`,
+      handleUploadUrl: '/api/kyc/upload',
+      maxBytes: KYC_MAX_FILE_MB * 1024 * 1024,
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      acceptExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      makeUrl: (pathname) => `/api/kyc/document/${pathname.replace(/^kyc\//, '')}`,
+    });
+    setUploading(false);
+
+    if (!result.ok) {
       toast({
-        title: 'Ficheiro demasiado grande',
-        description: `A foto do documento deve ter no máximo ${KYC_MAX_FILE_MB} MB.`,
+        title:
+          result.kind === 'too-large'
+            ? 'Ficheiro demasiado grande'
+            : result.kind === 'network'
+              ? 'Erro de rede no upload'
+              : 'Upload falhou',
+        description: result.error,
         variant: 'destructive',
       });
       return;
     }
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/kyc/upload', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: fd,
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        toast({
-          title: 'Upload falhou',
-          description: data.error ?? 'Tenta outra imagem.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      setPhotoUrl(data.url);
-      setPreviewUrl((old) => {
-        if (old) URL.revokeObjectURL(old);
-        return URL.createObjectURL(file);
-      });
-      toast({ title: 'Foto carregada ✓', description: 'Agora submete para verificação.' });
-    } catch {
-      toast({ title: 'Erro de rede no upload', variant: 'destructive' });
-    } finally {
-      setUploading(false);
-    }
+    setPhotoUrl(result.url);
+    setPreviewUrl((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return URL.createObjectURL(file);
+    });
+    toast({ title: 'Foto carregada ✓', description: 'Agora submete para verificação.' });
   }
 
   async function submit() {

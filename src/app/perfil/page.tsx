@@ -50,10 +50,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { authHeaders, getToken } from '@/context/AuthContext';
+import { uploadFileSmart, safeFileName } from '@/lib/upload-client';
 import ProfileGamificationCard from '@/components/ProfileGamificationCard';
 import MyProposals from '@/components/MyProposals';
 import { MustChangePasswordCard } from '@/components/ProfileSecurityCards';
 import KycVerificationCard from '@/components/KycVerificationCard';
+import ProfilePhotoCard from '@/components/ProfilePhotoCard';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import { validatePassword, passwordStrength } from '@/lib/password';
@@ -358,22 +360,24 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
            (upload + submit) com o token da nova sessão. Não bloqueia a
            criação da conta — em caso de falha, o cartão KYC do dashboard
            permite reenviar. */
-        if (kycFile) {
+        if (kycFile && user?.id) {
           try {
-            const fd = new FormData();
-            fd.append('file', kycFile);
-            const up = await fetch('/api/kyc/upload', {
-              method: 'POST',
-              headers: authHeaders(),
-              body: fd,
+            // CLIENT-SIDE upload (contorna o limite de 4.5 MB da Vercel)
+            const up = await uploadFileSmart({
+              file: kycFile,
+              pathname: `kyc/${user.id}/${safeFileName(kycFile.name, 'documento.jpg')}`,
+              handleUploadUrl: '/api/kyc/upload',
+              maxBytes: 5 * 1024 * 1024,
+              allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+              acceptExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+              makeUrl: (pathname) => `/api/kyc/document/${pathname.replace(/^kyc\//, '')}`,
             });
-            const upData = (await up.json()) as { url?: string; error?: string };
-            if (up.ok && upData.url) {
+            if (up.ok) {
               await fetch('/api/kyc/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({
-                  kyc_document_url: upData.url,
+                  kyc_document_url: up.url,
                   kyc_document_type: kycRegType,
                   bi_number: form.bi_number.trim() || undefined,
                   birth_date: form.birth_date || undefined,
@@ -1032,6 +1036,10 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Fase 9 — segurança: troca de senha obrigatória p/ utilizadores antigos */}
       {user.must_change_password && <MustChangePasswordCard />}
+      {/* Fase 16 — foto de perfil (cliente) */}
+      <div className="mb-6">
+        <ProfilePhotoCard user={user} onUpdated={updateUser} />
+      </div>
       {/* Fase 7 — nível, pontos e notificações push */}
       <div className="mb-6">
         <ProfileGamificationCard />
@@ -1315,6 +1323,10 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
       {/* Fase 12 — KYC flexível: foto do documento, estado e reenvio */}
       {user.must_change_password && <MustChangePasswordCard />}
       <KycVerificationCard user={user} onUpdated={updateUser} />
+      {/* Fase 16 — foto de perfil (vendedor) */}
+      <div className="mt-6">
+        <ProfilePhotoCard user={user} onUpdated={updateUser} />
+      </div>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Vendedor'} />
 
@@ -1454,8 +1466,9 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
 /**
  * Cartão do serviço ao domicílio pago:
- *  - Polling a cada 5 s contra GET /api/orders/[id]/tracking;
- *  - Mapa Leaflet: prestador (azul) + cliente aproximado (vermelho) + ETA;
+ *  - Polling a cada 3 s contra GET /api/orders/[id]/tracking (Fase 16);
+ *  - Mapa Leaflet: prestador (azul) + cliente aproximado (vermelho) + ETA
+ *    + linha de trajeto (história das posições entre polls);
  *  - Botão «Confirmar conclusão» — o ESCROW só é libertado APÓS esta
  *    confirmação do cliente (nunca antes).
  */
@@ -1468,10 +1481,11 @@ function DomicilioServiceCard({
 }) {
   const { toast } = useToast();
   const [tracking, setTracking] = useState<TrackingData | null>(null);
+  const [trail, setTrail] = useState<[number, number][]>([]);
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(order.status === 'entregue');
 
-  /* ── Polling de rastreamento (a cada 5 s) enquanto o pedido está pago ── */
+  /* ── Polling de rastreamento (a cada 3 s) enquanto o pedido está pago ── */
   useEffect(() => {
     if (confirmed) return;
     let active = true;
@@ -1483,13 +1497,28 @@ function DomicilioServiceCard({
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { tracking?: TrackingData } | null) => {
-          if (active && data?.tracking) setTracking(data.tracking);
+          if (active && data?.tracking) {
+            const t = data.tracking;
+            setTracking(t);
+            /* 🧵 Acumula o trajeto do prestador (máx. 60 pontos) — só quando
+               a posição é exata (pós-pagamento) para não desenhar ruído. */
+            if (t.prestador_lat != null && t.prestador_lng != null && !t.provider_fuzzed) {
+              setTrail((prev) => {
+                const last = prev[prev.length - 1];
+                if (last && last[0] === t.prestador_lat && last[1] === t.prestador_lng) {
+                  return prev; // posição repetida — não acumular
+                }
+                const next = [...prev, [t.prestador_lat as number, t.prestador_lng as number] as [number, number]];
+                return next.length > 60 ? next.slice(next.length - 60) : next;
+              });
+            }
+          }
         })
         .catch(() => {});
     };
 
     load();
-    const t = setInterval(load, 5_000);
+    const t = setInterval(load, 3_000);
     return () => {
       active = false;
       clearInterval(t);
@@ -1537,7 +1566,7 @@ function DomicilioServiceCard({
       </p>
 
       <div className="mt-3">
-        <ServiceTrackingMap tracking={tracking} orderId={order.id} />
+        <ServiceTrackingMap tracking={tracking} orderId={order.id} trail={trail} />
       </div>
 
       {!confirmed && !prestadorEnCaminho && (

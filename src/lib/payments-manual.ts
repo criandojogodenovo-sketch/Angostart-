@@ -111,11 +111,11 @@ export const PRODUCT_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
 
 /**
  * Formato do URL interno devolvido por POST /api/upload/image.
- * Servido publicamente por GET /api/media/[...path] (apenas `produtos/`).
+ * Servido publicamente por GET /api/media/[...path] (`produtos/` e `perfil/`).
  * Ex.: /api/media/produtos/12/1735689600000-foto-do-produto.jpg
  */
 export function isInternalMediaUrl(value: string): boolean {
-  return /^\/api\/media\/produtos\/\d+\/\d{13}-[A-Za-z0-9._-]{1,120}$/.test(
+  return /^\/api\/media\/(?:produtos|perfil)\/\d+\/\d{13}-[A-Za-z0-9._-]{1,120}$/.test(
     value
   );
 }
