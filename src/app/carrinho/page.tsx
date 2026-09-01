@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '@/context/StoreContext';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
+import { getProductGradient } from '@/lib/products-data';
 import { getStoredRefCode, getStoredRefData } from '@/components/RefCapture';
 import {
   KWIK_PAYEE_NUMBER,
@@ -740,7 +741,7 @@ export default function CarrinhoPage() {
               className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
               <div
-                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${product.gradient} text-white`}
+                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getProductGradient(product)} text-white`}
               >
                 <ProductIcon name={product.icon} className="h-8 w-8" />
               </div>

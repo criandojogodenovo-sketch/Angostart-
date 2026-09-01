@@ -34,7 +34,7 @@ import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import CommentsSection from '@/components/CommentsSection';
-import { PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-data';
+import { getProductGradient, PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-data';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
 
@@ -338,7 +338,7 @@ export default function ProdutoDetalhePage() {
               />
             ) : (
               <div
-                className={`flex h-72 w-full items-center justify-center bg-gradient-to-br sm:h-96 ${product.gradient}`}
+                className={`flex h-72 w-full items-center justify-center bg-gradient-to-br sm:h-96 ${getProductGradient(product)}`}
               >
                 <ProductIcon name={product.icon} className="h-24 w-24 text-white/90" />
               </div>

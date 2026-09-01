@@ -95,6 +95,37 @@ export const PRODUCT_TYPE_ORDER: ProductType[] = [
   'servico_remoto',
 ];
 
+/**
+ * Fase 19 — gradientes aprovados (identidade azul/roxo/teal).
+ * O `gradient` de cada produto vive na BD e pode ter sido guardado antes do
+ * redesign (ex.: tons esmeralda/verdes). Qualquer valor fora desta whitelist
+ * cai no gradiente do tipo — coesão visual garantida sem migrar dados.
+ */
+const APPROVED_GRADIENTS = new Set<string>([
+  'from-blue-600 to-teal-600', // infoproduto
+  'from-blue-600 to-cyan-500', // produto físico
+  'from-teal-500 to-blue-600', // serviço ao domicílio
+  'from-violet-600 to-purple-500', // serviço remoto
+  'from-blue-600 to-purple-600', // gradiente principal da marca
+]);
+
+/**
+ * Devolve o gradiente seguro para o cabeçalho/ilustração de um produto.
+ * Nunca devolve verde: valores antigos (esmeralda etc.) são substituídos
+ * pelo gradiente do tipo (azul→teal, azul→roxo, …). Aceita `type` como
+ * `string` para servir também payloads de API sem tipagem estrita.
+ */
+export function getProductGradient(
+  product: { gradient?: string | null; type: string },
+): string {
+  const g = (product.gradient ?? '').trim();
+  if (APPROVED_GRADIENTS.has(g)) return g;
+  return (
+    PRODUCT_TYPES[product.type as ProductType]?.gradient ??
+    'from-blue-600 to-purple-600'
+  );
+}
+
 export function isProductType(value: string | null): value is ProductType {
   return !!value && (PRODUCT_TYPE_ORDER as string[]).includes(value);
 }

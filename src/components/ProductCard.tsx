@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Product } from '@/lib/products-data';
-import { PRODUCT_TYPES } from '@/lib/products-data';
+import { getProductGradient, PRODUCT_TYPES } from '@/lib/products-data';
 import { formatKz } from '@/lib/format';
 import { useCart } from '@/context/StoreContext';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
 
   const typeInfo = PRODUCT_TYPES[product.type];
+  // Fase 19: gradiente sempre na paleta azul/roxo/teal — nunca esmeralda da BD
+  const safeGradient = getProductGradient(product);
   // 🔒 Fase 6 (ponto 3): a cota exata é interna — o público vê só disponibilidade
   const outOfStock = product.available === false || product.stock === 0;
 
@@ -49,7 +51,7 @@ export default function ProductCard({ product }: { product: Product }) {
     >
       {/* Cabeçalho ilustrativo — zoom suave no hover (Fase 18) */}
       <div
-        className={`relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04] ${product.gradient}`}
+        className={`relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04] ${safeGradient}`}
       >
         <ProductIcon
           name={product.icon}

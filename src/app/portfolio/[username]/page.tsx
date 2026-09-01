@@ -32,7 +32,7 @@ import ProductIcon from '@/components/ProductIcon';
 import CommentsSection from '@/components/CommentsSection';
 import { Button } from '@/components/ui/button';
 import { formatKz } from '@/lib/format';
-import { PRODUCT_TYPES, type ProductType } from '@/lib/products-data';
+import { getProductGradient, PRODUCT_TYPES, type ProductType } from '@/lib/products-data';
 
 interface PortfolioItem {
   id: number;
@@ -340,7 +340,7 @@ export default function PortfolioPublicoPage() {
                   href={`/produtos/${product.id}`}
                   className="block h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className={`flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${product.gradient} text-white`}>
+                  <div className={`flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${getProductGradient(product)} text-white`}>
                     <ProductIcon name={product.icon} className="h-7 w-7" />
                   </div>
                   <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-slate-900">

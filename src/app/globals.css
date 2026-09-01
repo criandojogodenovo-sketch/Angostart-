@@ -248,6 +248,30 @@
   animation: angostart-float 8s ease-in-out 0.6s infinite;
 }
 
+/* Barras que crescem (ilustração do painel de vendas) — transform only */
+@keyframes angostart-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.animate-grow {
+  animation: angostart-grow 0.9s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+  transform-origin: bottom;
+}
+
+/* Linha de tendência SVG desenhada (stroke-dashoffset) */
+@keyframes angostart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-draw {
+  animation: angostart-draw 1.4s ease-out 0.7s both;
+}
+
 /* Sublinhado animado em links premium */
 .link-underline {
   background-image: linear-gradient(90deg, #3b82f6, #8b5cf6);
@@ -273,8 +297,14 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-float-delay,
-  .animate-float-slow {
+  .animate-float-slow,
+  .animate-grow,
+  .animate-draw {
     animation: none;
+  }
+  /* sem animação, a linha aparece já desenhada */
+  .animate-draw {
+    stroke-dashoffset: 0;
   }
   html {
     scroll-behavior: auto;

@@ -1,12 +1,10 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BadgeCheck,
   Globe,
   GraduationCap,
   Headset,
   Home as HomeIcon,
-  MessageCircle,
   Package,
   ShieldCheck,
   Truck,
@@ -15,7 +13,7 @@ import {
 import FeaturedProducts from "@/components/FeaturedProducts";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { FadeIn } from "@/components/motion";
-import HeroIllustration from "@/components/illustrations/HeroIllustration";
+import PersonalizedHero from "@/components/home/PersonalizedHero";
 import PatternWaves from "@/components/illustrations/PatternWaves";
 import { PRODUCT_TYPES, PRODUCT_TYPE_ORDER } from "@/lib/products-data";
 import type { LucideIcon } from "lucide-react";
@@ -89,80 +87,8 @@ export default function HomePage() {
       <AnnouncementBanner />
 
       {/* ─────────────────────── Hero ─────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
-        {/* Brilhos decorativos + padrão de ondas (Fase 18) */}
-        <PatternWaves className="opacity-70" />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-purple-500/10 blur-3xl"
-        />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
-          <div className="flex items-center gap-8">
-          <div className="max-w-3xl flex-1">
-            <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-400">
-              <BadgeCheck className="h-4 w-4" />
-              100% angolana · Luanda
-            </span>
-
-            <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Ango<span className="text-blue-400">Start</span>: tudo o que
-              o teu negócio precisa, num só lugar
-            </h1>
-
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-              Compra infoprodutos, produtos físicos e contrata serviços ao
-              domicílio ou remotos com preços claros em Kwanzas. Uma plataforma
-              criada em Angola, pensada para empreendedores, famílias e
-              empresas que querem resultados sem complicações.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/produtos"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:shadow-xl hover:brightness-110"
-              >
-                Explorar produtos
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-              <a
-                href="https://wa.me/244958176915?text=Ol%C3%A1!%20Vim%20do%20site%20AngoStart."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
-              >
-                <MessageCircle className="mr-2 h-5 w-5 text-blue-400" />
-                Falar no WhatsApp
-              </a>
-            </div>
-
-            {/* Estatísticas */}
-            <dl className="mt-12 grid max-w-xl grid-cols-3 gap-6">
-              {[
-                { value: "4", label: "Categorias de produtos e serviços" },
-                { value: "3", label: "Formas de vender no marketplace" },
-                { value: "48h", label: "Entrega em Luanda" },
-              ].map(({ value, label }) => (
-                <div key={label}>
-                  <dt className="sr-only">{label}</dt>
-                  <dd className="text-2xl font-bold text-blue-400 sm:text-3xl">
-                    {value}
-                  </dd>
-                  <dd className="mt-1 text-xs text-slate-400 sm:text-sm">
-                    {label}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-            <HeroIllustration />
-          </div>
-        </div>
-      </section>
+      {/* Fase 19: hero personalizado por sessão (visitante / vendedor / cliente) */}
+      <PersonalizedHero />
 
       {/* ─────────────── 4 categorias ─────────────── */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
