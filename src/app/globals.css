@@ -4,9 +4,14 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Cores da marca AngoStart */
+  /* Cores da marca AngoStart (Fase 16 — redesign premium) */
   --color-brand-dark: #0F172A;
   --color-brand-green: #10B981;
+  --color-brand-blue: #3B82F6;
+  --color-brand-teal: #14B8A6;
+  --color-brand-amber: #F59E0B;
+  /* Fundo premium dos dashboards (Dark Premium) */
+  --color-dashboard: #0B1120;
 }
 
 @theme inline {
@@ -51,13 +56,15 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Fase 16: páginas públicas com fundo Light Clean (#F8FAFC) */
+  --background: oklch(0.984 0.003 247.86);
+  --foreground: oklch(0.208 0.042 265.75);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  /* Fase 16: primária azul #2563EB (botões, links, foco) */
+  --primary: oklch(0.546 0.245 262.88);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -66,9 +73,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.929 0.013 255.51);
+  --input: oklch(0.929 0.013 255.51);
+  --ring: oklch(0.623 0.214 259.82);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -130,7 +137,53 @@
     font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   }
   ::selection {
-    background-color: #10b98133;
+    background-color: #3b82f633;
+  }
+}
+
+/* ————————————————————————————————————————————————————————————————
+   AngoStart — Fase 16: classes utilitárias do redesign
+   (Light Clean nas páginas públicas · Dark Premium nos dashboards)
+   ———————————————————————————————————————————————————————————————— */
+@layer components {
+  /* Card premium (páginas públicas) — elevação suave no hover */
+  .card-premium {
+    @apply rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Card premium (dashboards dark) — vidro fumado sobre #0B1120 */
+  .card-dark {
+    @apply rounded-2xl border border-slate-700/60 bg-slate-800/50 shadow-sm backdrop-blur;
+  }
+
+  /* Botão primário — azul #3B82F6 */
+  .btn-primary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Botão secundário — cinza suave */
+  .btn-secondary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 text-sm font-semibold text-slate-700 transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Input moderno — cantos arredondados + anel azul no foco */
+  .input-modern {
+    @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/25 disabled:opacity-60;
+  }
+
+  /* Label dos formulários modernos */
+  .label-modern {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  /* Chip de palavra-chave (#design, #ebook…) nos cards e dashboards */
+  .chip-keyword {
+    @apply inline-flex max-w-full items-center truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-600;
+  }
+
+  /* Variante em dark (dashboards) */
+  .chip-keyword-dark {
+    @apply inline-flex max-w-full items-center truncate rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] font-medium text-blue-300;
   }
 }
 

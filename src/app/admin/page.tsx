@@ -911,14 +911,16 @@ function AdminPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      {/* Fase 16 — fundo Dark Premium fixo atrás de todo o painel */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-100">
             <ShieldCheck className="h-7 w-7 text-emerald-500" /> Administração Total
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Rota oculta <code className="rounded bg-slate-100 px-1.5 py-0.5">/admin</code> — não
+          <p className="mt-1 text-sm text-slate-400">
+            Rota oculta <code className="rounded bg-slate-700/40 px-1.5 py-0.5">/admin</code> — não
             indexada nem linkada no site.
           </p>
         </div>
@@ -935,13 +937,13 @@ function AdminPanel() {
             onClick={() => setTab(key)}
             className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
               tab === key
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800/60 text-slate-300 shadow-sm hover:bg-slate-700/60'
             }`}
           >
             <Icon className="h-4 w-4" /> {label}
             {key === 'encomendas' && orders.length > 0 && (
-              <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-bold text-slate-900">
+              <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-bold text-slate-950">
                 {orders.length}
               </span>
             )}
@@ -960,7 +962,7 @@ function AdminPanel() {
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   statusFilter === filter.value
                     ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+                    : 'bg-slate-800/60 text-slate-300 shadow-sm hover:bg-slate-700/60'
                 }`}
               >
                 {filter.label}
@@ -977,8 +979,8 @@ function AdminPanel() {
                 onClick={() => setMethodFilter(filter.value)}
                 className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
                   methodFilter === filter.value
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                    : 'border-slate-700/60 bg-slate-800/50 backdrop-blur text-slate-400 hover:bg-slate-700/40'
                 }`}
               >
                 {filter.label}
@@ -1001,10 +1003,10 @@ function AdminPanel() {
 
       {/* ── Carteira: depósitos e saques ── */}
       {tab === 'carteira' && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
+              <h2 className="text-base font-semibold text-slate-100">
                 Carteira — depósitos e saques pendentes
               </h2>
               <p className="text-xs text-slate-400">
@@ -1024,19 +1026,19 @@ function AdminPanel() {
               {walletOps.map((op) => (
                 <li key={op.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-100">
                       <span
                         className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
                           op.tipo === 'deposito'
-                            ? 'bg-sky-100 text-sky-700'
-                            : 'bg-violet-100 text-violet-700'
+                            ? 'bg-sky-500/20 text-sky-300'
+                            : 'bg-violet-500/20 text-violet-300'
                         }`}
                       >
                         {op.tipo === 'deposito' ? 'Depósito' : 'Saque'}
                       </span>
                       {op.referencia ?? `#${op.id}`}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs text-slate-400">
                       {op.user_name ?? '—'} ({op.user_email ?? '—'})
                       {op.user_telefone ? ` · ${op.user_telefone}` : ''}
                     </p>
@@ -1066,7 +1068,7 @@ function AdminPanel() {
                           variant="outline"
                           onClick={() => decideWalletOp(op, false)}
                           disabled={walletBusyId === op.id}
-                          className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
+                          className="h-9 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                         >
                           <XCircle className="mr-1 h-4 w-4" /> Recusar
                         </Button>
@@ -1092,7 +1094,7 @@ function AdminPanel() {
                           variant="outline"
                           onClick={() => decideWalletOp(op, false)}
                           disabled={walletBusyId === op.id}
-                          className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
+                          className="h-9 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                         >
                           <XCircle className="mr-1 h-4 w-4" /> Recusar e devolver
                         </Button>
@@ -1108,9 +1110,9 @@ function AdminPanel() {
 
       {/* ── Utilizadores ── */}
       {tab === 'utilizadores' && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-base font-semibold text-slate-900">Utilizadores ({users.length})</h2>
+        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+            <h2 className="text-base font-semibold text-slate-100">Utilizadores ({users.length})</h2>
             <Button variant="ghost" size="sm" onClick={loadUsers}>
               <RefreshCw className={`mr-1.5 h-4 w-4 ${usersLoading ? 'animate-spin' : ''}`} /> Atualizar
             </Button>
@@ -1119,16 +1121,16 @@ function AdminPanel() {
             {users.map((u) => (
               <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-slate-100">
                     {u.name}{' '}
                     <span className="font-normal text-slate-400">({u.email})</span>
                   </p>
-                  <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                  <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-slate-400">
+                    <span className="rounded-full bg-slate-700/40 px-2 py-0.5 font-semibold text-slate-300">
                       {ROLE_LABELS[u.role as Role] ?? u.role}
                     </span>
                     {u.two_factor_enabled && (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-600">
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-600">
                         2FA ativa
                       </span>
                     )}
@@ -1141,8 +1143,8 @@ function AdminPanel() {
                   onClick={() => toggleBlock(u)}
                   className={`h-9 ${
                     u.blocked
-                      ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50'
-                      : 'border-rose-300 text-rose-600 hover:bg-rose-50'
+                      ? 'border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10'
+                      : 'border-rose-500/40 text-rose-600 hover:bg-rose-500/10'
                   }`}
                 >
                   {u.blocked ? (
@@ -1163,9 +1165,9 @@ function AdminPanel() {
 
       {/* ── Produtos ── */}
       {tab === 'produtos' && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-base font-semibold text-slate-900">Produtos ({products.length})</h2>
+        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+            <h2 className="text-base font-semibold text-slate-100">Produtos ({products.length})</h2>
             <Button variant="ghost" size="sm" onClick={loadProducts}>
               <RefreshCw className={`mr-1.5 h-4 w-4 ${productsLoading ? 'animate-spin' : ''}`} /> Atualizar
             </Button>
@@ -1177,10 +1179,10 @@ function AdminPanel() {
               {products.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-100">
                       #{p.id} — {p.name}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-400">
                       {p.type} · vendedor: {p.seller_name ?? '—'}
                     </p>
                     {p.keywords && p.keywords.length > 0 && (
@@ -1191,7 +1193,7 @@ function AdminPanel() {
                         {p.keywords.map((k) => (
                           <span
                             key={k}
-                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                            className="rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-medium text-slate-300"
                           >
                             {k}
                           </span>
@@ -1205,7 +1207,7 @@ function AdminPanel() {
                       size="sm"
                       variant="outline"
                       onClick={() => deleteProduct(p)}
-                      className="h-9 border-rose-300 text-rose-600 hover:bg-rose-50"
+                      className="h-9 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                     >
                       <Trash2 className="mr-1 h-4 w-4" /> Eliminar
                     </Button>
@@ -1221,12 +1223,12 @@ function AdminPanel() {
       {tab === 'admins' && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {/* Convidar */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
               <UserPlus className="h-4 w-4" /> Convidar Admin Limitado
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Sem palavra-passe fixa: a conta é criada em <code className="rounded bg-slate-100 px-1">/admin-limitado</code> com
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              Sem palavra-passe fixa: a conta é criada em <code className="rounded bg-slate-700/40 px-1">/admin-limitado</code> com
               email + código de convite (24 h) e fica protegida por 2FA. Nos dias seguintes, o acesso
               usa um código diário de 6 dígitos enviado por email.
             </p>
@@ -1242,7 +1244,7 @@ function AdminPanel() {
               <Button
                 type="submit"
                 disabled={inviting}
-                className="h-11 w-full bg-slate-900 font-semibold text-white hover:bg-slate-800"
+                className="h-11 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700"
               >
                 {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" /> Enviar convite por email
@@ -1251,9 +1253,9 @@ function AdminPanel() {
           </section>
 
           {/* Estado */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">Estado da equipa de validação</h2>
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-100">Estado da equipa de validação</h2>
               <Button variant="ghost" size="sm" onClick={loadAdminSecurityData}>
                 <RefreshCw className={`mr-1.5 h-4 w-4 ${adminDataLoading ? 'animate-spin' : ''}`} /> Atualizar
               </Button>
@@ -1272,15 +1274,15 @@ function AdminPanel() {
                       <li key={a.id} className="py-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">{a.name}</p>
-                            <p className="truncate text-xs text-slate-500">{a.email}</p>
+                            <p className="truncate text-sm font-semibold text-slate-100">{a.name}</p>
+                            <p className="truncate text-xs text-slate-400">{a.email}</p>
                             <p className="mt-0.5 flex gap-1.5 text-[11px]">
-                              <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                              <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
                                 {a.two_factor_enabled ? '2FA ativa' : '2FA pendente'}
                               </span>
-                              {a.blocked && <span className="rounded-full bg-rose-50 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
+                              {a.blocked && <span className="rounded-full bg-rose-500/10 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
                               {a.whatsapp_contact && (
-                                <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-600">
+                                <span className="rounded-full bg-sky-500/10 px-2 py-0.5 font-semibold text-sky-600">
                                   WhatsApp: {a.whatsapp_contact}
                                 </span>
                               )}
@@ -1292,7 +1294,7 @@ function AdminPanel() {
                               variant="outline"
                               onClick={() => sendDailyCode(a)}
                               disabled={busyAdminId === a.id}
-                              className="h-8 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                              className="h-8 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
                             >
                               {busyAdminId === a.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
                               Código diário
@@ -1301,7 +1303,7 @@ function AdminPanel() {
                               size="sm"
                               variant="outline"
                               onClick={() => removeLimitedAdmin(a)}
-                              className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                              className="h-8 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -1322,7 +1324,7 @@ function AdminPanel() {
                             variant="outline"
                             onClick={() => saveWhatsapp(a)}
                             disabled={busyAdminId === a.id}
-                            className="h-8 shrink-0 border-sky-300 text-sky-600 hover:bg-sky-50"
+                            className="h-8 shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10"
                           >
                             {busyAdminId === a.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1351,15 +1353,15 @@ function AdminPanel() {
                       const state = i.accepted_at ? 'aceite' : expired ? 'expirado' : 'pendente';
                       const stateCls =
                         state === 'aceite'
-                          ? 'bg-emerald-50 text-emerald-600'
+                          ? 'bg-emerald-500/10 text-emerald-600'
                           : state === 'pendente'
-                            ? 'bg-amber-50 text-amber-600'
-                            : 'bg-slate-100 text-slate-500';
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-slate-700/40 text-slate-400';
                       return (
                         <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">{i.email}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="truncate text-sm font-semibold text-slate-100">{i.email}</p>
+                            <p className="text-xs text-slate-400">
                               {i.name ? `${i.name} · ` : ''}expira {new Date(i.expires_at).toLocaleDateString('pt-PT')}{' '}
                               {new Date(i.expires_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -1371,7 +1373,7 @@ function AdminPanel() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => revokeInvite(i)}
-                                className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                                className="h-8 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -1396,10 +1398,10 @@ function AdminPanel() {
                     {dailyCodes.slice(0, 10).map((c) => (
                       <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                         <div className="min-w-0">
-                          <p className="truncate text-sm text-slate-700">{c.admin_email}</p>
+                          <p className="truncate text-sm text-slate-200">{c.admin_email}</p>
                           <p className="text-xs text-slate-400">dia {c.date}</p>
                         </div>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.used_at ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.used_at ? 'bg-slate-700/40 text-slate-400' : 'bg-emerald-500/10 text-emerald-600'}`}>
                           {c.used_at ? 'usado' : 'ativo'}
                         </span>
                       </li>
@@ -1421,11 +1423,11 @@ function AdminPanel() {
       {tab === 'anuncios' && (
         <div className="mt-6 grid gap-6 lg:grid-cols-[380px_1fr]">
           {/* Criar anúncio */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
               <Megaphone className="h-4 w-4" /> Criar anúncio
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
               Promoções, destaques e novidades aparecem no topo do site. Como administrador
               total também podes criar anúncios <strong>exclusivos</strong> (visíveis só à equipa).
               Admins limitados não têm acesso ao tipo exclusivo.
@@ -1497,9 +1499,9 @@ function AdminPanel() {
           </section>
 
           {/* Lista de anúncios */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-100">
                 Anúncios ({announcements.length})
               </h2>
               <Button variant="ghost" size="sm" onClick={loadAnnouncements}>
@@ -1515,28 +1517,28 @@ function AdminPanel() {
                 {announcements.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p className="text-sm font-semibold text-slate-100">
                         {a.title}{' '}
                         <span
                           className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
                             a.type === 'exclusivo'
                               ? 'bg-slate-800 text-white'
                               : a.type === 'promo'
-                                ? 'bg-amber-100 text-amber-700'
+                                ? 'bg-amber-500/20 text-amber-300'
                                 : a.type === 'destaque'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-sky-100 text-sky-700'
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-sky-500/20 text-sky-300'
                           }`}
                         >
                           {a.type}
                         </span>
                         {!a.active && (
-                          <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                          <span className="ml-1 rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-semibold text-slate-400">
                             inativo
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{a.content}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{a.content}</p>
                       <p className="mt-1 text-[11px] text-slate-400">
                         {a.target_role ? `para ${a.target_role} · ` : 'para todos · '}
                         {new Date(a.created_at).toLocaleDateString('pt-PT')} · {a.created_by_name ?? '—'}
@@ -1555,7 +1557,7 @@ function AdminPanel() {
                         size="sm"
                         variant="outline"
                         onClick={() => deleteAnnouncement(a)}
-                        className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                        className="h-8 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -1570,10 +1572,10 @@ function AdminPanel() {
 
       {/* ── Monitorização anti-burla (Fase 5) ── */}
       {tab === 'monitorizacao' && (
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-5 py-4">
             <div>
-              <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
                 <Eye className="h-4 w-4" /> Monitorização anti-burla
               </h2>
               <p className="text-xs text-slate-400">
@@ -1587,8 +1589,8 @@ function AdminPanel() {
                   onClick={() => setSuspiciousStatus(s)}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                     suspiciousStatus === s
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700/40 text-slate-300 hover:bg-slate-600'
                   }`}
                 >
                   {s}
@@ -1610,29 +1612,29 @@ function AdminPanel() {
               {suspicious.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-100">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
                           row.severity === 'alta'
-                            ? 'bg-rose-100 text-rose-700'
+                            ? 'bg-rose-500/20 text-rose-300'
                             : row.severity === 'media'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-slate-100 text-slate-600'
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : 'bg-slate-700/40 text-slate-300'
                         }`}
                       >
                         {row.severity}
                       </span>
-                      <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">{row.action}</code>
-                      <span className="font-normal text-slate-500">
+                      <code className="rounded bg-slate-700/40 px-1.5 py-0.5 text-[12px]">{row.action}</code>
+                      <span className="font-normal text-slate-400">
                         {row.user_name ?? '—'} ({row.user_email ?? `#${row.user_id}`})
                       </span>
                       {row.user_blocked && (
-                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+                        <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
                           conta bloqueada
                         </span>
                       )}
                     </p>
-                    {row.details && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{row.details}</p>}
+                    {row.details && <p className="mt-1 line-clamp-2 text-xs text-slate-400">{row.details}</p>}
                     <p className="mt-1 text-[11px] text-slate-400">
                       {new Date(row.created_at).toLocaleString('pt-PT')}
                     </p>
@@ -1651,7 +1653,7 @@ function AdminPanel() {
                       size="sm"
                       variant="outline"
                       onClick={() => suspiciousAction(row, 'banir')}
-                      className="h-8 border-rose-300 text-rose-600 hover:bg-rose-50"
+                      className="h-8 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                     >
                       <Ban className="mr-1 h-3.5 w-3.5" /> Banir
                     </Button>
@@ -1688,14 +1690,14 @@ function AdminPanel() {
       {tab === 'disputas' && (
         <section className="mt-6" aria-label="Gestão de disputas">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-100">
               <Gavel className="h-5 w-5 text-emerald-600" /> Disputas
             </h2>
             <Button
               variant="outline"
               size="sm"
               onClick={loadDisputes}
-              className="h-9 border-slate-300 text-slate-600 hover:bg-slate-50"
+              className="h-9 border-slate-600 text-slate-300 hover:bg-slate-700/40"
             >
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Atualizar
             </Button>
@@ -1706,7 +1708,7 @@ function AdminPanel() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar disputas…
             </p>
           ) : disputes.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+            <p className="mt-4 rounded-2xl border border-dashed border-slate-600 bg-slate-800/50 p-10 text-center text-sm text-slate-400">
               Sem disputas registadas — bom sinal! 🎉
             </p>
           ) : (
@@ -1716,19 +1718,19 @@ function AdminPanel() {
                 return (
                   <li
                     key={d.id}
-                    className={`rounded-2xl border bg-white p-5 shadow-sm ${
-                      aberta ? 'border-amber-300' : 'border-slate-200 opacity-90'
+                    className={`rounded-2xl border bg-slate-800/50 p-5 shadow-sm ${
+                      aberta ? 'border-amber-500/40' : 'border-slate-700/60 opacity-90'
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-bold text-slate-900">
+                        <p className="text-sm font-bold text-slate-100">
                           Disputa #{d.id} — Encomenda #{d.order_id}{' '}
                           <span className="ml-1 font-normal text-slate-400">
                             ({formatKz(d.total_kz)} · encomenda {d.order_status})
                           </span>
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-400">
                           Cliente: <strong>{d.buyer_name ?? '—'}</strong> · Vendedor:{' '}
                           <strong>{d.seller_name ?? '—'}</strong> ·{' '}
                           {new Date(d.created_at).toLocaleString('pt-PT')}
@@ -1737,8 +1739,8 @@ function AdminPanel() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
                           aberta
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-emerald-100 text-emerald-700'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-emerald-500/20 text-emerald-300'
                         }`}
                       >
                         {d.status === 'aberta'
@@ -1751,12 +1753,12 @@ function AdminPanel() {
                       </span>
                     </div>
 
-                    <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                    <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-900/40 p-3 text-sm text-slate-200">
                       {d.reason}
                     </p>
 
                     {!aberta && (
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-2 text-xs text-slate-400">
                         Resolvida por {d.resolved_by_name ?? 'equipa'}
                         {d.resolution ? ` — «${d.resolution}»` : ''}
                       </p>
@@ -1822,27 +1824,27 @@ function AdminPanel() {
             <>
               {/* KPIs gerais */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Receita confirmada</p>
                   <p className="mt-1 text-2xl font-bold text-emerald-600">{formatKz(report.totals.revenue)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Comissões AngoStart</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">{formatKz(report.totals.commission)}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-100">{formatKz(report.totals.commission)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Novos utilizadores (30d)</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">{report.totals.newUsers30d}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-100">{report.totals.newUsers30d}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Produtos ativos</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                  <p className="mt-1 text-2xl font-bold text-slate-100">
                     {report.products.total}{' '}
                     <span className="text-sm font-semibold text-amber-500">({report.products.hot} em alta)</span>
                   </p>
                 </div>
                 {report.completion && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-slate-400">Taxa de conclusão</p>
                     <p className="mt-1 text-2xl font-bold text-emerald-600">{report.completion.rate}%</p>
                     <p className="mt-0.5 text-[11px] text-slate-400">
@@ -1855,35 +1857,35 @@ function AdminPanel() {
 
               {/* ── Fase 6 (ponto 8): gráficos Recharts ── */}
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Receita mensal (Recharts)</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Receita mensal (Recharts)</h3>
                   <div className="mt-4 h-56">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={report.monthly.map((m) => ({ ...m, label: `${m.month.slice(5)}/${m.month.slice(2, 4)}` }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                         <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                         <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} />
                         <Tooltip
                           formatter={(value: number | string) => formatKz(Number(value))}
-                          contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                          contentStyle={{ borderRadius: 12, fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", color: "#e2e8f0" }}
                         />
-                        <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} name="Receita (Kz)" />
+                        <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Receita (Kz)" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Utilizadores registados por mês</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Utilizadores registados por mês</h3>
                   <div className="mt-4 h-56">
                     {(report.usersByMonth?.length ?? 0) > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={report.usersByMonth!.map((m) => ({ ...m, label: `${m.month.slice(5)}/${m.month.slice(2, 4)}` }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                           <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                          <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
-                          <Line type="monotone" dataKey="n" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981' }} name="Registos" />
+                          <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", color: "#e2e8f0" }} />
+                          <Line type="monotone" dataKey="n" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#14b8a6' }} name="Registos" />
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
@@ -1897,22 +1899,22 @@ function AdminPanel() {
 
               {/* Top produtos e top vendedores */}
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Top 5 produtos mais vendidos</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Top 5 produtos mais vendidos</h3>
                   {(report.topProducts?.length ?? 0) === 0 ? (
                     <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
                   ) : (
                     <ol className="mt-3 space-y-2">
                       {report.topProducts!.map((p, i) => (
-                        <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                          <span className="min-w-0 truncate text-slate-700">
+                        <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/40 px-3 py-2 text-sm">
+                          <span className="min-w-0 truncate text-slate-200">
                             <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
                               {i + 1}
                             </span>
                             {p.name}
                           </span>
                           <span className="shrink-0 text-right text-xs">
-                            <strong className="text-slate-900">{formatKz(p.revenue)}</strong>
+                            <strong className="text-slate-100">{formatKz(p.revenue)}</strong>
                             <span className="block text-slate-400">{p.units} un.</span>
                           </span>
                         </li>
@@ -1921,23 +1923,23 @@ function AdminPanel() {
                   )}
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Top 5 vendedores por receita</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Top 5 vendedores por receita</h3>
                   {(report.topSellers?.length ?? 0) === 0 ? (
                     <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
                   ) : (
                     <ol className="mt-3 space-y-2">
                       {report.topSellers!.map((s, i) => (
-                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                          <span className="min-w-0 truncate text-slate-700">
-                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
+                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/40 px-3 py-2 text-sm">
+                          <span className="min-w-0 truncate text-slate-200">
+                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                               {i + 1}
                             </span>
                             {s.name}
                             {s.username && <span className="ml-1 text-xs text-slate-400">@{s.username}</span>}
                           </span>
                           <span className="shrink-0 text-right text-xs">
-                            <strong className="text-slate-900">{formatKz(s.revenue)}</strong>
+                            <strong className="text-slate-100">{formatKz(s.revenue)}</strong>
                             <span className="block text-slate-400">{s.sales} vendas</span>
                           </span>
                         </li>
@@ -1949,14 +1951,14 @@ function AdminPanel() {
 
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Receita mensal */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Receita mensal (pagas + entregues)</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Receita mensal (pagas + entregues)</h3>
                   <div className="mt-4 flex h-44 items-end gap-3">
                     {report.monthly.map((m) => {
                       const max = Math.max(...report.monthly.map((x) => x.revenue), 1);
                       return (
                         <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
-                          <span className="text-[10px] font-semibold text-slate-500">
+                          <span className="text-[10px] font-semibold text-slate-400">
                             {m.revenue > 0 ? formatKz(m.revenue).replace(' Kz', '') : '0'}
                           </span>
                           <div
@@ -1975,25 +1977,25 @@ function AdminPanel() {
                 </section>
 
                 {/* Utilizadores por perfil + encomendas por estado */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900">Utilizadores por perfil</h3>
+                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-100">Utilizadores por perfil</h3>
                   <ul className="mt-3 space-y-2">
                     {report.usersByRole.map((r) => (
                       <li key={r.role} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">{ROLE_LABELS[r.role as Role] ?? r.role}</span>
-                        <span className="font-bold text-slate-900">{r.n}</span>
+                        <span className="text-slate-300">{ROLE_LABELS[r.role as Role] ?? r.role}</span>
+                        <span className="font-bold text-slate-100">{r.n}</span>
                       </li>
                     ))}
                   </ul>
-                  <h3 className="mt-5 text-sm font-bold text-slate-900">Encomendas por estado</h3>
+                  <h3 className="mt-5 text-sm font-bold text-slate-100">Encomendas por estado</h3>
                   <ul className="mt-3 space-y-2">
                     {report.ordersByStatus.length === 0 ? (
                       <li className="text-sm text-slate-400">Sem encomendas registadas.</li>
                     ) : (
                       report.ordersByStatus.map((r) => (
                         <li key={r.status} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">{r.status}</span>
-                          <span className="font-bold text-slate-900">
+                          <span className="text-slate-300">{r.status}</span>
+                          <span className="font-bold text-slate-100">
                             {r.n} <span className="text-xs font-normal text-slate-400">({formatKz(r.volume)})</span>
                           </span>
                         </li>
@@ -2011,9 +2013,9 @@ function AdminPanel() {
       {tab === 'comissoes' && (
         <div className="mt-6 space-y-6">
           {/* Taxas por tipo */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Taxas por tipo de venda</h2>
-            <p className="mt-1 text-xs text-slate-500">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-100">Taxas por tipo de venda</h2>
+            <p className="mt-1 text-xs text-slate-400">
               Aplicadas no escrow quando o pedido é pago (máx. 50%). Toda a alteração fica
               registada na auditoria.
             </p>
@@ -2026,8 +2028,8 @@ function AdminPanel() {
                       ? 'Serviços ao domicílio'
                       : 'Freelancers (remoto)';
                 return (
-                  <div key={r.scope} className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold text-slate-500">{label}</p>
+                  <div key={r.scope} className="rounded-xl border border-slate-700/60 p-4">
+                    <p className="text-xs font-semibold text-slate-400">{label}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <Input
                         value={rateDraft[r.scope] ?? String(r.percent)}
@@ -2037,7 +2039,7 @@ function AdminPanel() {
                         inputMode="decimal"
                         className="h-9 w-24"
                       />
-                      <span className="text-sm font-semibold text-slate-600">%</span>
+                      <span className="text-sm font-semibold text-slate-300">%</span>
                       <Button
                         type="button"
                         size="sm"
@@ -2055,9 +2057,9 @@ function AdminPanel() {
           </section>
 
           {/* Overrides por vendedor */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Taxa individual (override)</h2>
-            <p className="mt-1 text-xs text-slate-500">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-100">Taxa individual (override)</h2>
+            <p className="mt-1 text-xs text-slate-400">
               Define uma taxa especial para um vendedor pelo ID do utilizador. Vazio + Guardar
               remove o override.
             </p>
@@ -2106,10 +2108,10 @@ function AdminPanel() {
               <ul className="mt-4 divide-y divide-slate-100 text-sm">
                 {commissions!.overrides.map((o) => (
                   <li key={o.user_id} className="flex items-center justify-between py-2">
-                    <span className="text-slate-700">
+                    <span className="text-slate-200">
                       #{o.user_id} — {o.name ?? o.email ?? 'Vendedor'}
                     </span>
-                    <span className="font-semibold text-emerald-700">{o.percent}%</span>
+                    <span className="font-semibold text-emerald-300">{o.percent}%</span>
                   </li>
                 ))}
               </ul>
@@ -2117,8 +2119,8 @@ function AdminPanel() {
           </section>
 
           {/* Relatório de comissões */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-100">
               Receita de comissões — total {formatKz(commissions?.report.total_comissoes ?? 0)}
             </h2>
             <div className="mt-4 grid gap-6 lg:grid-cols-2">
@@ -2137,11 +2139,11 @@ function AdminPanel() {
                   </thead>
                   <tbody>
                     {(commissions?.report.por_categoria ?? []).map((cat) => (
-                      <tr key={cat.categoria} className="border-t border-slate-100">
-                        <td className="py-1.5 font-medium text-slate-700">{cat.categoria}</td>
+                      <tr key={cat.categoria} className="border-t border-slate-700/50">
+                        <td className="py-1.5 font-medium text-slate-200">{cat.categoria}</td>
                         <td className="py-1.5">{cat.vendas}</td>
                         <td className="py-1.5">{formatKz(cat.receita)}</td>
-                        <td className="py-1.5 font-semibold text-emerald-700">
+                        <td className="py-1.5 font-semibold text-emerald-300">
                           {formatKz(cat.comissao)}
                         </td>
                       </tr>
@@ -2163,11 +2165,11 @@ function AdminPanel() {
                 <div className="mt-2 h-48">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={(commissions?.report.por_mes ?? []).map((m) => ({ mes: m.mes.slice(5), comissao: m.comissao }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                       <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} width={54} />
                       <Tooltip formatter={(v) => formatKz(Number(v))} />
-                      <Bar dataKey="comissao" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="comissao" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -2176,16 +2178,16 @@ function AdminPanel() {
           </section>
 
           {/* Auditoria */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Auditoria de alterações</h2>
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-100">Auditoria de alterações</h2>
             <ul className="mt-3 divide-y divide-slate-100 text-sm">
               {(commissions?.audit ?? []).map((a) => (
-                <li key={a.id} className="py-2 text-slate-600">
-                  <span className="font-medium text-slate-800">{a.admin_name ?? 'Admin'}</span>{' '}
+                <li key={a.id} className="py-2 text-slate-300">
+                  <span className="font-medium text-slate-200">{a.admin_name ?? 'Admin'}</span>{' '}
                   alterou <span className="font-medium">{a.scope}</span>
                   {a.seller_name ? ` (vendedor ${a.seller_name})` : ''}:{' '}
                   {a.old_percent === null ? '—' : `${a.old_percent}%`} →{' '}
-                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-emerald-700'}>
+                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-emerald-300'}>
                     {a.new_percent < 0 ? 'removido' : `${a.new_percent}%`}
                   </span>{' '}
                   <span className="text-xs text-slate-400">
@@ -2203,9 +2205,9 @@ function AdminPanel() {
 
       {/* ── Segurança 2FA ── */}
       {tab === 'seguranca' && (
-        <section className="mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Ativar / reconfigurar 2FA (TOTP)</h2>
-          <p className="mt-1 text-xs text-slate-500">
+        <section className="mt-6 max-w-xl rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-100">Ativar / reconfigurar 2FA (TOTP)</h2>
+          <p className="mt-1 text-xs text-slate-400">
             1. Clica em gerar → 2. abre a app autenticadora (Google Authenticator, Aegis, Authy…) →
             3. lê o QR → 4. valida o código de 6 dígitos no ecrã de entrada do painel.
           </p>
@@ -2214,7 +2216,7 @@ function AdminPanel() {
             Gerar QR Code do 2FA
           </Button>
           {qr && (
-            <div className="mt-4 rounded-xl border border-slate-200 p-4 text-center">
+            <div className="mt-4 rounded-xl border border-slate-700/60 p-4 text-center">
               { }
               <img src={qr} alt="QR Code 2FA" className="mx-auto rounded-lg" width={220} height={220} />
               <p className="mt-3 break-all text-[11px] text-slate-400">{otpauth}</p>

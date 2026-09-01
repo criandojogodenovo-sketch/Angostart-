@@ -39,7 +39,7 @@ export default function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <article className="card-premium group flex flex-col overflow-hidden">
       {/* Cabeçalho ilustrativo */}
       <div
         className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${product.gradient}`}
@@ -100,6 +100,22 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.description}
         </p>
 
+        {/* Fase 16 — palavras-chave do produto (busca + IA) como chips */}
+        {product.keywords && product.keywords.length > 0 && (
+          <div className="flex flex-wrap gap-1.5" aria-label="Palavras-chave do produto">
+            {product.keywords.slice(0, 4).map((kw) => (
+              <span key={kw} className="chip-keyword">
+                #{kw}
+              </span>
+            ))}
+            {product.keywords.length > 4 && (
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                +{product.keywords.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Fase 11 — explorar o vendedor: loja em primeiro lugar; sem loja → portfólio */}
         {(product.store_slug || product.seller_username) && (
           <Link
@@ -108,7 +124,7 @@ export default function ProductCard({ product }: { product: Product }) {
                 ? `/loja/${product.store_slug}`
                 : `/portfolio/${product.seller_username ?? ''}`
             }
-            className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+            className="inline-flex w-fit items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-100"
           >
             <Store className="h-3 w-3" aria-hidden="true" />
             {product.store_slug ? 'Ver loja' : 'Ver vendedor'}
@@ -116,13 +132,13 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          <p className="text-lg font-bold text-emerald-600">
+          <p className="text-lg font-extrabold tracking-tight text-slate-900">
             {formatKz(product.price_kz)}
           </p>
           <Button
             onClick={handleBuy}
             disabled={outOfStock}
-            className="h-10 min-w-0 flex-1 max-w-[150px] bg-emerald-500 px-3 text-white hover:bg-emerald-600 disabled:opacity-50"
+            className="h-10 min-w-0 flex-1 max-w-[150px] bg-blue-600 px-3 text-white shadow-sm shadow-blue-600/25 hover:bg-blue-700 disabled:opacity-50"
             aria-label={`Comprar ${product.name} por ${formatKz(product.price_kz)}`}
           >
             {added ? (

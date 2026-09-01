@@ -90,7 +90,7 @@ export default function HomePage() {
         {/* Brilhos decorativos */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl"
+          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl"
         />
         <div
           aria-hidden="true"
@@ -99,13 +99,13 @@ export default function HomePage() {
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
           <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+            <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-400">
               <BadgeCheck className="h-4 w-4" />
               100% angolana · Luanda
             </span>
 
             <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Ango<span className="text-emerald-400">Start</span>: tudo o que
+              Ango<span className="text-blue-400">Start</span>: tudo o que
               o teu negócio precisa, num só lugar
             </h1>
 
@@ -119,7 +119,7 @@ export default function HomePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/produtos"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-8 text-base font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/40"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-700 hover:shadow-blue-600/40"
               >
                 Explorar produtos
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -130,7 +130,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
               >
-                <MessageCircle className="mr-2 h-5 w-5 text-emerald-400" />
+                <MessageCircle className="mr-2 h-5 w-5 text-blue-400" />
                 Falar no WhatsApp
               </a>
             </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
               ].map(({ value, label }) => (
                 <div key={label}>
                   <dt className="sr-only">{label}</dt>
-                  <dd className="text-2xl font-bold text-emerald-400 sm:text-3xl">
+                  <dd className="text-2xl font-bold text-blue-400 sm:text-3xl">
                     {value}
                   </dd>
                   <dd className="mt-1 text-xs text-slate-400 sm:text-sm">
@@ -177,7 +177,7 @@ export default function HomePage() {
               <Link
                 key={type}
                 href={`/produtos?tipo=${type}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
               >
                 <span
                   className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${info.gradient} text-white shadow-md`}
@@ -190,7 +190,7 @@ export default function HomePage() {
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
                   {CATEGORY_DESCRIPTIONS[type]}
                 </p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 transition-transform group-hover:translate-x-1">
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-transform group-hover:translate-x-1">
                   Ver categoria
                   <ArrowRight className="h-4 w-4" />
                 </span>
@@ -205,7 +205,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid items-start gap-10 lg:grid-cols-2">
             <div>
-              <span className="text-sm font-semibold uppercase tracking-wider text-emerald-600">
+              <span className="text-sm font-semibold uppercase tracking-wider text-blue-600">
                 Porque escolher a AngoStart
               </span>
               <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -235,7 +235,7 @@ export default function HomePage() {
                   key={title}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
                     <Icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-3 text-base font-semibold text-slate-900">
@@ -255,7 +255,7 @@ export default function HomePage() {
       <section className="bg-slate-50">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="mb-10 text-center">
-            <span className="text-sm font-semibold uppercase tracking-wider text-emerald-600">
+            <span className="text-sm font-semibold uppercase tracking-wider text-blue-600">
               Marketplace multi-perfil
             </span>
             <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -271,7 +271,7 @@ export default function HomePage() {
             {SELLER_TYPES.map(({ icon: Icon, gradient, title, text }) => (
               <div
                 key={title}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl"
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
               >
                 <span
                   className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}
@@ -318,7 +318,7 @@ export default function HomePage() {
         <div className="relative overflow-hidden rounded-3xl bg-brand-dark px-6 py-12 text-center text-white sm:px-12">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl"
+            className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl"
           />
           <h2 className="relative text-2xl font-bold sm:text-3xl">
             Pronto para começar?
@@ -331,7 +331,7 @@ export default function HomePage() {
           <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               href="/produtos"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-8 font-semibold text-white transition-colors hover:bg-emerald-600"
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 font-semibold text-white transition-colors hover:bg-blue-700"
             >
               Começar a comprar
             </Link>

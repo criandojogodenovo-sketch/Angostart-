@@ -32,15 +32,15 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-slate-900/95 text-white shadow-lg backdrop-blur supports-[backdrop-filter]:bg-slate-900/85">
+      <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 text-slate-900 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="AngoStart — Página inicial">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-teal-500 shadow-md">
             <Rocket className="h-5 w-5 text-white" />
           </span>
-          <span className="text-xl font-bold tracking-tight">
-            Ango<span className="text-emerald-400">Start</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">
+            Ango<span className="text-blue-600">Start</span>
           </span>
         </Link>
 
@@ -54,8 +54,8 @@ export default function Navbar() {
                 href={href}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-slate-600 hover:bg-gray-100 hover:text-slate-900'
                 }`}
               >
                 {label}
@@ -68,8 +68,8 @@ export default function Navbar() {
               href="/dashboard/vendedor"
               className={`hidden md:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                 pathname.startsWith('/dashboard')
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'text-emerald-400 hover:bg-emerald-500/15'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-blue-600 hover:bg-blue-50'
               }`}
             >
               Painel
@@ -78,10 +78,10 @@ export default function Navbar() {
           {user && isSeller && (
             <Link
               href="/adicionar-produto"
-              className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-colors ${
                 pathname === '/adicionar-produto'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-amber-500 text-white hover:bg-amber-600'
+                  ? 'bg-blue-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
               <Plus className="h-4 w-4" />
@@ -106,13 +106,13 @@ export default function Navbar() {
           aria-label={`Carrinho de compras (${count} artigos)`}
           className={`relative ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
             pathname === '/carrinho'
-              ? 'bg-emerald-500/20 text-emerald-400'
-              : 'text-slate-200 hover:bg-white/10 hover:text-white'
+              ? 'bg-blue-50 text-blue-600'
+              : 'text-slate-600 hover:bg-gray-100 hover:text-slate-900'
           }`}
         >
           <ShoppingCart className="h-5 w-5" />
           {count > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[11px] font-bold text-white shadow">
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-bold text-white shadow">
               {count > 99 ? '99+' : count}
             </span>
           )}
@@ -124,7 +124,7 @@ export default function Navbar() {
           aria-label="Abrir menu"
           aria-expanded={menuOpen}
           aria-controls="menu-mobile"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-200 hover:bg-white/10 hover:text-white md:hidden"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-gray-100 hover:text-slate-900 md:hidden"
         >
           <Menu className="h-6 w-6" />
         </button>

@@ -88,7 +88,7 @@ export default function NotificationBell() {
         aria-expanded={open}
         className={cn(
           'relative flex h-10 w-10 items-center justify-center rounded-full transition-colors',
-          'text-slate-200 hover:bg-white/10 hover:text-white'
+          'text-slate-600 hover:bg-gray-100 hover:text-slate-900'
         )}
       >
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bell className="h-5 w-5" />}

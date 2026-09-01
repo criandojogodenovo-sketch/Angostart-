@@ -36,6 +36,7 @@ import {
   MessageCircle,
   Navigation,
   Package,
+  Pencil,
   PiggyBank,
   Receipt,
   Share2,
@@ -121,6 +122,8 @@ interface MeuProduto {
   name: string;
   is_hot?: boolean;
   price_kz: number;
+  /** Fase 16: palavras-chave (Fase 15) — para chips + edição no painel. */
+  keywords?: string[] | null;
 }
 
 interface AffiliateData {
@@ -206,14 +209,14 @@ interface GamificationData {
   locked_badges: { code: string; name: string; description: string; icon: string }[];
 }
 
-const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ef4444'];
+const PIE_COLORS = ['#3b82f6', '#14b8a6', '#10b981', '#f59e0b', '#8b5cf6'];
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
-  pendente: { label: 'Pendente', className: 'bg-amber-100 text-amber-700' },
-  pago: { label: 'Pago', className: 'bg-emerald-100 text-emerald-700' },
-  entregue: { label: 'Entregue', className: 'bg-emerald-100 text-emerald-700' },
-  rejeitado: { label: 'Rejeitado', className: 'bg-rose-100 text-rose-700' },
-  falhou: { label: 'Falhou', className: 'bg-rose-100 text-rose-700' },
+  pendente: { label: 'Pendente', className: 'bg-amber-500/20 text-amber-400' },
+  pago: { label: 'Pago', className: 'bg-emerald-500/20 text-emerald-300' },
+  entregue: { label: 'Entregue', className: 'bg-emerald-500/20 text-emerald-300' },
+  rejeitado: { label: 'Rejeitado', className: 'bg-rose-500/20 text-rose-400' },
+  falhou: { label: 'Falhou', className: 'bg-rose-500/20 text-rose-400' },
 };
 
 export default function DashboardVendedorPage() {
@@ -516,8 +519,9 @@ export default function DashboardVendedorPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+      <div className="relative flex items-center justify-center py-32 text-slate-400">
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-400" />
         <span className="text-sm">A carregar o teu painel…</span>
       </div>
     );
@@ -525,17 +529,18 @@ export default function DashboardVendedorPage() {
 
   if (unauthorized) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-24 text-center sm:px-6">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">
+      <div className="relative mx-auto max-w-lg px-4 py-24 text-center sm:px-6">
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/15">
           <Lock className="h-8 w-8 text-rose-500" />
         </span>
-        <h1 className="mt-5 text-2xl font-bold text-slate-900">Acesso restrito</h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <h1 className="mt-5 text-2xl font-bold text-slate-100">Acesso restrito</h1>
+        <p className="mt-2 text-sm text-slate-400">
           O painel de vendas é exclusivo para vendedores AngoStart (criadores,
           prestadores ao domicílio e freelancers remotos).
         </p>
         <div className="mt-8 flex justify-center gap-3">
-          <Button asChild className="h-11 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600">
+          <Button asChild className="h-11 bg-emerald-500/100 px-6 font-semibold text-white hover:bg-emerald-600">
             <Link href="/perfil">Entrar como vendedor</Link>
           </Button>
           <Button asChild variant="outline" className="h-11 px-6">
@@ -549,29 +554,31 @@ export default function DashboardVendedorPage() {
   const cards = data?.cards;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      {/* Fase 16 — fundo Dark Premium fixo atrás de todo o painel */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-100 sm:text-3xl">
             Painel de vendas
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-400">
             Olá {user?.name?.split(' ')[0]} — aqui está o resumo do teu negócio na AngoStart.
           </p>
         </div>
         <div className="flex gap-2">
           {user?.username && (
-            <Button asChild variant="outline" className="h-10 border-slate-300 text-slate-600 hover:bg-slate-50">
+            <Button asChild variant="outline" className="h-10 border-slate-600 text-slate-300 hover:bg-slate-700/40">
               <Link href={`/portfolio/${user.username}`} target="_blank">
                 <ExternalLink className="mr-2 h-4 w-4" /> Ver Mini-Loja pública
               </Link>
             </Button>
           )}
-          <Button asChild variant="outline" className="h-10 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+          <Button asChild variant="outline" className="h-10 border-blue-500/60 text-blue-400 hover:bg-blue-500/10">
             <Link href="/dashboard/vendedor/portfolio">Editar portfólio</Link>
           </Button>
-          <Button asChild className="h-10 bg-amber-500 font-semibold text-white hover:bg-amber-600">
+          <Button asChild className="h-10 bg-amber-500/100 font-semibold text-white hover:bg-amber-600">
             <Link href="/adicionar-produto">Publicar produto</Link>
           </Button>
         </div>
@@ -586,8 +593,8 @@ export default function DashboardVendedorPage() {
         <div
           className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 ${
             user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
-              ? 'border-rose-300 bg-rose-50'
-              : 'border-amber-300 bg-amber-50'
+              ? 'border-rose-500/40 bg-rose-500/10'
+              : 'border-amber-500/40 bg-amber-500/10'
           }`}
           role="status"
         >
@@ -601,8 +608,8 @@ export default function DashboardVendedorPage() {
               <p
                 className={`text-sm font-bold ${
                   user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
-                    ? 'text-rose-800'
-                    : 'text-amber-900'
+                    ? 'text-rose-200'
+                    : 'text-amber-200'
                 }`}
               >
                 {user.kyc_status === 'rejected'
@@ -614,8 +621,8 @@ export default function DashboardVendedorPage() {
               <p
                 className={`mt-0.5 text-xs ${
                   user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
-                    ? 'text-rose-700'
-                    : 'text-amber-800'
+                    ? 'text-rose-300'
+                    : 'text-amber-300'
                 }`}
               >
                 {user.kyc_status === 'rejected'
@@ -629,8 +636,8 @@ export default function DashboardVendedorPage() {
           <BadgeCheck
             className={`h-6 w-6 shrink-0 ${
               user.kyc_status === 'rejected' || user.kyc_status === 'overdue'
-                ? 'text-rose-300'
-                : 'text-amber-300'
+                ? 'text-rose-400'
+                : 'text-amber-400'
             }`}
           />
         </div>
@@ -654,31 +661,31 @@ export default function DashboardVendedorPage() {
       </div>
 
       {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-          <span className="flex items-center gap-1.5 font-semibold text-emerald-900">
+          <span className="flex items-center gap-1.5 font-semibold text-emerald-200">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             {cards && cards.ratingCount > 0
               ? `${cards.ratingAverage.toFixed(1)} ★ (${cards.ratingCount})`
               : 'Avaliação estimada da plataforma · sem avaliações reais'}
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-900">
-            <Package className="h-4 w-4 text-emerald-600" />
+          <span className="flex items-center gap-1.5 text-emerald-200">
+            <Package className="h-4 w-4 text-emerald-400" />
             {cards?.productsPublished ?? 0} produtos publicados
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-900">
-            <Users className="h-4 w-4 text-emerald-600" />
+          <span className="flex items-center gap-1.5 text-emerald-200">
+            <Users className="h-4 w-4 text-emerald-400" />
             {cards?.clients ?? 0} clientes servidos
           </span>
         </div>
-        <p className="text-[11px] text-emerald-800/70">
+        <p className="text-[11px] text-emerald-300/80">
           Estes números são o que os clientes veem na tua Mini-Loja.
         </p>
       </div>
 
       {/* Alertas (Fase 5) */}
       {data?.alerts.message && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <p>{data.alerts.message}</p>
         </div>
@@ -692,14 +699,14 @@ export default function DashboardVendedorPage() {
             label: 'Encomendas recebidas',
             value: String(cards?.totalOrders ?? 0),
             hint: `${cards?.itemsSold ?? 0} artigos vendidos`,
-            tone: 'bg-emerald-50 text-emerald-600',
+            tone: 'bg-emerald-500/15 text-emerald-400',
           },
           {
             icon: PiggyBank,
             label: 'Receita bruta confirmada',
             value: formatKz(cards?.revenueConfirmed ?? 0),
             hint: 'pagamentos validados',
-            tone: 'bg-sky-50 text-sky-600',
+            tone: 'bg-sky-500/15 text-sky-400',
           },
           {
             icon: TrendingUp,
@@ -709,24 +716,24 @@ export default function DashboardVendedorPage() {
               cards && cards.commissionRetained > 0
                 ? `comissão AngoStart ${cards.commissionPercent}%: ${formatKz(cards.commissionRetained)}`
                 : 'sem comissões retidas',
-            tone: 'bg-teal-50 text-teal-600',
+            tone: 'bg-teal-500/15 text-teal-400',
           },
           {
             icon: ClipboardList,
             label: 'Receita pendente',
             value: formatKz(cards?.revenuePending ?? 0),
             hint: 'à espera de validação',
-            tone: 'bg-amber-50 text-amber-600',
+            tone: 'bg-amber-500/15 text-amber-400',
           },
         ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={label} className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
                 <Icon className="h-5 w-5" />
               </span>
             </div>
-            <p className="mt-3 text-2xl font-bold text-slate-900">{value}</p>
-            <p className="text-sm font-medium text-slate-600">{label}</p>
+            <p className="mt-3 text-2xl font-bold text-slate-100">{value}</p>
+            <p className="text-sm font-medium text-slate-300">{label}</p>
             <p className="text-xs text-slate-400">{hint}</p>
           </div>
         ))}
@@ -740,36 +747,36 @@ export default function DashboardVendedorPage() {
             label: 'Clientes',
             value: String(cards?.clients ?? 0),
             hint: 'clientes distintos servidos',
-            tone: 'bg-violet-50 text-violet-600',
+            tone: 'bg-violet-500/15 text-violet-400',
           },
           {
             icon: Star,
             label: 'Avaliação média',
             value: cards && cards.ratingCount > 0 ? `${cards.ratingAverage} ★` : '—',
             hint: `${cards?.ratingCount ?? 0} avaliações recebidas`,
-            tone: 'bg-amber-50 text-amber-600',
+            tone: 'bg-amber-500/15 text-amber-400',
           },
           {
             icon: MessageCircle,
             label: 'Mensagens no chat (7d)',
             value: String(cards?.chatMessages7d ?? 0),
             hint: 'responde rápido para vender mais',
-            tone: 'bg-sky-50 text-sky-600',
+            tone: 'bg-sky-500/15 text-sky-400',
           },
           {
             icon: Package,
             label: 'Produtos publicados',
             value: String(cards?.productsPublished ?? 0),
             hint: 'no catálogo ativo',
-            tone: 'bg-emerald-50 text-emerald-600',
+            tone: 'bg-emerald-500/15 text-emerald-400',
           },
         ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={label} className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
             <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
               <Icon className="h-4 w-4" />
             </span>
-            <p className="mt-2 text-xl font-bold text-slate-900">{value}</p>
-            <p className="text-xs font-medium text-slate-600">{label}</p>
+            <p className="mt-2 text-xl font-bold text-slate-100">{value}</p>
+            <p className="text-xs font-medium text-slate-300">{label}</p>
             <p className="text-[11px] text-slate-400">{hint}</p>
           </div>
         ))}
@@ -777,15 +784,15 @@ export default function DashboardVendedorPage() {
 
       {/* Gráficos */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <section aria-label="Receita por mês" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Receita por mês (confirmada)</h2>
+        <section aria-label="Receita por mês" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-100">Receita por mês (confirmada)</h2>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.revenueByMonth ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} />
                 <YAxis
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  tick={{ fontSize: 12, fill: '#94a3b8' }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
@@ -793,16 +800,16 @@ export default function DashboardVendedorPage() {
                 <Tooltip
                   formatter={(value) => [formatKz(Number(value)), 'Receita']}
                   labelFormatter={(label) => `Mês ${label}`}
-                  contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0', fontSize: 13 }}
+                  contentStyle={{ borderRadius: 12, borderColor: '#334155', backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: 13 }}
                 />
-                <Bar dataKey="revenue" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="revenue" fill="#3b82f6" radius={[8, 8, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
 
-        <section aria-label="Produtos mais vendidos" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Produtos mais vendidos</h2>
+        <section aria-label="Produtos mais vendidos" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-100">Produtos mais vendidos</h2>
           {(data?.topProducts?.length ?? 0) === 0 ? (
             <p className="mt-10 text-center text-sm text-slate-400">
               Ainda sem vendas — publica produtos e partilha o teu catálogo!
@@ -825,9 +832,9 @@ export default function DashboardVendedorPage() {
                   </Pie>
                   <Tooltip
                     formatter={(value, name) => [`${value} vendas`, name]}
-                    contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0', fontSize: 13 }}
+                    contentStyle={{ borderRadius: 12, borderColor: '#334155', backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: 13 }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -838,42 +845,42 @@ export default function DashboardVendedorPage() {
       {/* Fase 4/5 — Carteira / Afiliados / Em alta + Disponibilidade */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Carteira */}
-        <section aria-label="Carteira" className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-sm">
+        <section aria-label="Carteira" className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-blue-600 to-teal-500 p-5 text-white shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold">
             <Wallet className="h-5 w-5" /> Carteira AngoStart
           </h2>
-          <p className="mt-3 text-xs text-emerald-100">Saldo disponível</p>
+          <p className="mt-3 text-xs text-blue-100">Saldo disponível</p>
           <p className="text-2xl font-bold">{formatKz(wallet?.saldo ?? 0)}</p>
-          <p className="mt-2 text-xs text-emerald-100">Em escrow (até entrega)</p>
+          <p className="mt-2 text-xs text-blue-100">Em escrow (até entrega)</p>
           <p className="text-lg font-semibold">{formatKz(wallet?.saldo_bloqueado ?? 0)}</p>
           <Button
             asChild
-            className="mt-4 h-10 w-full bg-white font-semibold text-emerald-700 hover:bg-emerald-50"
+            className="mt-4 h-10 w-full bg-white font-semibold text-blue-700 hover:bg-blue-50"
           >
             <Link href="/carteira">Abrir carteira</Link>
           </Button>
         </section>
 
         {/* Afiliados — Fase 10 (modelo Shopee/Amazon) */}
-        <section aria-label="Programa de afiliados" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+        <section aria-label="Programa de afiliados" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Share2 className="h-5 w-5 text-amber-500" /> Programa de afiliados
           </h2>
           {!affiliateCarregado ? (
             <p className="mt-6 text-sm text-slate-400">A carregar…</p>
           ) : affiliate ? (
             <>
-              <p className="mt-3 text-xs text-slate-500">
+              <p className="mt-3 text-xs text-slate-400">
                 O teu código ({affiliate.comissao_percentual}% de comissão por venda):
               </p>
-              <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                <span className="font-mono text-lg font-bold text-amber-700">
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                <span className="font-mono text-lg font-bold text-amber-300">
                   {affiliate.codigo_afiliado}
                 </span>
                 <button
                   onClick={copiarCodigo}
                   aria-label="Copiar código de afiliado"
-                  className="rounded-lg p-2 text-amber-600 hover:bg-amber-100"
+                  className="rounded-lg p-2 text-amber-400 hover:bg-amber-500/20"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -887,23 +894,23 @@ export default function DashboardVendedorPage() {
                   ? Math.min(100, Math.round((affiliate.escalao.comissoes_recebidas / totalEscalao) * 100))
                   : 0;
                 return (
-                  <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                  <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/15 p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-amber-700">
+                      <span className="font-semibold text-amber-300">
                         Escalão {affiliate.comissao_percentual}%
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-400">
                         {affiliate.escalao.comissoes_recebidas}{' '}
                         {affiliate.escalao.comissoes_recebidas === 1 ? 'comissão paga' : 'comissões pagas'}
                       </span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100">
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-500/20">
                       <div
                         className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all"
                         style={{ width: `${affiliate.escalao.no_escalao_maximo ? 100 : pct}%` }}
                       />
                     </div>
-                    <p className="mt-1.5 text-xs text-slate-500">
+                    <p className="mt-1.5 text-xs text-slate-400">
                       {affiliate.escalao.no_escalao_maximo
                         ? `Escalão máximo atingido — ganhas ${affiliate.escalao.percentual_escalao_seguinte}% por venda. 🎉`
                         : `Faltam ${affiliate.escalao.proximo_escalao_em} ${
@@ -914,9 +921,9 @@ export default function DashboardVendedorPage() {
                 );
               })()}
 
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-slate-300">
                 Total ganho:{' '}
-                <strong className="text-emerald-600">{formatKz(affiliate.total_ganho)}</strong>
+                <strong className="text-emerald-400">{formatKz(affiliate.total_ganho)}</strong>
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 {affiliate.earnings.length}{' '}
@@ -924,8 +931,8 @@ export default function DashboardVendedorPage() {
               </p>
 
               {/* Link limpo de afiliado (?ref=CODE) com janela de atribuição */}
-              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <code className="min-w-0 flex-1 truncate text-xs text-slate-600">
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+                <code className="min-w-0 flex-1 truncate text-xs text-slate-300">
                   {affiliate.referral_link}
                 </code>
                 <button
@@ -933,7 +940,7 @@ export default function DashboardVendedorPage() {
                     copiarTexto(affiliate.referral_link, 'Link de afiliado copiado!', affiliate.referral_link)
                   }
                   aria-label="Copiar link de afiliado"
-                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-200"
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-600"
                 >
                   <Link2 className="h-4 w-4" />
                 </button>
@@ -941,8 +948,8 @@ export default function DashboardVendedorPage() {
 
               {/* Fase 11 — link de afiliado da LOJA inteira */}
               {affiliate.store_link && (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                  <code className="min-w-0 flex-1 truncate text-xs text-amber-800">
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <code className="min-w-0 flex-1 truncate text-xs text-amber-300">
                     {affiliate.store_link}
                   </code>
                   <button
@@ -950,7 +957,7 @@ export default function DashboardVendedorPage() {
                       copiarTexto(affiliate.store_link as string, 'Link da loja copiado!', affiliate.store_link as string)
                     }
                     aria-label="Copiar link de afiliado da loja"
-                    className="rounded-lg p-2 text-amber-600 hover:bg-amber-100"
+                    className="rounded-lg p-2 text-amber-400 hover:bg-amber-500/20"
                   >
                     <Link2 className="h-4 w-4" />
                   </button>
@@ -963,7 +970,7 @@ export default function DashboardVendedorPage() {
             </>
           ) : (
             <>
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">
+              <p className="mt-3 text-sm leading-relaxed text-slate-400">
                 Ganha 10% de cada venda feita com o teu código de referência — e sobe para 15%
                 após 50 comissões. A comissão entra direto na tua carteira quando o pedido é pago.
               </p>
@@ -972,14 +979,14 @@ export default function DashboardVendedorPage() {
                 (cliente). O teu link fica atribuído 30 dias após o clique.
               </p>
               {affiliateElegibilidade && !affiliateElegibilidade.eligible && (
-                <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <p className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                   {affiliateElegibilidade.message}
                 </p>
               )}
               <Button
                 onClick={registarAfiliado}
                 disabled={aRegistarAfiliado}
-                className="mt-4 h-10 w-full bg-amber-500 font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                className="mt-4 h-10 w-full bg-amber-500/100 font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
               >
                 {aRegistarAfiliado ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -992,8 +999,8 @@ export default function DashboardVendedorPage() {
         </section>
 
         {/* Em alta — gestão rápida */}
-        <section aria-label="Marcar produtos em alta" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+        <section aria-label="Marcar produtos em alta" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Flame className="h-5 w-5 text-orange-500" /> Produtos em alta
           </h2>
           {meusProdutos.length === 0 ? (
@@ -1009,29 +1016,56 @@ export default function DashboardVendedorPage() {
                 {meusProdutos.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
+                    className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2"
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                      {p.name}
-                    </span>
-                    <button
-                      onClick={() => toggleHot(p)}
-                      disabled={hotBusyId === p.id}
-                      aria-pressed={Boolean(p.is_hot)}
-                      aria-label={`Alternar «em alta» em ${p.name}`}
-                      className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                        p.is_hot
-                          ? 'bg-orange-500 text-white hover:bg-orange-600'
-                          : 'border border-orange-200 bg-white text-orange-600 hover:bg-orange-50'
-                      }`}
-                    >
-                      {hotBusyId === p.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Flame className="h-3.5 w-3.5" />
-                      )}
-                      {p.is_hot ? 'Em alta' : 'Marcar'}
-                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">
+                        {p.name}
+                      </span>
+                      <Link
+                        href={`/adicionar-produto?id=${p.id}`}
+                        aria-label={`Editar ${p.name} e palavras-chave`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600 text-slate-300 transition-colors hover:border-blue-500/60 hover:text-blue-400"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
+                      <button
+                        onClick={() => toggleHot(p)}
+                        disabled={hotBusyId === p.id}
+                        aria-pressed={Boolean(p.is_hot)}
+                        aria-label={`Alternar «em alta» em ${p.name}`}
+                        className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                          p.is_hot
+                            ? 'bg-orange-500 text-white hover:bg-orange-600'
+                            : 'border border-orange-500/40 bg-slate-800/80 text-orange-400 hover:bg-orange-500/10'
+                        }`}
+                      >
+                        {hotBusyId === p.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Flame className="h-3.5 w-3.5" />
+                        )}
+                        {p.is_hot ? 'Em alta' : 'Marcar'}
+                      </button>
+                    </div>
+                    {/* Fase 16 — keywords (Fase 15) visíveis no painel */}
+                    {p.keywords && p.keywords.length > 0 && (
+                      <div
+                        className="mt-1.5 flex flex-wrap gap-1"
+                        aria-label={`Palavras-chave de ${p.name}`}
+                      >
+                        {p.keywords.slice(0, 5).map((kw) => (
+                          <span key={kw} className="chip-keyword-dark">
+                            #{kw}
+                          </span>
+                        ))}
+                        {p.keywords.length > 5 && (
+                          <span className="inline-flex items-center rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                            +{p.keywords.length - 5}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1045,18 +1079,18 @@ export default function DashboardVendedorPage() {
         <section
           id="ferramentas-afiliado"
           aria-label="Ferramentas de afiliado"
-          className="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-5 shadow-sm"
+          className="mt-8 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-slate-800/50 to-slate-800/50 p-5 shadow-sm"
         >
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Megaphone className="h-5 w-5 text-amber-500" /> Ferramentas de afiliado
           </h2>
           <div className="mt-4 grid gap-8 lg:grid-cols-2">
             {/* 1. Link de campanha (Sub-ID) */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">
+              <h3 className="text-sm font-semibold text-slate-200">
                 1. Link de campanha <span className="font-normal text-slate-400">(Sub-ID)</span>
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
                 Cria um link por canal (ex.: <em>instagram</em>, <em>whatsapp</em>,{' '}
                 <em>tiktok</em>) para saberes de onde vêm as tuas vendas — o canal fica
                 registado na comissão.
@@ -1068,12 +1102,12 @@ export default function DashboardVendedorPage() {
                   placeholder="ex.: instagram"
                   maxLength={30}
                   aria-label="Nome da campanha (Sub-ID)"
-                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-amber-400"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm text-slate-200 outline-none focus:border-amber-400"
                 />
                 {subNormalizado() && (
                   <button
                     onClick={() => copiarTexto(linkComCampanha(), 'Link de campanha copiado!', linkComCampanha())}
-                    className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                    className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500/100 px-4 text-sm font-semibold text-white hover:bg-amber-600"
                   >
                     <Copy className="h-4 w-4" /> Copiar
                   </button>
@@ -1085,8 +1119,8 @@ export default function DashboardVendedorPage() {
                 </p>
               )}
               {subNormalizado() && (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                  <code className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 py-2">
+                  <code className="min-w-0 flex-1 truncate text-xs text-slate-300">
                     {linkComCampanha()}
                   </code>
                 </div>
@@ -1095,18 +1129,18 @@ export default function DashboardVendedorPage() {
 
             {/* 2. Relatório de vendas por canal */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">2. Vendas por canal</h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <h3 className="text-sm font-semibold text-slate-200">2. Vendas por canal</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
                 Comissões pagas por campanha — descobre qual canal vale mais a pena.
               </p>
               {affiliate.sub_id_report.length === 0 ? (
-                <p className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+                <p className="mt-3 rounded-xl border border-dashed border-slate-700/60 px-3 py-4 text-center text-xs text-slate-400">
                   Ainda sem comissões — partilha o teu link e o relatório aparece aqui.
                 </p>
               ) : (
                 <table className="mt-3 w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-400">
+                    <tr className="border-b border-slate-700/60 text-slate-400">
                       <th scope="col" className="py-2 font-medium">Canal</th>
                       <th scope="col" className="py-2 text-right font-medium">Comissões</th>
                       <th scope="col" className="py-2 text-right font-medium">Total</th>
@@ -1114,12 +1148,12 @@ export default function DashboardVendedorPage() {
                   </thead>
                   <tbody>
                     {affiliate.sub_id_report.map((r) => (
-                      <tr key={r.sub_id ?? 'direto'} className="border-b border-slate-100 last:border-0">
-                        <td className="py-2 font-medium text-slate-700">
+                      <tr key={r.sub_id ?? 'direto'} className="border-b border-slate-700/50 last:border-0">
+                        <td className="py-2 font-medium text-slate-200">
                           {r.sub_id ?? '(sem campanha)'}
                         </td>
-                        <td className="py-2 text-right text-slate-500">{r.comissoes}</td>
-                        <td className="py-2 text-right font-semibold text-emerald-600">
+                        <td className="py-2 text-right text-slate-400">{r.comissoes}</td>
+                        <td className="py-2 text-right font-semibold text-emerald-400">
                           {formatKz(r.total)}
                         </td>
                       </tr>
@@ -1131,8 +1165,8 @@ export default function DashboardVendedorPage() {
 
             {/* 3. Gerador em massa de links (batch — modelo Shopee) */}
             <div className="lg:col-span-2">
-              <h3 className="text-sm font-semibold text-slate-700">3. Gerar links em massa</h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <h3 className="text-sm font-semibold text-slate-200">3. Gerar links em massa</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
                 Cola os links dos produtos (um por linha — aceita também só o número do
                 produto) e gera todos os teus links de afiliado de uma vez
                 {subNormalizado() ? (
@@ -1148,12 +1182,12 @@ export default function DashboardVendedorPage() {
                 rows={3}
                 placeholder={'https://angostart.vercel.app/produtos/123\n124\nhttps://angostart.vercel.app/produtos/125'}
                 aria-label="Links ou IDs de produtos (um por linha)"
-                className="mt-3 w-full rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 outline-none focus:border-amber-400"
+                className="mt-3 w-full rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-3 font-mono text-xs text-slate-200 outline-none focus:border-amber-400"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
                   onClick={gerarLinksEmMassa}
-                  className="h-9 bg-amber-500 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                  className="h-9 bg-amber-500/100 px-4 text-sm font-semibold text-white hover:bg-amber-600"
                 >
                   Gerar links
                 </Button>
@@ -1167,25 +1201,25 @@ export default function DashboardVendedorPage() {
                         `${batchLinks.length} ${batchLinks.length === 1 ? 'link' : 'links'}`
                       )
                     }
-                    className="h-9 border-amber-300 px-4 text-sm font-semibold text-amber-700 hover:bg-amber-50"
+                    className="h-9 border-amber-500/40 px-4 text-sm font-semibold text-amber-300 hover:bg-amber-500/10"
                   >
                     <Copy className="h-4 w-4" /> Copiar todos
                   </Button>
                 )}
-                {batchAviso && <span className="text-xs text-slate-500">{batchAviso}</span>}
+                {batchAviso && <span className="text-xs text-slate-400">{batchAviso}</span>}
               </div>
               {batchLinks.length > 0 && (
                 <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
                   {batchLinks.map((l, i) => (
                     <li
                       key={`${i}-${l.link}`}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                      className="flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 py-2"
                     >
-                      <code className="min-w-0 flex-1 truncate text-xs text-slate-600">{l.link}</code>
+                      <code className="min-w-0 flex-1 truncate text-xs text-slate-300">{l.link}</code>
                       <button
                         onClick={() => copiarTexto(l.link, 'Link copiado!', l.input)}
                         aria-label={`Copiar link gerado para ${l.input}`}
-                        className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
+                        className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-500/10"
                       >
                         <Copy className="h-4 w-4" />
                       </button>
@@ -1201,8 +1235,8 @@ export default function DashboardVendedorPage() {
       {/* Fase 5 — Atividade recente: avaliações + disponibilidade (domicílio) */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* Últimas avaliações recebidas */}
-        <section aria-label="Avaliações recentes" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+        <section aria-label="Avaliações recentes" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Star className="h-5 w-5 text-amber-500" /> Avaliações recentes
           </h2>
           {(data?.recentReviews?.length ?? 0) === 0 ? (
@@ -1212,15 +1246,15 @@ export default function DashboardVendedorPage() {
           ) : (
             <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1">
               {data!.recentReviews.map((r, i) => (
-                <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <li key={i} className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-slate-200">
                     <span className="text-amber-500">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
                     {r.product_name}
                     <span className="ml-auto font-normal text-slate-400">
                       {new Date(r.created_at).toLocaleDateString('pt-PT')}
                     </span>
                   </p>
-                  {r.comment && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{r.comment}</p>}
+                  {r.comment && <p className="mt-1 line-clamp-2 text-xs text-slate-400">{r.comment}</p>}
                 </li>
               ))}
             </ul>
@@ -1233,7 +1267,7 @@ export default function DashboardVendedorPage() {
             aria-label="Disponibilidade de serviço"
             className={`rounded-2xl border p-5 text-white shadow-sm ${
               estadoDisponibilidade?.is_available
-                ? 'border-emerald-300 bg-gradient-to-br from-emerald-500 to-teal-600'
+                ? 'border-emerald-300 bg-gradient-to-br from-blue-600 to-teal-500'
                 : 'border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500'
             }`}
           >
@@ -1255,7 +1289,7 @@ export default function DashboardVendedorPage() {
               >
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    estadoDisponibilidade?.is_available ? 'bg-emerald-200 animate-pulse' : 'bg-white/60'
+                    estadoDisponibilidade?.is_available ? 'bg-emerald-400 animate-pulse' : 'bg-white/60'
                   }`}
                 />
                 {estadoDisponibilidade?.is_available
@@ -1267,7 +1301,7 @@ export default function DashboardVendedorPage() {
               <Button
                 onClick={marcarDisponivel}
                 disabled={aAtualizarLocal || estadoDisponibilidade?.is_available}
-                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-70"
+                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-500/10 disabled:opacity-70"
               >
                 {aAtualizarLocal ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1290,9 +1324,9 @@ export default function DashboardVendedorPage() {
       </div>
 
       {/* Encomendas recebidas */}
-      <section aria-label="Encomendas recebidas" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-slate-900">Encomendas recebidas</h2>
+      <section aria-label="Encomendas recebidas" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-100">Encomendas recebidas</h2>
           <Package className="h-5 w-5 text-slate-300" />
         </div>
         {(data?.orders?.length ?? 0) === 0 ? (
@@ -1304,15 +1338,15 @@ export default function DashboardVendedorPage() {
             {data!.orders.map((order) => {
               const status = STATUS_STYLE[order.status] ?? {
                 label: order.status,
-                className: 'bg-slate-100 text-slate-600',
+                className: 'bg-slate-700/40 text-slate-300',
               };
               return (
                 <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-100">
                       #{order.id} — {order.customer_name}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
                       {order.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ')}
                     </p>
                     <p className="text-xs text-slate-400">
@@ -1323,7 +1357,7 @@ export default function DashboardVendedorPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}>
                       {status.label}
                     </span>
-                    <span className="text-sm font-bold text-emerald-600">
+                    <span className="text-sm font-bold text-emerald-400">
                       {formatKz(order.items.reduce((acc, i) => acc + i.price_kz * i.quantity, 0))}
                     </span>
                   </div>
@@ -1355,7 +1389,7 @@ const LEVEL_STYLE: Record<string, { label: string; emoji: string; bar: string }>
   bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-600' },
   prata: { label: 'Prata', emoji: '🥈', bar: 'bg-slate-400' },
   ouro: { label: 'Ouro', emoji: '🥇', bar: 'bg-yellow-500' },
-  platina: { label: 'Platina', emoji: '💎', bar: 'bg-emerald-500' },
+  platina: { label: 'Platina', emoji: '💎', bar: 'bg-emerald-500/100' },
 };
 
 /** Selos, nível e progresso para o próximo nível (Fase 7, ponto 3). */
@@ -1378,44 +1412,64 @@ function GamificationCard() {
   const level = LEVEL_STYLE[data.level] ?? LEVEL_STYLE.bronze;
 
   return (
-    <section aria-label="Nível e selos" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Nível e selos</h2>
+    <section aria-label="Nível e selos" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-100">Nível e selos</h2>
         <Medal className="h-5 w-5 text-slate-300" />
       </div>
       <div className="px-5 py-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-sm font-bold text-white`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1 text-sm font-bold text-white`}>
             {level.emoji} {level.label}
           </span>
-          <span className="text-sm text-slate-600">
-            <strong className="text-slate-900">{data.points}</strong> pontos ·{' '}
+          <span className="text-sm text-slate-300">
+            <strong className="text-slate-100">{data.points}</strong> pontos ·{' '}
             {data.sales_count} vendas concluídas
           </span>
         </div>
 
-        {/* Progresso para o próximo nível */}
+        {/* Progresso para o próximo nível — anel (Fase 16, estilo Focus Timer) */}
         {data.next_level ? (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Progresso para {data.next_level.label}</span>
-              <span>
-                faltam <strong>{data.next_level.missing}</strong> pontos
+          <div className="mt-4 flex items-center gap-4">
+            <div className="relative h-20 w-20 shrink-0">
+              <svg viewBox="0 0 84 84" className="h-20 w-20 -rotate-90" aria-hidden="true">
+                <circle cx="42" cy="42" r="36" fill="none" stroke="#334155" strokeWidth="8" />
+                <circle
+                  cx="42"
+                  cy="42"
+                  r="36"
+                  fill="none"
+                  stroke="url(#anel-nivel)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${Math.max(0, Math.min(1, data.progress)) * 226.19} 226.19`}
+                />
+                <defs>
+                  <linearGradient id="anel-nivel" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#14b8a6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-100">
+                {Math.round(data.progress * 100)}%
               </span>
             </div>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className={`h-full rounded-full ${level.bar} transition-all`}
-                style={{ width: `${Math.round(data.progress * 100)}%` }}
-              />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-200">
+                Progresso para {data.next_level.label}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                faltam <strong className="text-slate-200">{data.next_level.missing}</strong> pontos
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+                Como ganhar pontos: +1 por venda concluída · +5 por avaliação 5★ · +10 por resposta
+                ao chat em menos de 1 h.
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-400">
-              Como ganhar pontos: +1 por venda concluída · +5 por avaliação 5★ · +10 por resposta
-              ao chat em menos de 1 h.
-            </p>
           </div>
         ) : (
-          <p className="mt-3 text-xs font-semibold text-emerald-600">
+          <p className="mt-3 text-xs font-semibold text-emerald-400">
             Nível máximo atingido — parabéns! 💎
           </p>
         )}
@@ -1426,7 +1480,7 @@ function GamificationCard() {
             <span
               key={b.code}
               title={b.description}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300"
             >
               <Award className="h-3.5 w-3.5" /> {b.name}
             </span>
@@ -1435,7 +1489,7 @@ function GamificationCard() {
             <span
               key={b.code}
               title={b.description}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-400"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-900/40 px-3 py-1 text-xs font-medium text-slate-400"
             >
               <Lock className="h-3 w-3" /> {b.name}
             </span>
@@ -1470,12 +1524,12 @@ function CommissionRateCard() {
   return (
     <section
       aria-label="Taxa de comissão"
-      className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+      className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-5 py-4 shadow-sm"
     >
       <div className="flex items-center gap-3">
-        <Receipt className="h-5 w-5 text-emerald-500" />
+        <Receipt className="h-5 w-5 text-emerald-400" />
         <div>
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-slate-100">
             Comissão AngoStart: {percent}%
           </p>
           <p className="text-xs text-slate-400">
@@ -1603,9 +1657,9 @@ function PropostasRecebidas() {
   if (!loaded) return null;
 
   return (
-    <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Propostas recebidas</h2>
+    <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-100">Propostas recebidas</h2>
         <div className="flex gap-1">
           {(['todas', 'pendente', 'aceite', 'recusada'] as const).map((s) => (
             <button
@@ -1614,8 +1668,8 @@ function PropostasRecebidas() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
                 statusFilter === s
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700/40 text-slate-300 hover:bg-slate-600'
               }`}
             >
               {s}
@@ -1634,31 +1688,31 @@ function PropostasRecebidas() {
           {filtered.map((p) => (
             <li key={p.id} className="px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-100">
                   {p.client_name ?? 'Cliente'} — sobre «{p.service_name}»
                 </p>
                 <div className="flex items-center gap-2">
                   {p.rounds > 1 && (
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                    <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-xs font-semibold text-violet-300">
                       {p.rounds} rodadas
                     </span>
                   )}
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
                       p.status === 'pendente'
-                        ? 'bg-amber-100 text-amber-700'
+                        ? 'bg-amber-500/20 text-amber-400'
                         : p.status === 'aceite'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-slate-700/40 text-slate-300'
                     }`}
                   >
                     {p.status}
                   </span>
                 </div>
               </div>
-              <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{p.description}</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-slate-300">{p.description}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Oferta atual: <strong className="text-emerald-700">{formatKz(p.price_kz)}</strong>
+                Oferta atual: <strong className="text-blue-700">{formatKz(p.price_kz)}</strong>
                 {p.deadline_days ? ` · prazo ${p.deadline_days} dias` : ''} ·{' '}
                 {p.my_offer_standing && p.status === 'pendente'
                   ? 'a tua oferta está na mesa — aguarda o cliente'
@@ -1668,10 +1722,10 @@ function PropostasRecebidas() {
 
               {/* Histórico da negociação */}
               {history?.proposalId === p.id && (
-                <ol className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <ol className="mt-3 space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
                   {history.entries.map((h) => (
-                    <li key={h.id} className="text-xs text-slate-600">
-                      <span className={h.by_me ? 'font-semibold text-emerald-700' : 'font-semibold'}>
+                    <li key={h.id} className="text-xs text-slate-300">
+                      <span className={h.by_me ? 'font-semibold text-blue-700' : 'font-semibold'}>
                         {h.author_name ?? 'Parte'} ofereceu {formatKz(h.price_kz)}
                         {h.deadline_days ? ` · ${h.deadline_days} dias` : ''}
                       </span>
@@ -1684,21 +1738,21 @@ function PropostasRecebidas() {
 
               {/* Formulário de contraproposta */}
               {counterFor?.id === p.id && (
-                <div className="mt-3 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                <div className="mt-3 space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10/50 p-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
                       value={counterPrice}
                       onChange={(e) => setCounterPrice(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder={`O teu preço em Kz (atual: ${p.price_kz})`}
-                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm outline-none focus:border-emerald-400"
                     />
                     <input
                       value={counterDeadline}
                       onChange={(e) => setCounterDeadline(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder="Prazo em dias (opcional)"
-                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm outline-none focus:border-emerald-400"
                     />
                   </div>
                   <textarea
@@ -1707,21 +1761,21 @@ function PropostasRecebidas() {
                     rows={2}
                     maxLength={2000}
                     placeholder="Mensagem com a contraproposta (opcional)…"
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-sm outline-none focus:border-emerald-400"
+                    className="w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur p-2.5 text-sm outline-none focus:border-emerald-400"
                   />
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={sendCounter}
                       disabled={busyId === p.id || counterPrice.length === 0}
-                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500/100 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
                     >
                       {busyId === p.id ? 'A enviar…' : 'Enviar contraproposta'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setCounterFor(null)}
-                      className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      className="inline-flex h-8 items-center rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-300 hover:bg-slate-700/40"
                     >
                       Cancelar
                     </button>
@@ -1732,7 +1786,7 @@ function PropostasRecebidas() {
               {p.status === 'pendente' && counterFor?.id !== p.id && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {p.my_offer_standing ? (
-                    <span className="inline-flex h-8 items-center rounded-lg bg-slate-100 px-3 text-xs font-medium text-slate-500">
+                    <span className="inline-flex h-8 items-center rounded-lg bg-slate-700/40 px-3 text-xs font-medium text-slate-400">
                       Aguarda a resposta do cliente
                     </span>
                   ) : (
@@ -1741,7 +1795,7 @@ function PropostasRecebidas() {
                         type="button"
                         onClick={() => answer(p.id, 'aceite')}
                         disabled={busyId === p.id}
-                        className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                        className="inline-flex h-8 items-center rounded-lg bg-emerald-500/100 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
                       >
                         Aceitar
                       </button>
@@ -1760,7 +1814,7 @@ function PropostasRecebidas() {
                         type="button"
                         onClick={() => answer(p.id, 'recusada')}
                         disabled={busyId === p.id}
-                        className="inline-flex h-8 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                        className="inline-flex h-8 items-center rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-300 hover:bg-slate-700/40 disabled:opacity-50"
                       >
                         Recusar
                       </button>
@@ -1769,7 +1823,7 @@ function PropostasRecebidas() {
                   <button
                     type="button"
                     onClick={() => openHistory(p.id)}
-                    className="inline-flex h-8 items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                    className="inline-flex h-8 items-center rounded-lg border border-slate-700/60 px-3 text-xs font-semibold text-slate-400 hover:bg-slate-700/40"
                   >
                     {history?.proposalId === p.id ? 'Esconder histórico' : 'Histórico'}
                   </button>
@@ -1920,7 +1974,7 @@ function ServicosAtivosCard() {
 
   if (servicos === null) {
     return (
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-400">
+      <section className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-5 py-8 text-center text-sm text-slate-400">
         A carregar serviços…
       </section>
     );
@@ -1931,13 +1985,13 @@ function ServicosAtivosCard() {
   return (
     <section
       aria-label="Serviços ao domicílio ativos"
-      className="mt-8 rounded-2xl border border-sky-200 bg-white shadow-sm"
+      className="mt-8 rounded-2xl border border-sky-500/30 bg-slate-800/50 backdrop-blur shadow-sm"
     >
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
           <Bike className="h-5 w-5 text-sky-600" /> Serviços ao domicílio — em curso
         </h2>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-700">
+        <span className="rounded-full bg-sky-500/20 px-2.5 py-0.5 text-xs font-bold text-sky-300">
           {servicos.length}
         </span>
       </div>
@@ -1948,15 +2002,15 @@ function ServicosAtivosCard() {
             <li key={s.id} className="px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-slate-100">
                     #{s.id} — {s.customer_name}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-slate-400">
                     {s.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ')}
                   </p>
                   {s.delivery_address && (
-                    <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
-                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-300">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
                       <span>
                         <strong>Morada:</strong> {s.delivery_address}
                         {s.notes ? ` · Nota: ${s.notes}` : ''}
@@ -1964,7 +2018,7 @@ function ServicosAtivosCard() {
                     </p>
                   )}
                   {!s.client_has_gps && (
-                    <p className="mt-1 text-[11px] text-amber-600">
+                    <p className="mt-1 text-[11px] text-amber-400">
                       O cliente não partilhou GPS — segue a morada acima ou fala no chat.
                     </p>
                   )}
@@ -1985,7 +2039,7 @@ function ServicosAtivosCard() {
                     </Button>
                   ) : (
                     <>
-                      <span className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                      <span className="flex items-center gap-1.5 rounded-full bg-sky-500/20 px-3 py-1 text-xs font-bold text-sky-300">
                         <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
                         Rastreamento ativo
                       </span>

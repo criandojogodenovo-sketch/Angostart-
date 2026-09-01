@@ -59,7 +59,7 @@ export default function RootLayout({
   return (
     <html lang="pt-AO" suppressHydrationWarning>
       <body
-        className={`${poppins.variable} flex min-h-screen flex-col antialiased bg-background text-foreground pb-[68px] md:pb-0`}
+        className={`${poppins.variable} flex min-h-screen flex-col antialiased bg-background text-foreground pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
         <AuthProvider>
           <StoreProvider>

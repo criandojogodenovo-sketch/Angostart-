@@ -596,7 +596,7 @@ function AdicionarProdutoContent() {
                 placeholder="Explica o que inclui, para quem é e porque vale a pena. Mínimo 10 caracteres."
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
                 required
               />
             </div>
@@ -655,7 +655,7 @@ function AdicionarProdutoContent() {
                               .join(', '),
                           }))
                         }
-                        className="group inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-rose-50 hover:text-rose-600 hover:ring-rose-200"
+                        className="group inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600 ring-1 ring-blue-200 transition-colors hover:bg-rose-50 hover:text-rose-600 hover:ring-rose-200"
                         title="Remover"
                       >
                         {k}

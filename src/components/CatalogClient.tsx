@@ -130,8 +130,8 @@ export default function CatalogClient() {
               aria-pressed={active}
               className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
                 active
-                  ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
               }`}
             >
               <ProductIcon name={icon} className="h-4 w-4" />
@@ -157,7 +157,7 @@ export default function CatalogClient() {
       {/* Estados */}
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           <p className="text-sm">A carregar o catálogo do Neon…</p>
         </div>
       ) : visible.length === 0 ? (
@@ -178,7 +178,7 @@ export default function CatalogClient() {
               </p>
               <Button
                 asChild
-                className="mt-2 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="mt-2 bg-blue-600 text-white hover:bg-blue-700"
               >
                 <Link href="/perfil">Quero vender na AngoStart</Link>
               </Button>
@@ -196,7 +196,7 @@ export default function CatalogClient() {
                   changeFilter('todos');
                   setHotOnly(false);
                 }}
-                className="mt-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                className="mt-2 border-blue-500 text-blue-600 hover:bg-blue-50"
               >
                 <RotateCcw className="mr-2 h-4 w-4" /> Limpar filtros
               </Button>
