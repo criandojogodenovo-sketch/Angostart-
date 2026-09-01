@@ -7,8 +7,8 @@ import {
   rateLimit,
   sanitizeText,
   sanitizeMultiline,
-  isInternalMediaUrl,
 } from '@/lib/security';
+import { isInternalMediaUrl } from '@/lib/payments-manual';
 import { parseCoord, ANGOLA_LAT, ANGOLA_LNG } from '@/lib/geo';
 import {
   isValidBusinessCategory,

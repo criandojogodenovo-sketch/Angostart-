@@ -19,6 +19,9 @@ export async function PATCH(
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!rateLimit(clientKey(request, 'admin-limited-patch'), 20, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
 
   const { id } = await params;
   const userId = Number(id);
@@ -82,6 +85,9 @@ export async function DELETE(
   const auth = await requireAdmin(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!rateLimit(clientKey(request, 'admin-limited-delete'), 20, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
   }
 
   const { id } = await params;

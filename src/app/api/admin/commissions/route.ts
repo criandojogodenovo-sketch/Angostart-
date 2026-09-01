@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { isAdminRole } from '@/lib/security';
+import { isAdminRole, clientKey, rateLimit } from '@/lib/security';
 import {
   getCommissionOverview,
   setCommissionRate,
@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!rateLimit(clientKey(request, 'admin-commissions-get'), 60, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
 
   try {
     const overview = await getCommissionOverview();
@@ -47,6 +50,9 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireAdminUser(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!rateLimit(clientKey(request, 'admin-commissions-patch'), 30, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
   }
 
   let body: { scope?: unknown; percent?: unknown };
@@ -79,6 +85,9 @@ export async function POST(request: NextRequest) {
   const auth = await requireAdminUser(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!rateLimit(clientKey(request, 'admin-commissions-post'), 30, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
   }
 
   let body: { seller_id?: unknown; percent?: unknown };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAnyAdmin, sanitizeMultiline } from '@/lib/security';
+import { requireAnyAdmin, sanitizeMultiline, clientKey, rateLimit } from '@/lib/security';
 import { sendOrderValidatedEmail } from '@/lib/email';
 import { applyOrderStatusSideEffects } from '@/lib/wallet';
 
@@ -28,6 +28,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const auth = await requireAnyAdmin(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!rateLimit(clientKey(request, 'admin-order-patch'), 30, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
   }
 
   const { id: rawId } = await context.params;

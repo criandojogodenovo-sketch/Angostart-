@@ -64,6 +64,9 @@ async function targetExists(type: TargetType, id: number): Promise<boolean> {
  * Lista pública (mais recentes primeiro) com nome/@username do autor.
  */
 export async function GET(request: NextRequest) {
+  if (!rateLimit(clientKey(request, 'comments-get'), 120, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
   const target = parseTarget(request.nextUrl.searchParams);
   if (!target) {
     return NextResponse.json(

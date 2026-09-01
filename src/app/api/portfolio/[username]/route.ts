@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
+import { clientKey, rateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,10 @@ type RouteContext = { params: Promise<{ username: string }> };
  * 🔒 Fase 6 (ponto 2): NÃO expõe whatsapp/telefone — todo o contacto
  * passa pelo chat interno da plataforma.
  */
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
+  if (!rateLimit(clientKey(request, 'portfolio-get'), 60, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
   const { username: rawUsername } = await context.params;
   const username = decodeURIComponent(rawUsername).trim().toLowerCase();
 

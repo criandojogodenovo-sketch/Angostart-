@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decideWalletTransaction } from '@/lib/wallet';
-import { requireAdmin, sanitizeText } from '@/lib/security';
+import { requireAdmin, sanitizeText, clientKey, rateLimit } from '@/lib/security';
 import { sendWalletDecisionEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const auth = await requireAdmin(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!rateLimit(clientKey(request, 'admin-wallet-patch'), 30, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
   }
 
   const { id: rawId } = await context.params;

@@ -64,6 +64,59 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* ── Pré-validação do multipart (ANTES de depender do Blob) ──
+     Falha rápido com 400 mesmo sem BLOB_READ_WRITE_TOKEN: ficheiros
+     maliciosos são rejeitados por REGRAS PRÓPRIAS (extensão, MIME
+     declarado, magic bytes, tamanho), não por indisponibilidade. */
+  const pre = await request.clone().formData().catch(() => null);
+  let preFile: File | null = null;
+  if (pre) {
+    for (const v of pre.values()) {
+      if (typeof File !== 'undefined' && v instanceof File) {
+        preFile = v;
+        break;
+      }
+    }
+  }
+  if (!preFile || preFile.size === 0) {
+    return NextResponse.json(
+      { error: 'Pedido de upload inválido — envia um ficheiro de imagem.' },
+      { status: 400 }
+    );
+  }
+  const preExt = (preFile.name.split('.').pop() || '').toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(preExt)) {
+    return NextResponse.json(
+      { error: 'Formato inválido — usa JPG, PNG ou WebP.' },
+      { status: 400 }
+    );
+  }
+  if (!(IMAGE_MIME_TYPES as readonly string[]).includes(preFile.type)) {
+    return NextResponse.json(
+      { error: 'Tipo de conteúdo inválido — usa JPG, PNG ou WebP.' },
+      { status: 400 }
+    );
+  }
+  if (preFile.size > MAX_IMAGE_BYTES) {
+    return NextResponse.json(
+      { error: 'A imagem excede o limite de 5 MB.' },
+      { status: 400 }
+    );
+  }
+  /* Magic bytes: o conteúdo tem de corresponder ao formato declarado —
+     bloqueia executáveis disfarçados (MZ/ELF) com extensão .png. */
+  const headBuf = Buffer.from(await preFile.slice(0, 16).arrayBuffer());
+  const magicOk =
+    (preExt === 'png' && headBuf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) ||
+    (['jpg', 'jpeg'].includes(preExt) && headBuf.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) ||
+    (preExt === 'webp' && headBuf.subarray(0, 4).toString('latin1') === 'RIFF' && headBuf.subarray(8, 12).toString('latin1') === 'WEBP');
+  if (!magicOk) {
+    return NextResponse.json(
+      { error: 'O conteúdo do ficheiro não corresponde ao formato declarado.' },
+      { status: 400 }
+    );
+  }
+
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (!blobToken) {
     return NextResponse.json(

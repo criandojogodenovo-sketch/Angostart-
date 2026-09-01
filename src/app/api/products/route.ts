@@ -83,6 +83,10 @@ function parseBodyKeywords(
  * prioridade (anti-manipulação).
  */
 export async function GET(request: NextRequest) {
+  /* Leitura pública pesada (ILIKE) — throttle defensivo por IP. */
+  if (!rateLimit(clientKey(request, 'products-get'), 120, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
   try {
     return await handleGetProducts(request, true);
   } catch (error) {
@@ -448,7 +452,10 @@ async function insertProduct(args: InsertProductArgs): Promise<Product[]> {
   const { name, description, priceKz, type, imageUrl, user, serviceLat, serviceLng, fileUrl, keywords } = args;
   const kwReady = args.withKeywords;
   const kwCols = kwReady ? sql`, keywords` : sql``;
-  const kwVals = kwReady ? sql`, ${keywords}::text[], NOW()` : sql``;
+  /* created_at tem DEFAULT now() — NÃO injetar NOW() aqui: kwCols declara
+     apenas 1 coluna e valores a mais quebram o INSERT (42601, bug de
+     produção detetado na auditoria). */
+  const kwVals = kwReady ? sql`, ${keywords}::text[]` : sql``;
   const kwReturn = kwReady ? sql`, keywords` : sql``;
 
   /* Fase 11: rating nasce NULL — "Sem avaliações" até haver reviews

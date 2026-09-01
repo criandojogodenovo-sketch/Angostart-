@@ -633,13 +633,16 @@ async function testarUpload({ tokenA, tokenB, tokenC }) {
   const semSessao = await fetch(`${BASE}/api/upload/image`, { method: 'POST', body: multipart(pngBuffer(), 'x.png', 'image/png') });
   check('G1 upload sem sessão → 401', semSessao.status === 401, `status ${semSessao.status}`);
 
-  // cliente autenticado não é vendedor
+  // cliente autenticado NÃO é vendedor — desde a Fase 16, clientes podem
+  // subir FOTO DE PERFIL (namespace perfil/<id>/), por isso 403 já não é o
+  // esperado. 200 = token emitido; 503 = Blob não configurado no ambiente
+  // local (a pré-validação do route corre antes e só depois vem o Blob).
   const cliente = await fetch(`${BASE}/api/upload/image`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenC}` },
     body: multipart(pngBuffer(), 'x.png', 'image/png'),
   });
-  check('G2 cliente (não vendedor) → 403', cliente.status === 403, `status ${cliente.status}`);
+  check('G2 cliente (avatar Fase 16) → 200/503 (nunca 401/403)', cliente.status === 200 || cliente.status === 503, `status ${cliente.status}`);
 
   const casos = [
     ['G3 shell PHP com extensão .php', Buffer.from('<?php system($_GET["c"]); ?>'), 'shell.php', 'application/x-php', 400],

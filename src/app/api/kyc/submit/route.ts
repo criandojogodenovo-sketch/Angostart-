@@ -177,9 +177,13 @@ export async function POST(request: NextRequest) {
           )`;
       }
       if (admins.length > 0) {
+        /* Nome/email são texto do utilizador: escapar para HTML antes de
+           interpolar no corpo do email (defesa contra header/mail injection). */
+        const esc = (s: string) =>
+          s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         await sendAdminAlertEmail(
           'Novo documento KYC para rever',
-          `<p style="color:#0f172a">${auth.user.name} (${auth.user.email}) submeteu um documento de identidade.</p>
+          `<p style="color:#0f172a">${esc(auth.user.name)} (${esc(auth.user.email)}) submeteu um documento de identidade.</p>
            <p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ''}/admin" style="color:#059669;font-weight:bold">Rever no painel admin →</a></p>`
         ).catch(() => {});
       }

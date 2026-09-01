@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { clientKey, rateLimit, isInternalMediaUrl } from '@/lib/security';
+import { clientKey, rateLimit } from '@/lib/security';
+import { isInternalMediaUrl } from '@/lib/payments-manual';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;

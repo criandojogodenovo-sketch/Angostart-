@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { isProductType, type Product } from '@/lib/products-data';
 import { getAuthUser, isAdminRole } from '@/lib/auth';
-import { sanitizeMultiline, sanitizeText, isSafeHttpUrl } from '@/lib/security';
+import { sanitizeMultiline, sanitizeText, isSafeHttpUrl, clientKey, rateLimit } from '@/lib/security';
 import { isInternalMediaUrl } from '@/lib/payments-manual';
 import { keywordsReady, isUndefinedColumnError, markKeywordsUnavailable } from '@/lib/keywords-db';
 import { parseKeywords, MAX_KEYWORDS } from '@/lib/keywords';
@@ -44,6 +44,9 @@ async function loadProduct(id: number, withKeywords = false): Promise<Product | 
  * completo — os botões Editar/Eliminar só funcionam para o dono.
  */
 export async function GET(request: NextRequest, context: RouteContext) {
+  if (!rateLimit(clientKey(request, 'product-get'), 120, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
   const { id: rawId } = await context.params;
   const id = Number(rawId);
 

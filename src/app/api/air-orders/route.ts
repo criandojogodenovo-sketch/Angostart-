@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
   try {
     const { detectContactSharing } = await import('@/lib/antifraud');
     const violation = detectContactSharing(`${title}\n${description}`);
-    if (violation) {
+    if (violation.length > 0) {
       return NextResponse.json(
         {
           error:

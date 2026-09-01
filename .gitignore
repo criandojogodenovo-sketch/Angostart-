@@ -78,3 +78,8 @@ dev-restart.log
 # Auditoria de segurança (build local)
 /.next-sec/
 scripts/.ai-build/
+
+# artefactos de teste compilados
+scripts/.vlm-build/
+scripts/.ai-build/
+.next-sec/

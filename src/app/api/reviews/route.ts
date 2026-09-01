@@ -15,6 +15,9 @@ export const dynamic = 'force-dynamic';
  * (lista + média + contagem).
  */
 export async function GET(request: NextRequest) {
+  if (!rateLimit(clientKey(request, 'reviews-get'), 120, 60_000)) {
+    return NextResponse.json({ error: 'Demasiados pedidos. Aguarda um momento.' }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const productId = Number(searchParams.get('product_id'));
 

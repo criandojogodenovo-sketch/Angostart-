@@ -76,10 +76,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // 🔒 Autorização: dono da encomenda (cliente) ou admin
-    const isAdmin =
-      user.role === 'admin' ||
-      user.role === 'admin_limitado' ||
-      user.email === process.env.ADMIN_EMAIL;
+    // (roles vêm da BD via getAuthUser — sem bypass por env, que criava
+    //  um segundo caminho de autorização difícil de auditar)
+    const isAdmin = user.role === 'admin' || user.role === 'admin_limitado';
     if (order.user_id !== user.id && !isAdmin) {
       return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 });
     }
