@@ -62,12 +62,15 @@ import {
   YAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import BackToTop from '@/components/BackToTop';
 import { useAuth } from '@/context/AuthContext';
 import { authHeaders, getToken, type AuthUser } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import ServiceMap from '@/components/ServiceMap';
 import StoreEditorCard from '@/components/StoreEditorCard';
+import BusinessProfileCard from '@/components/BusinessProfileCard';
 import KycVerificationCard from '@/components/KycVerificationCard';
 
 interface DashboardData {
@@ -644,53 +647,89 @@ export default function DashboardVendedorPage() {
         </div>
       )}
       {user && (
-        <div className="mt-4">
-          <KycVerificationCard
-            user={user}
-            onUpdated={(patch: Partial<AuthUser>) => {
-              const t = getToken();
-              if (t && user) applySession(t, { ...user, ...patch });
-            }}
-            compact
-          />
-        </div>
-      )}
+        <Tabs defaultValue="geral" className="mt-4">
+          {/* Fase 16 — navegação por tabs: menos scroll, tudo montado (forceMount
+              preserva estado — GPS, propostas, dados carregados) */}
+          <TabsList className="mb-6 flex h-auto w-full flex-wrap gap-1 rounded-2xl border border-white/10 bg-slate-800/80 p-1.5 backdrop-blur-xl">
+            <TabsTrigger
+              value="geral"
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white sm:text-sm"
+            >
+              Visão geral
+            </TabsTrigger>
+            <TabsTrigger
+              value="loja"
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white sm:text-sm"
+            >
+              Loja & Catálogo
+            </TabsTrigger>
+            <TabsTrigger
+              value="crescimento"
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white sm:text-sm"
+            >
+              Afiliados & Em alta
+            </TabsTrigger>
+            <TabsTrigger
+              value="servicos"
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white sm:text-sm"
+            >
+              Serviços & Reputação
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Fase 9 — Loja virtual: editor + página pública */}
-      <div className="mt-4">
-        <StoreEditorCard />
-      </div>
+          {/* ═══════════ TAB: LOJA & CATÁLOGO ═══════════ */}
+          <TabsContent value="loja" forceMount className="data-[state=inactive]:hidden">
+            <KycVerificationCard
+              user={user}
+              onUpdated={(patch: Partial<AuthUser>) => {
+                const t = getToken();
+                if (t && user) applySession(t, { ...user, ...patch });
+              }}
+              compact
+            />
 
-      {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-500/30 bg-blue-600/10 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-          <span className="flex items-center gap-1.5 font-semibold text-blue-200">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            {cards && cards.ratingCount > 0
-              ? `${cards.ratingAverage.toFixed(1)} ★ (${cards.ratingCount})`
-              : 'Avaliação estimada da plataforma · sem avaliações reais'}
-          </span>
-          <span className="flex items-center gap-1.5 text-blue-200">
-            <Package className="h-4 w-4 text-blue-300" />
-            {cards?.productsPublished ?? 0} produtos publicados
-          </span>
-          <span className="flex items-center gap-1.5 text-blue-200">
-            <Users className="h-4 w-4 text-blue-300" />
-            {cards?.clients ?? 0} clientes servidos
-          </span>
-        </div>
-        <p className="text-[11px] text-blue-300/80">
-          Estes números são o que os clientes veem na tua Mini-Loja.
-        </p>
-      </div>
+            {/* Fase 9 — Loja virtual: editor + página pública */}
+            <div className="mt-4">
+              <StoreEditorCard />
+            </div>
 
-      {/* Alertas (Fase 5) */}
-      {data?.alerts.message && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          <p>{data.alerts.message}</p>
-        </div>
-      )}
+            {/* Fase 16 — Estabelecimento (loja/hotel/empresa) com mapa fixo */}
+            <BusinessProfileCard />
+
+            {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-500/30 bg-blue-600/10 px-5 py-4">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+                <span className="flex items-center gap-1.5 font-semibold text-blue-200">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  {cards && cards.ratingCount > 0
+                    ? `${cards.ratingAverage.toFixed(1)} ★ (${cards.ratingCount})`
+                    : 'Avaliação estimada da plataforma · sem avaliações reais'}
+                </span>
+                <span className="flex items-center gap-1.5 text-blue-200">
+                  <Package className="h-4 w-4 text-blue-300" />
+                  {cards?.productsPublished ?? 0} produtos publicados
+                </span>
+                <span className="flex items-center gap-1.5 text-blue-200">
+                  <Users className="h-4 w-4 text-blue-300" />
+                  {cards?.clients ?? 0} clientes servidos
+                </span>
+              </div>
+              <p className="text-[11px] text-blue-300/80">
+                Estes números são o que os clientes veem na tua Mini-Loja.
+              </p>
+            </div>
+
+            {/* Alertas (Fase 5) */}
+            {data?.alerts.message && (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <p>{data.alerts.message}</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ═══════════ TAB: VISÃO GERAL (parte 1) ═══════════ */}
+          <TabsContent value="geral" forceMount className="data-[state=inactive]:hidden">
 
       {/* Cartões de métricas — linha 1 */}
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -859,8 +898,8 @@ export default function DashboardVendedorPage() {
         </section>
       </div>
 
-      {/* Fase 4/5 — Carteira / Afiliados / Em alta + Disponibilidade */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+      {/* Fase 4/5 — Carteira (na Visão geral); Afiliados + Em alta vão para a tab Crescimento */}
+      <div className="mt-8">
         {/* Carteira */}
         <section aria-label="Carteira" className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-600 to-teal-500 p-5 text-white shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold">
@@ -877,7 +916,12 @@ export default function DashboardVendedorPage() {
             <Link href="/carteira">Abrir carteira</Link>
           </Button>
         </section>
+      </div>
+      </TabsContent>
 
+      {/* ═══════════ TAB: AFILIADOS & EM ALTA (Crescimento) ═══════════ */}
+      <TabsContent value="crescimento" forceMount className="data-[state=inactive]:hidden">
+      <div className="mt-2 grid gap-6 lg:grid-cols-2">
         {/* Afiliados — Fase 10 (modelo Shopee/Amazon) */}
         <section aria-label="Programa de afiliados" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
@@ -1247,6 +1291,10 @@ export default function DashboardVendedorPage() {
           </div>
         </section>
       )}
+      </TabsContent>
+
+      {/* ═══════════ TAB: VISÃO GERAL (parte 2) — atividade + encomendas ═══════════ */}
+      <TabsContent value="geral" forceMount className="data-[state=inactive]:hidden">
 
       {/* Fase 5 — Atividade recente: avaliações + disponibilidade (domicílio) */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -1383,6 +1431,10 @@ export default function DashboardVendedorPage() {
           </ul>
         )}
       </section>
+      </TabsContent>
+
+      {/* ═══════════ TAB: SERVIÇOS & REPUTAÇÃO ═══════════ */}
+      <TabsContent value="servicos" forceMount className="data-[state=inactive]:hidden">
 
       {/* Ponto 4B: serviços ao domicílio pagos — iniciar deslocação + GPS em tempo real */}
       <ServicosAtivosCard />
@@ -1395,6 +1447,9 @@ export default function DashboardVendedorPage() {
 
       {/* Propostas v2 — negociação (Fase 7) */}
       <PropostasRecebidas />
+      </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
@@ -1874,7 +1929,7 @@ interface ServicoOrder {
  * Lista os serviços ao domicílio com status `pago` (dinheiro já em escrow)
  * e conduz o fluxo de deslocação:
  *  1. «Iniciar deslocação» → POST /api/orders/[id]/start-service;
- *  2. GPS do telemóvel via watchPosition + envio ao servidor a cada 5 s
+ *  2. GPS do telemóvel via watchPosition + envio ao servidor a cada 3 s (Fase 16)
  *     (POST /api/orders/[id]/location);
  *  3. Mapa com a posição APROXIMADA do cliente (raio de 500 m — a exata
  *     nunca sai do servidor) + a tua última posição conhecida.
@@ -1938,7 +1993,7 @@ function ServicosAtivosCard() {
     }
   }
 
-  /** Liga o GPS contínuo para um pedido: watchPosition + envio a cada 5 s. */
+  /** Liga o GPS contínuo para um pedido: watchPosition + envio a cada 3 s (Fase 16). */
   function ligarGps(orderId: number) {
     if (!('geolocation' in navigator)) {
       toast({ title: 'GPS indisponível neste dispositivo.' });
@@ -1957,10 +2012,10 @@ function ServicosAtivosCard() {
           description: 'Autoriza a localização para o cliente te acompanhar.',
         });
       },
-      { enableHighAccuracy: true, maximumAge: 4000, timeout: 15_000 }
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 12_000 }
     );
 
-    // Envio periódico a cada 5 s (o servidor valida tracking ativo)
+    // Envio periódico a cada 3 s (o servidor valida tracking ativo)
     const sender = setInterval(() => {
       if (!latest) return;
       fetch(`/api/orders/${orderId}/location`, {
@@ -1976,7 +2031,7 @@ function ServicosAtivosCard() {
           }
         })
         .catch(() => {});
-    }, 5_000);
+    }, 3_000);
 
     function pararGps() {
       navigator.geolocation.clearWatch(watchId);

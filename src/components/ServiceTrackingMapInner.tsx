@@ -3,12 +3,16 @@
 /**
  * AngoStart — Mapa de RASTREAMENTO em tempo real (serviços ao domicílio).
  *
- * Ponto 4B do prompt:
- *  - 🛵 marcador AZUL: posição atual do prestador (GPS a cada 5 s);
+ * Ponto 4B do prompt + Fase 16:
+ *  - 🛵 marcador AZUL: posição atual do prestador (GPS a cada 3 s);
  *  - 🏠 marcador VERMELHO: posição APROXIMADA do cliente (raio 500 m —
  *    a exata nunca sai do servidor);
  *  - ⏱️ tempo estimado de chegada (Haversine ÷ velocidade média), atualizado
- *    junto com a posição (polling a cada 5 s contra /api/orders/[id]/tracking).
+ *    junto com a posição (polling a cada 3 s contra /api/orders/[id]/tracking);
+ *  - 🧵 LINHA DE TRAJETO: história das últimas posições do prestador
+ *    (mantida no cliente entre polls, prop `trail`);
+ *  - 🔒 PRIVACIDADE: antes do pagamento a posição do prestador sai
+ *    aproximada (~500 m) — `provider_fuzzed` ativa o aviso na UI.
  *
  * Leaflet acede a `window` — usar sempre via o wrapper ServiceTrackingMap
  * (dynamic ssr:false), como o ServiceMap.
@@ -30,6 +34,10 @@ export interface TrackingData {
   prestador_lat: number | null;
   prestador_lng: number | null;
   prestador_loc_updated_at: string | null;
+  /** Fase 16: TRUE → posição do prestador aproximada (pré-pagamento). */
+  provider_fuzzed?: boolean;
+  /** Fase 16: TRUE → pedido pago, posição exata desbloqueada. */
+  payment_unlocked?: boolean;
   client_lat: number | null;
   client_lng: number | null;
   client_has_gps: boolean;
@@ -82,9 +90,12 @@ function FollowTrack({
 export default function ServiceTrackingMapInner({
   tracking,
   orderId,
+  trail,
 }: {
   tracking: TrackingData | null;
   orderId: number;
+  /** História das posições do prestador (mais antiga → mais recente). */
+  trail?: [number, number][];
 }) {
   const prestadorIcon = useMemo(
     () => makeMarkerIcon('#38bdf8', '#38bdf8', 'Prestador'),
@@ -130,7 +141,7 @@ export default function ServiceTrackingMapInner({
           </span>
         ) : tracking?.tracking_active && prestadorPos ? (
           <span className="flex items-center gap-1.5 rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold text-sky-300">
-            <Loader2 className="h-3 w-3 animate-spin" /> Ao vivo · atualiza a cada 5 s
+            <Loader2 className="h-3 w-3 animate-spin" /> Ao vivo · atualiza a cada 3 s
           </span>
         ) : (
           <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300">
@@ -151,6 +162,13 @@ export default function ServiceTrackingMapInner({
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
         />
         <FollowTrack a={prestadorPos} b={clientPos} />
+        {/* 🧵 Linha de trajeto — história das posições do prestador */}
+        {trail && trail.length >= 2 && (
+          <Polyline
+            positions={trail}
+            pathOptions={{ color: '#8b5cf6', weight: 3.5, opacity: 0.85, lineCap: 'round' }}
+          />
+        )}
         {prestadorPos && <Marker position={prestadorPos} icon={prestadorIcon} />}
         {clientPos && <Marker position={clientPos} icon={clientIcon} />}
         {prestadorPos && clientPos && (
@@ -204,6 +222,12 @@ export default function ServiceTrackingMapInner({
         <p className="bg-slate-900 px-4 pb-3 text-[11px] text-amber-300">
           O cliente não partilhou GPS neste pedido — o mapa mostra apenas a
           posição do prestador.
+        </p>
+      )}
+      {tracking?.provider_fuzzed && !tracking?.service_completed && (
+        <p className="bg-slate-900 px-4 pb-3 text-[11px] text-purple-300">
+          🔒 Posição do prestador aproximada (~500 m) — o pagamento desbloqueia
+          a posição exata em tempo real.
         </p>
       )}
     </div>

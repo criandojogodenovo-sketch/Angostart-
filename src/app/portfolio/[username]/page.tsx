@@ -15,10 +15,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PatternWaves from '@/components/illustrations/PatternWaves';
 import { useParams } from 'next/navigation';
+import { useAuth, authHeaders } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Award,
+  CheckCircle2,
   Globe,
+  Handshake,
+  Inbox,
   Loader2,
   MapPin,
   Medal,
@@ -60,6 +65,7 @@ interface SellerData {
   portfolio_bio: string | null;
   portfolio_image: string | null;
   portfolio_url: string | null;
+  profile_image?: string | null;
   media_avaliacoes?: number | null;
   total_avaliacoes?: number | null;
   rating_estimado?: number | null;
@@ -116,9 +122,13 @@ function Stars({ rating }: { rating: number }) {
 export default function PortfolioPublicoPage() {
   const params = useParams<{ username: string }>();
   const username = params?.username ?? '';
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [data, setData] = useState<PortfolioPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [contactSent, setContactSent] = useState(false);
+  const [contactSending, setContactSending] = useState(false);
 
   useEffect(() => {
     if (!username) return;
@@ -168,6 +178,45 @@ export default function PortfolioPublicoPage() {
   const estimada = totalAvaliacoes === 0 && typeof seller.rating_estimado === 'number';
   const media = estimada ? (seller.rating_estimado as number) : (seller.media_avaliacoes ?? 0);
 
+  /* Fase 16 — «Entrar em Contato» (fluxo Airbnb): o prestador aceita ou
+     recusa; depois do aceite o cliente abre o chat pela aba Contactos. */
+  async function pedirContato() {
+    if (!user) {
+      toast({
+        title: 'Entra na tua conta',
+        description: 'Precisas de sessão iniciada para entrar em contato.',
+      });
+      return;
+    }
+    if (contactSending || contactSent) return;
+    setContactSending(true);
+    try {
+      const res = await fetch('/api/contact-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ provider_id: seller.id }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setContactSent(true);
+        toast({
+          title: 'Pedido de contato enviado ✓',
+          description: `${seller.name} recebeu a tua solicitação — acompanha a resposta em Pedidos → Contactos.`,
+        });
+      } else {
+        toast({ title: 'Não foi possível enviar', description: data.error, variant: 'destructive' });
+      }
+    } catch {
+      toast({
+        title: 'Sem ligação',
+        description: 'Verifica a internet e tenta novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setContactSending(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <Link
@@ -183,9 +232,9 @@ export default function PortfolioPublicoPage() {
           <PatternWaves />
         </div>
         <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
-          {seller.portfolio_image ? (
+          {seller.profile_image || seller.portfolio_image ? (
             <img
-              src={seller.portfolio_image}
+              src={(seller.profile_image ?? seller.portfolio_image) as string}
               alt={`Foto de ${seller.name}`}
               className="-mt-12 h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover shadow-xl ring-2 ring-blue-500/40 transition-transform duration-300 hover:scale-105"
             />
@@ -228,12 +277,33 @@ export default function PortfolioPublicoPage() {
               </p>
             )}
           </div>
-          {/* 🔒 Fase 6 (ponto 2): contacto apenas via chat interno */}
-          <Button asChild className="h-12 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700">
-            <Link href="/chat">
-              <MessageCircle className="mr-2 h-5 w-5" /> Falar no chat
-            </Link>
-          </Button>
+          {/* 🔒 Fase 16: fluxo «Entrar em Contato» — sem dados expostos */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              onClick={pedirContato}
+              disabled={contactSending || contactSent || user?.id === seller.id}
+              className="h-12 bg-gradient-to-r from-blue-600 to-purple-600 px-6 font-semibold text-white hover:from-blue-700 hover:to-purple-700"
+            >
+              {contactSending ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : contactSent ? (
+                <CheckCircle2 className="mr-2 h-5 w-5" />
+              ) : (
+                <Handshake className="mr-2 h-5 w-5" />
+              )}
+              {contactSent ? 'Pedido enviado ✓' : 'Entrar em Contato'}
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="h-12 border-white/25 bg-white/5 px-6 font-semibold text-white hover:bg-white/10"
+            >
+              <Link href={user?.id === seller.id ? '/pedidos?tab=contactos' : '/pedidos?tab=contactos'}>
+                <Inbox className="mr-2 h-5 w-5" />
+                {user?.id === seller.id ? 'Ver os meus contactos' : 'Pedidos de serviços'}
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Estatísticas da Mini-Loja */}

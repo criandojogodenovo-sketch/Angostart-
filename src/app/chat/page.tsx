@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Send,
   ShieldAlert,
+  ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -250,25 +251,46 @@ function ChatClient({ userId }: { userId: number }) {
             </div>
           ) : (
             <>
-              <header className="flex items-center gap-3 border-b border-slate-100 p-4">
-                <button
-                  onClick={() => setActiveId(null)}
-                  className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
-                  aria-label="Voltar às conversas"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{active.other_name ?? 'Utilizador'}</p>
-                  {active.product_name && (
-                    <Link
-                      href={`/produtos/${active.product_id}`}
-                      className="text-xs font-medium text-blue-600 hover:underline"
+              <header className="border-b border-slate-100 p-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveId(null)}
+                    className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+                    aria-label="Voltar às conversas"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-900">{active.other_name ?? 'Utilizador'}</p>
+                    {active.product_name && (
+                      <Link
+                        href={`/produtos/${active.product_id}`}
+                        className="text-xs font-medium text-blue-600 hover:underline"
+                      >
+                        {active.product_name}
+                      </Link>
+                    )}
+                  </div>
+                  {/* Fase 16 — «Pagar Serviço»: atalho para o pagamento seguro;
+                      o pagamento revela a localização exata ao prestador. */}
+                  {active.product_id && active.product_type && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="h-9 shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 text-xs font-semibold text-white hover:from-blue-700 hover:to-purple-700"
                     >
-                      {active.product_name}
-                    </Link>
+                      <Link href={`/produtos/${active.product_id}`}>
+                        <ShieldCheck className="mr-1 h-3.5 w-3.5" /> Pagar Serviço
+                      </Link>
+                    </Button>
                   )}
                 </div>
+                <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+                  <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" />
+                  {active.product_id && active.product_type === 'servico_domicilio'
+                    ? '🔒 Antes do pagamento, a tua localização é partilhada apenas como zona aproximada (~500 m). Após o pagamento, o prestador vê a posição exata. Telefones e emails são bloqueados automaticamente.'
+                    : '🔒 Nunca partilhes telefones ou emails — toda a comunicação e pagamento são protegidos pela AngoStart.'}
+                </p>
               </header>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">

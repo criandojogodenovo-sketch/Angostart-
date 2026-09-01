@@ -11,6 +11,7 @@ import SupportChatWidget from "@/components/SupportChatWidget";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import RefCapture from "@/components/RefCapture";
+import BackToTop from "@/components/BackToTop";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -68,6 +69,8 @@ export default function RootLayout({
             {/* Fase 19b: overflow-x-hidden impede scroll lateral em 375–414px */}
             <main className="flex-1 overflow-x-hidden">{children}</main>
             <Footer />
+            {/* Fase 16 — botão «Voltar ao topo» (fixo no canto, todas as páginas) */}
+            <BackToTop />
             <WhatsAppButton />
             {/* Fase 14: assistente de suporte IA (canto inferior esquerdo) */}
             <SupportChatWidget />

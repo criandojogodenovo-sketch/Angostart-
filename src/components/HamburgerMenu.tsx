@@ -8,10 +8,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
+  Building2,
   Facebook,
   Instagram,
   Mail,
   MapPin,
+  Megaphone,
   MessageCircle,
   Phone,
   Plus,
@@ -30,6 +32,8 @@ import { useAuth } from '@/context/AuthContext';
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/produtos', label: 'Produtos', icon: ShoppingBag },
+  { href: '/pedidos', label: 'Pedidos', icon: Megaphone },
+  { href: '/estabelecimentos', label: 'Espaços', icon: Building2 },
   { href: '/lojas', label: 'Lojas', icon: Store },
   { href: '/prestadores', label: 'Portfólios', icon: Wrench },
   { href: '/chat', label: 'Chat', icon: MessageCircle },

@@ -54,6 +54,8 @@ export interface AuthUser {
   /** Fase 9: verificação de identidade (BI aprovado pelo admin). */
   kyc_status?: string | null;
   is_verified_bi?: boolean;
+  /** Fase 16: foto de perfil (URL interno /api/media/perfil/…). */
+  profile_image?: string | null;
 }
 
 export type UserRow = AuthUser & {
@@ -138,7 +140,8 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
     const rows = (await sql`
       SELECT id, name, email, role, username, telefone, bio, area_atuacao, cidade,
              especialidade, portfolio_url, blocked::boolean,
-             must_change_password::boolean, kyc_status, is_verified_bi::boolean
+             must_change_password::boolean, kyc_status, is_verified_bi::boolean,
+             profile_image
       FROM users WHERE id = ${Number(payload.sub)} AND blocked = FALSE LIMIT 1
     `) as unknown as AuthUser[];
     return rows[0] ?? null;

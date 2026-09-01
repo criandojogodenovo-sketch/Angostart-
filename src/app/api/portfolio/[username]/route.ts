@@ -29,7 +29,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const rows = (await sql`
       SELECT id, name, role, username, cidade, especialidade, bio,
-             portfolio_bio, portfolio_image, portfolio_url
+             portfolio_bio, portfolio_image, portfolio_url, profile_image
       FROM users
       WHERE username = ${username}
         AND role IN ('criador', 'prestador_domicilio', 'prestador_remoto')
@@ -46,6 +46,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       portfolio_bio: string | null;
       portfolio_image: string | null;
       portfolio_url: string | null;
+      profile_image: string | null;
     }[];
 
     const seller = rows[0];
@@ -157,6 +158,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         portfolio_bio: seller.portfolio_bio,
         portfolio_image: seller.portfolio_image,
         portfolio_url: seller.portfolio_url,
+        // Fase 16: foto de perfil (prioridade sobre portfolio_image)
+        profile_image: seller.profile_image,
         // Reputação
         media_avaliacoes: media,
         total_avaliacoes: total,

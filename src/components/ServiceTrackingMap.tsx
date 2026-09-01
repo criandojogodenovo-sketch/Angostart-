@@ -25,9 +25,12 @@ const ServiceTrackingMapInner = dynamic(
 export default function ServiceTrackingMap({
   tracking,
   orderId,
+  trail,
 }: {
   tracking: TrackingData | null;
   orderId: number;
+  /** História das posições do prestador (linha de trajeto). */
+  trail?: [number, number][];
 }) {
-  return <ServiceTrackingMapInner tracking={tracking} orderId={orderId} />;
+  return <ServiceTrackingMapInner tracking={tracking} orderId={orderId} trail={trail} />;
 }

@@ -15,12 +15,19 @@ type RouteContext = { params: Promise<{ id: string }> };
 /**
  * GET /api/orders/[id]/tracking — estado do rastreamento em tempo real.
  *
- * Polling do cliente a cada 5 s (setInterval em /perfil):
- *  - posição atual do prestador (exata — é pública por natureza);
+ * Polling do cliente a cada 3 s (setInterval em /perfil):
+ *  - posição atual do prestador;
  *  - posição APROXIMADA do cliente (fuzz ~500 m — a exata NUNCA sai
  *    do servidor);
  *  - ETA estimado (Haversine ÷ velocidade média de Luanda);
  *  - flags: service_started_at, tracking_active, service_completed.
+ *
+ * 🔒 REGRAS DE PRIVACIDADE (Fase 16 — modelo Uber/Airbnb):
+ * - Cliente: sempre fuzzado dentro de 500 m (determinístico por encomenda).
+ * - Prestador: posição EXATA apenas quando o pedido está PAGO ('pago' ou
+ *   'entregue'). Antes do pagamento, a posição do prestador também sai
+ *   fuzzada (~500 m) + flag `provider_fuzzed` para a UI avisar
+ *   «Paga o serviço para ver a posição exata».
  *
  * 🔒 Só o cliente (dono da encomenda) ou um admin pode ler.
  * Se o cliente nunca partilhou GPS (latitude/longitude NULL) o mapa
@@ -31,8 +38,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (!user) {
     return NextResponse.json({ error: 'Sessão inválida. Entra novamente.' }, { status: 401 });
   }
-  // Polling a cada 5 s = 12/min — limite 40/min por IP (abas/retries)
-  if (!rateLimit(clientKey(request, 'tracking-get'), 40, 60_000)) {
+  // Polling a cada 3 s = 20/min — limite 60/min por IP (abas/retries)
+  if (!rateLimit(clientKey(request, 'tracking-get'), 60, 60_000)) {
     return NextResponse.json({ error: 'Aguarda um momento.' }, { status: 429 });
   }
 
@@ -82,6 +89,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
     let clientLat: number | null = null;
     let clientLng: number | null = null;
 
+    /* 🔒 PRIVACIDADE (Fase 16): posição do prestador só é EXATA após o
+       pagamento. Antes ('pendente'/'aguardando_validacao'), sai fuzzada
+       a ~500 m — o pagamento é a chave que revela a posição real. */
+    const isPaid = order.status === 'pago' || order.status === 'entregue';
+
+    let providerLat = order.prestador_lat;
+    let providerLng = order.prestador_lng;
+    let providerFuzzed = false;
+
+    if (!isPaid && order.prestador_lat != null && order.prestador_lng != null) {
+      const fuzzedProvider = fuzzCoordinate(
+        order.prestador_lat,
+        order.prestador_lng,
+        order.id + 7919 // seed diferente do cliente (não colapsam no mesmo ponto)
+      );
+      providerLat = fuzzedProvider.lat;
+      providerLng = fuzzedProvider.lng;
+      providerFuzzed = true;
+    }
+
     if (order.latitude != null && order.longitude != null) {
       // 🔒 PRIVACIDADE: cliente sempre fuzzado dentro de 500 m (determinístico
       // por encomenda — não salta entre polls)
@@ -90,6 +117,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       clientLng = fuzzed.lng;
 
       if (order.prestador_lat != null && order.prestador_lng != null) {
+        // distância/ETA calculados sobre as coordenadas EXATAS (server-side)
         distanceMeters = haversineMeters(
           order.prestador_lat,
           order.prestador_lng,
@@ -108,9 +136,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
         service_started_at: order.service_started_at,
         service_completed: order.service_completed,
         service_completed_at: order.service_completed_at,
-        prestador_lat: order.prestador_lat,
-        prestador_lng: order.prestador_lng,
+        prestador_lat: providerLat,
+        prestador_lng: providerLng,
         prestador_loc_updated_at: order.prestador_loc_updated_at,
+        provider_fuzzed: providerFuzzed,
+        payment_unlocked: isPaid,
         client_lat: clientLat,
         client_lng: clientLng,
         client_has_gps: order.latitude != null && order.longitude != null,
