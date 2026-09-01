@@ -63,13 +63,13 @@ export default function HamburgerMenu({
       <aside
         id="menu-mobile"
         aria-hidden={!open}
-        className={`fixed right-0 top-0 z-[70] flex h-dvh w-[86%] max-w-xs flex-col border border-white/10 bg-emerald-950/95 text-white shadow-[0_0_50px_rgba(0,0,0,0.55)] backdrop-blur-sm transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed right-0 top-0 z-[70] flex h-dvh w-[86%] max-w-xs flex-col glass-panel text-white shadow-[0_0_50px_rgba(0,0,0,0.55)] transition-transform duration-300 ease-out md:hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <p className="text-lg font-bold">
-            Ango<span className="text-emerald-400">Start</span>
+            Ango<span className="text-blue-300">Start</span>
           </p>
           <button
             onClick={onClose}
@@ -95,11 +95,11 @@ export default function HamburgerMenu({
                     onClick={onClose}
                     className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                       active
-                        ? 'bg-emerald-500/20 text-white'
+                        ? 'bg-blue-600/20 text-white'
                         : 'text-white hover:bg-white/10'
                     }`}
                   >
-                    <Icon className="h-6 w-6 text-emerald-400" />
+                    <Icon className="h-6 w-6 text-blue-300" />
                     {label}
                   </Link>
                 </li>
@@ -113,11 +113,11 @@ export default function HamburgerMenu({
                   onClick={onClose}
                   className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                     pathname.startsWith('/dashboard')
-                      ? 'bg-emerald-500/20 text-white'
+                      ? 'bg-blue-600/20 text-white'
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  <BarChart3 className="h-6 w-6 text-emerald-400" />
+                  <BarChart3 className="h-6 w-6 text-blue-300" />
                   Painel de vendas
                 </Link>
               </li>
@@ -130,8 +130,8 @@ export default function HamburgerMenu({
                   onClick={onClose}
                   className={`flex items-center gap-4 rounded-xl px-5 py-4 text-base font-semibold transition-colors ${
                     pathname === '/adicionar-produto'
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                      ? 'bg-white/10 text-blue-300'
+                      : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-600/25 hover:brightness-110'
                   }`}
                 >
                   <Plus className="h-6 w-6" />
@@ -144,13 +144,13 @@ export default function HamburgerMenu({
 
         <div className="space-y-2 border-t border-white/10 px-6 py-5 text-sm text-slate-200">
           <p className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-emerald-400" /> Luanda, Angola
+            <MapPin className="h-4 w-4 text-blue-300" /> Luanda, Angola
           </p>
           <p className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-emerald-400" /> +244 958 176 915
+            <Phone className="h-4 w-4 text-blue-300" /> +244 958 176 915
           </p>
           <p className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-emerald-400" /> geral@angostart.ao
+            <Mail className="h-4 w-4 text-blue-300" /> geral@angostart.ao
           </p>
           <div className="flex gap-3 pt-2">
             <a
@@ -158,7 +158,7 @@ export default function HamburgerMenu({
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook da AngoStart"
-              className="rounded-full bg-white/10 p-2 hover:bg-emerald-500 hover:text-white"
+              className="rounded-full bg-white/10 p-2 hover:bg-blue-600 hover:text-white"
             >
               <Facebook className="h-4 w-4" />
             </a>
@@ -167,7 +167,7 @@ export default function HamburgerMenu({
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram da AngoStart"
-              className="rounded-full bg-white/10 p-2 hover:bg-emerald-500 hover:text-white"
+              className="rounded-full bg-white/10 p-2 hover:bg-blue-600 hover:text-white"
             >
               <Instagram className="h-4 w-4" />
             </a>

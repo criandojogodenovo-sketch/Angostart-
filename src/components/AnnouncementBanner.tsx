@@ -19,7 +19,7 @@ interface Announcement {
 
 const TYPE_STYLES: Record<Announcement['type'], { icon: typeof Tag; classes: string }> = {
   promo: { icon: Tag, classes: 'border-amber-300 bg-amber-50 text-amber-900' },
-  destaque: { icon: Sparkles, classes: 'border-emerald-300 bg-emerald-50 text-emerald-900' },
+  destaque: { icon: Sparkles, classes: 'border-blue-300 bg-blue-50 text-blue-900' },
   novidade: { icon: Megaphone, classes: 'border-sky-300 bg-sky-50 text-sky-900' },
   exclusivo: { icon: Megaphone, classes: 'border-slate-300 bg-slate-100 text-slate-800' },
 };

@@ -161,7 +161,7 @@ export default function ProofReviewList({
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-            <Smartphone className="h-4 w-4 text-emerald-600" />
+            <Smartphone className="h-4 w-4 text-blue-600" />
             Comprovativos de pagamentos ({orders.length})
           </h2>
           <Button variant="ghost" size="sm" onClick={onReload}>
@@ -256,13 +256,13 @@ export default function ProofReviewList({
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-base font-bold text-emerald-600">
+                    <span className="text-base font-bold text-blue-600">
                       {formatKz(order.total_kz)}
                     </span>
                     <Button
                       size="sm"
                       onClick={() => quickReview(order, true)}
-                      className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
+                      className="h-9 bg-blue-600 text-white hover:bg-blue-700"
                     >
                       <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar
                     </Button>
@@ -345,7 +345,7 @@ export default function ProofReviewList({
               maxLength={300}
               rows={2}
               placeholder="Ex.: valor confirmado na conta KWiK às 14:32"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
 
@@ -361,7 +361,7 @@ export default function ProofReviewList({
             <Button
               onClick={() => decide(true)}
               disabled={deciding}
-              className="h-10 bg-emerald-500 text-white hover:bg-emerald-600"
+              className="h-10 bg-blue-600 text-white hover:bg-blue-700"
             >
               {deciding ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

@@ -74,9 +74,9 @@ const TIPO_TONES: Record<WalletTx['tipo'], string> = {
   deposito: 'bg-sky-100 text-sky-700',
   saque: 'bg-violet-100 text-violet-700',
   pagamento: 'bg-slate-100 text-slate-700',
-  recebimento: 'bg-emerald-100 text-emerald-700',
+  recebimento: 'bg-blue-100 text-blue-700',
   comissao: 'bg-amber-100 text-amber-700',
-  liberacao: 'bg-emerald-100 text-emerald-700',
+  liberacao: 'bg-blue-100 text-blue-700',
   reembolso: 'bg-rose-100 text-rose-700',
 };
 
@@ -89,7 +89,7 @@ const STATUS_LABELS: Record<WalletTx['status'], string> = {
 
 const STATUS_TONES: Record<WalletTx['status'], string> = {
   pendente: 'bg-amber-100 text-amber-700',
-  concluido: 'bg-emerald-100 text-emerald-700',
+  concluido: 'bg-blue-100 text-blue-700',
   rejeitado: 'bg-rose-100 text-rose-700',
   bloqueado: 'bg-sky-100 text-sky-700',
 };
@@ -240,7 +240,7 @@ export default function CarteiraPage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-600" />
         <span className="text-sm">A abrir a carteira…</span>
       </div>
     );
@@ -257,7 +257,7 @@ export default function CarteiraPage() {
           Entra na tua conta para ver o saldo, carregar a carteira e receber
           os pagamentos das tuas vendas.
         </p>
-        <Button asChild className="mt-8 h-12 bg-emerald-500 px-8 font-semibold text-white hover:bg-emerald-600">
+        <Button asChild className="mt-8 h-12 bg-blue-600 px-8 font-semibold text-white hover:bg-blue-700">
           <Link href="/perfil">Entrar na minha conta</Link>
         </Button>
       </div>
@@ -273,7 +273,7 @@ export default function CarteiraPage() {
             Carrega, paga e recebe — tudo em Kwanzas, direto na AngoStart.
           </p>
         </div>
-        <Button asChild variant="outline" className="h-10 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+        <Button asChild variant="outline" className="h-10 border-blue-500 text-blue-600 hover:bg-blue-50">
           <Link href="/perfil">
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao perfil
           </Link>
@@ -282,15 +282,15 @@ export default function CarteiraPage() {
 
       {/* Saldos */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg">
-          <div className="flex items-center gap-2 text-emerald-50">
+        <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-teal-600 p-6 text-white shadow-lg">
+          <div className="flex items-center gap-2 text-blue-50">
             <WalletIcon className="h-5 w-5" />
             <p className="text-sm font-semibold">Saldo disponível</p>
           </div>
           <p className="mt-3 text-3xl font-bold">
             {formatKz(data?.saldo ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-emerald-100">
+          <p className="mt-1 text-xs text-blue-100">
             Para pagar encomendas ou pedir saque.
           </p>
         </div>
@@ -313,7 +313,7 @@ export default function CarteiraPage() {
         {/* Depósito */}
         <section aria-label="Carregar carteira" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-            <ArrowDownToLine className="h-5 w-5 text-emerald-600" /> Carregar carteira
+            <ArrowDownToLine className="h-5 w-5 text-blue-600" /> Carregar carteira
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
             1. Escolhe o valor e recebe a tua referência única.
@@ -345,26 +345,26 @@ export default function CarteiraPage() {
             <Button
               type="submit"
               disabled={busy === 'deposito'}
-              className="h-11 bg-emerald-500 px-5 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+              className="h-11 bg-blue-600 px-5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {busy === 'deposito' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Gerar referência'}
             </Button>
           </form>
 
           {ultimaReferencia && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
                 <Smartphone className="h-4 w-4" /> Referência do depósito
               </p>
               <div className="mt-2 flex items-center justify-between rounded-lg bg-white px-3 py-2">
-                <span className="font-mono text-base font-bold text-emerald-700">
+                <span className="font-mono text-base font-bold text-blue-700">
                   {ultimaReferencia}
                 </span>
                 <button
                   type="button"
                   onClick={() => copyText(ultimaReferencia, 'Referência')}
                   aria-label="Copiar referência do depósito"
-                  className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                  className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-100"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -377,12 +377,12 @@ export default function CarteiraPage() {
                   type="button"
                   onClick={() => copyText(KWIK_PAYEE_DIGITS, 'Número KWiK')}
                   aria-label="Copiar número de destino"
-                  className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                  className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-100"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
               </p>
-              <p className="mt-2 text-[11px] leading-relaxed text-emerald-700">
+              <p className="mt-2 text-[11px] leading-relaxed text-blue-700">
                 O valor só entra no saldo depois da validação da equipa
                 (confirmação Afrimoney / UNITEL Money).
               </p>
@@ -441,7 +441,7 @@ export default function CarteiraPage() {
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
             <Receipt className="h-5 w-5 text-slate-400" /> Movimentações
           </h2>
-          <Button variant="ghost" size="sm" onClick={load} className="text-emerald-600 hover:bg-emerald-50">
+          <Button variant="ghost" size="sm" onClick={load} className="text-blue-600 hover:bg-blue-50">
             Atualizar
           </Button>
         </div>
@@ -472,7 +472,7 @@ export default function CarteiraPage() {
                       {STATUS_LABELS[tx.status]}
                     </span>
                     <span
-                      className={`text-sm font-bold ${positivo ? 'text-emerald-600' : 'text-rose-500'}`}
+                      className={`text-sm font-bold ${positivo ? 'text-blue-600' : 'text-rose-500'}`}
                     >
                       {positivo ? '+' : '−'} {formatKz(tx.valor)}
                     </span>

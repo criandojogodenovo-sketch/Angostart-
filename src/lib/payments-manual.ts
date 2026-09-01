@@ -38,8 +38,8 @@ export const MANUAL_TRANSFER_METHODS: Record<ManualMethodId, ManualMethod> = {
     badge: 'KWiK',
     hint: `Transfere para ${KWIK_PAYEE_NUMBER} e anexa o comprovativo — validamos e despachamos.`,
     sender: 'KWiK — Kwanza Instantâneo',
-    badgeClass: 'bg-emerald-50 text-emerald-600',
-    panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    badgeClass: 'bg-blue-50 text-blue-600',
+    panelClass: 'border-blue-200 bg-blue-50 text-blue-900',
   },
   paypay: {
     id: 'paypay',

@@ -125,7 +125,7 @@ export default function SupportChatWidget() {
           type="button"
           onClick={() => setAberto(true)}
           aria-label="Abrir assistente de suporte IA"
-          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-[76] flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:from-blue-700 hover:to-teal-600 active:scale-95 md:bottom-5 md:left-5"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-[76] flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:from-blue-700 hover:to-purple-700 active:scale-95 md:bottom-5 md:left-5"
         >
           <Sparkles className="h-5 w-5" />
           <span className="hidden sm:inline">Ajuda IA</span>
@@ -134,7 +134,7 @@ export default function SupportChatWidget() {
 
       {aberto && (
         <div
-          className="fixed inset-0 z-[90] flex h-[100dvh] w-full flex-col overflow-hidden rounded-none bg-white shadow-2xl md:inset-auto md:bottom-5 md:left-5 md:h-[560px] md:w-[400px] md:rounded-2xl md:border md:border-slate-200"
+          className="fixed inset-0 z-[90] flex h-[100dvh] w-full flex-col overflow-hidden rounded-none bg-white shadow-2xl md:inset-auto md:bottom-5 md:left-5 md:h-[560px] md:w-[400px] md:rounded-2xl md:border md:border-white/50 md:bg-white/80 md:backdrop-blur-xl"
           role="dialog"
           aria-modal="true"
           aria-label="Assistente de suporte da AngoStart"

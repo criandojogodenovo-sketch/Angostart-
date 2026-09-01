@@ -80,7 +80,7 @@ function RedefinirForm() {
         <h1 className="text-xl font-bold text-slate-900">Link inválido</h1>
         <p className="mt-2 text-sm text-slate-500">
           Este link de recuperação não tem token. Pede um novo em{' '}
-          <Link href="/recuperar-senha" className="font-semibold text-emerald-600 hover:underline">
+          <Link href="/recuperar-senha" className="font-semibold text-blue-600 hover:underline">
             Recuperar senha
           </Link>
           .
@@ -92,7 +92,7 @@ function RedefinirForm() {
   return (
     <>
       <div className="text-center">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
           <LockKeyhole className="h-6 w-6 text-white" />
         </span>
         <h1 className="mt-4 text-2xl font-bold text-slate-900">Nova senha</h1>
@@ -143,7 +143,7 @@ function RedefinirForm() {
         <Button
           type="submit"
           disabled={saving || !!validation || password !== confirm}
-          className="h-11 w-full bg-emerald-500 hover:bg-emerald-600"
+          className="h-11 w-full bg-blue-600 hover:bg-blue-700"
         >
           {saving ? (
             <>

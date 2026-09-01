@@ -231,7 +231,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
   if (checking) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-slate-950 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-400" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-300" />
         <span className="text-sm">A verificar sessão…</span>
       </div>
     );
@@ -248,7 +248,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
       <div className="w-full max-w-md">
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15">
               <ShieldCheck className="h-6 w-6 text-emerald-400" />
             </span>
             <div>
@@ -287,7 +287,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
                 <Button
                   type="submit"
                   disabled={logging}
-                  className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                  className="h-12 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700"
                 >
                   {logging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                   Entrar
@@ -304,7 +304,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
                       setHint(null);
                     }}
                     className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                      mode === 'daily' ? 'bg-emerald-500 text-white' : 'text-slate-300 hover:text-white'
+                      mode === 'daily' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'
                     }`}
                   >
                     <CalendarClock className="h-4 w-4" /> Acesso diário
@@ -316,7 +316,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
                       setHint(null);
                     }}
                     className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                      mode === 'invite' ? 'bg-emerald-500 text-white' : 'text-slate-300 hover:text-white'
+                      mode === 'invite' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'
                     }`}
                   >
                     <Gift className="h-4 w-4" /> Primeiro acesso
@@ -368,7 +368,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
                   <Button
                     type="submit"
                     disabled={logging}
-                    className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                    className="h-12 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700"
                   >
                     {logging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                     {mode === 'invite' ? 'Ativar conta com o convite' : 'Validar código diário'}
@@ -379,8 +379,8 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
           ) : (
             <form onSubmit={handleVerify} className="mt-6 space-y-4">
               {qrData ? (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
-                  <p className="text-xs font-semibold text-emerald-300">
+                <div className="rounded-xl border border-blue-500/30 bg-blue-600/10 p-4 text-center">
+                  <p className="text-xs font-semibold text-blue-300">
                     Primeira ativação do 2FA — lê este QR na tua app autenticadora
                     (Google Authenticator, Aegis, Authy…) e depois introduz o código.
                   </p>
@@ -414,7 +414,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
               <Button
                 type="submit"
                 disabled={verifying || code.length !== 6}
-                className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                className="h-12 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Validar código e entrar

@@ -38,7 +38,7 @@ export default function FeaturedProducts() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-3 py-16 text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
         <span className="text-sm">A carregar destaques…</span>
       </div>
     );
@@ -57,7 +57,7 @@ export default function FeaturedProducts() {
         <Button
           asChild
           size="lg"
-          className="h-12 bg-emerald-500 px-8 text-base font-semibold text-white hover:bg-emerald-600"
+          className="h-12 bg-blue-600 px-8 text-base font-semibold text-white hover:bg-blue-700"
         >
           <Link href="/produtos">
             Ver catálogo completo

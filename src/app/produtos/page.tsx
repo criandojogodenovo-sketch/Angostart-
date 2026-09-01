@@ -13,7 +13,7 @@ export default function ProdutosPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center gap-3 py-32 text-slate-400">
-          <Loader2 className="h-7 w-7 animate-spin text-emerald-500" />
+          <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
           <span className="text-sm">A carregar o catálogo…</span>
         </div>
       }

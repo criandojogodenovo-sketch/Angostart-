@@ -497,8 +497,8 @@ export default function CarrinhoPage() {
     const transferNote = buildKwikTransferNote(placed.id, name || 'Cliente');
     return (
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
-        <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+        <div className="rounded-3xl border border-blue-200 bg-white p-8 text-center shadow-sm">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
             <CheckCircle2 className="h-9 w-9 text-emerald-600" />
           </span>
           <h1 className="mt-5 text-2xl font-bold text-slate-900">
@@ -506,31 +506,31 @@ export default function CarrinhoPage() {
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             Pedido <strong>n.º {placed.id}</strong> registado com um total de{' '}
-            <strong className="text-emerald-600">{formatKz(placed.total_kz)}</strong>.
+            <strong className="text-blue-600">{formatKz(placed.total_kz)}</strong>.
           </p>
 
           {/* Instruções de transferência manual (KWiK/PayPay/Multicaixa Express) */}
           {manualMethod && methodInfo && (
-            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+            <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
                 <Smartphone className="h-4 w-4" /> Pagamento {methodInfo.sender} —
                 Transferência
               </p>
-              <ol className="mt-3 space-y-2 text-sm text-emerald-900">
+              <ol className="mt-3 space-y-2 text-sm text-blue-900">
                 <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
                   <span>
                     1. Transfere <strong>{formatKz(placed.total_kz)}</strong> para
                   </span>
                 </li>
                 <li className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
-                  <span className="font-mono text-base font-bold text-emerald-700">
+                  <span className="font-mono text-base font-bold text-blue-700">
                     {KWIK_PAYEE_NUMBER}
                   </span>
                   <button
                     type="button"
                     onClick={() => copyText(KWIK_PAYEE_DIGITS, 'Número para transferência')}
                     aria-label="Copiar número KWiK"
-                    className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                    className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-100"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -544,7 +544,7 @@ export default function CarrinhoPage() {
                     type="button"
                     onClick={() => copyText(transferNote, 'Referência')}
                     aria-label="Copiar referência do pedido"
-                    className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+                    className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-100"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -553,7 +553,7 @@ export default function CarrinhoPage() {
 
               {/* Estado do comprovativo */}
               {placed.proofAttached || proof.kind === 'sent' ? (
-                <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-700">
+                <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-blue-700">
                   <BadgeCheck className="h-4 w-4" /> Comprovativo recebido —
                   aguardando validação da equipa.
                 </p>
@@ -568,7 +568,7 @@ export default function CarrinhoPage() {
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     onChange={selectProofFile}
-                    className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-emerald-600"
+                    className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-blue-600"
                   />
                   {proof.kind === 'selected' && (
                     <p className="mt-1.5 truncate text-[11px] text-slate-500">
@@ -584,7 +584,7 @@ export default function CarrinhoPage() {
                     type="button"
                     onClick={uploadProofLate}
                     disabled={proof.kind !== 'selected' || !proof.dataUrl}
-                    className="mt-2 h-10 w-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                    className="mt-2 h-10 w-full bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {proof.kind === 'uploading' ? (
                       <>
@@ -599,7 +599,7 @@ export default function CarrinhoPage() {
                 </div>
               )}
 
-              <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-emerald-700">
+              <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-blue-700">
                 <Hourglass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 Assim que o comprovativo for validado, o pedido passa a{' '}
                 <strong>pago</strong> e a entrega é preparada.
@@ -632,11 +632,11 @@ export default function CarrinhoPage() {
           )}
 
           {!manualMethod && placed.paymentMethod === 'carteira' && (
-            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left">
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+            <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
                 <Wallet className="h-4 w-4" /> Pago com o saldo da carteira
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+              <p className="mt-2 text-sm leading-relaxed text-blue-800">
                 Foi debitado <strong>{formatKz(placed.total_kz)}</strong> do teu saldo
                 (referência <strong className="font-mono">{placed.reference}</strong>).
                 O valor fica retido em <strong>escrow</strong> até a entrega ser
@@ -652,7 +652,7 @@ export default function CarrinhoPage() {
           <div className="mt-8 space-y-3">
             <Button
               asChild
-              className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
+              className="h-12 w-full bg-blue-600 text-base font-semibold text-white hover:bg-blue-700"
             >
               <Link href="/perfil">
                 <CreditCard className="mr-2 h-5 w-5" /> Ver estado da encomenda
@@ -661,7 +661,7 @@ export default function CarrinhoPage() {
             <Button
               asChild
               variant="outline"
-              className="h-11 w-full border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+              className="h-11 w-full border-blue-500 text-blue-600 hover:bg-blue-50"
             >
               <Link href="/chat">
                 <MessageCircle className="mr-2 h-4 w-4" /> Falar no chat
@@ -686,7 +686,7 @@ export default function CarrinhoPage() {
   if (!isReady) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-600" />
         <span className="text-sm">A abrir o carrinho…</span>
       </div>
     );
@@ -707,7 +707,7 @@ export default function CarrinhoPage() {
         </p>
         <Button
           asChild
-          className="mt-8 h-12 bg-emerald-500 px-8 text-base font-semibold text-white hover:bg-emerald-600"
+          className="mt-8 h-12 bg-blue-600 px-8 text-base font-semibold text-white hover:bg-blue-700"
         >
           <Link href="/produtos">
             <ShoppingBag className="mr-2 h-5 w-5" /> Ver produtos
@@ -792,7 +792,7 @@ export default function CarrinhoPage() {
                     </button>
                   </div>
 
-                  <p className="text-base font-bold text-emerald-600">
+                  <p className="text-base font-bold text-blue-600">
                     {formatKz(product.price_kz * quantity)}
                   </p>
                 </div>
@@ -827,14 +827,14 @@ export default function CarrinhoPage() {
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
                 <dt>Total</dt>
-                <dd className="text-emerald-600">{formatKz(totalKz)}</dd>
+                <dd className="text-blue-600">{formatKz(totalKz)}</dd>
               </div>
             </dl>
 
             <form onSubmit={handleSubmit} className="space-y-4 pt-2" noValidate>
               {/* Nota de entrega digital (ponto 1) — substitui os campos de morada */}
               {allDigital && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-800">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-medium text-blue-800">
                   {hasRemoto && !hasInfo
                     ? '📦 Entrega remota via chat/email — o prestador combina contigo no chat da plataforma.'
                     : '⚡ Entrega digital imediata após pagamento confirmado — sem morada, sem esperas.'}
@@ -931,12 +931,12 @@ export default function CarrinhoPage() {
                     value="kwik"
                     checked={paymentMethod === 'kwik'}
                     onChange={() => setPaymentMethod('kwik')}
-                    className="mt-0.5 h-4 w-4 accent-emerald-600"
+                    className="mt-0.5 h-4 w-4 accent-blue-600"
                   />
                   <span className="text-sm">
                     <span className="font-semibold text-slate-900">
                       KWiK (Transferência Instantânea){' '}
-                      <span className="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                      <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
                         RECOMENDADO
                       </span>
                     </span>
@@ -994,7 +994,7 @@ export default function CarrinhoPage() {
                   <Button
                     asChild
                     variant="outline"
-                    className="h-8 shrink-0 border-emerald-500 px-3 text-xs font-semibold text-emerald-600 hover:bg-emerald-50"
+                    className="h-8 shrink-0 border-blue-500 px-3 text-xs font-semibold text-blue-600 hover:bg-blue-50"
                   >
                     <Link href="/chat">
                       <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Falar no chat
@@ -1018,7 +1018,7 @@ export default function CarrinhoPage() {
                       </p>
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                    <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
                       ✓ Prestador disponível — podes finalizar o pedido.
                     </p>
                   )
@@ -1033,7 +1033,7 @@ export default function CarrinhoPage() {
                       value="momenu"
                       checked={paymentMethod === 'momenu'}
                       onChange={() => setPaymentMethod('momenu')}
-                      className="mt-0.5 h-4 w-4 accent-emerald-600"
+                      className="mt-0.5 h-4 w-4 accent-blue-600"
                     />
                     <span className="text-sm">
                       <span className="font-semibold text-slate-900">
@@ -1073,7 +1073,7 @@ export default function CarrinhoPage() {
                       checked={paymentMethod === 'carteira'}
                       onChange={() => setPaymentMethod('carteira')}
                       disabled={walletSaldo !== null && walletSaldo < totalKz}
-                      className="mt-0.5 h-4 w-4 accent-emerald-600"
+                      className="mt-0.5 h-4 w-4 accent-blue-600"
                     />
                     <span className="text-sm">
                       <span className="font-semibold text-slate-900">
@@ -1082,7 +1082,7 @@ export default function CarrinhoPage() {
                           <span
                             className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
                               walletSaldo >= totalKz
-                                ? 'bg-emerald-100 text-emerald-700'
+                                ? 'bg-blue-100 text-blue-700'
                                 : 'bg-rose-100 text-rose-600'
                             }`}
                           >
@@ -1110,7 +1110,7 @@ export default function CarrinhoPage() {
                       encomenda.
                     </p>
                     {clientLocation ? (
-                      <p className="mt-2 text-xs font-semibold text-emerald-700">
+                      <p className="mt-2 text-xs font-semibold text-blue-700">
                         ✓ Localização registada ({clientLocation.lat.toFixed(4)}, {clientLocation.lng.toFixed(4)})
                       </p>
                     ) : (
@@ -1134,11 +1134,11 @@ export default function CarrinhoPage() {
                 {/* Transferência manual (KWiK/PayPay/Multicaixa Express):
                     instruções + comprovativo — o fluxo é o mesmo para os 3 */}
                 {isManualTransferMethod(paymentMethod) && (
-                  <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="text-xs font-bold text-emerald-900">
+                  <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <p className="text-xs font-bold text-blue-900">
                       Como pagar com {MANUAL_TRANSFER_METHODS[paymentMethod].sender}:
                     </p>
-                    <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-emerald-800">
+                    <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-blue-800">
                       <li>
                         Transfere <strong>{formatKz(totalKz)}</strong> para{' '}
                         <strong>{KWIK_PAYEE_NUMBER}</strong> (número que recebe
@@ -1165,10 +1165,10 @@ export default function CarrinhoPage() {
                       accept="image/jpeg,image/png,image/webp,application/pdf"
                       onChange={selectProofFile}
                       aria-label={`Comprovativo ${MANUAL_TRANSFER_METHODS[paymentMethod].sender} (opcional)`}
-                      className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-emerald-600"
+                      className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-blue-600"
                     />
                     {proof.kind === 'selected' && (
-                      <p className="truncate text-[11px] text-emerald-700">
+                      <p className="truncate text-[11px] text-blue-700">
                         ✓ {proof.file.name} pronto ({Math.max(1, Math.round(proof.file.size / 1024))} KB)
                       </p>
                     )}
@@ -1195,7 +1195,7 @@ export default function CarrinhoPage() {
               <Button
                 type="submit"
                 disabled={submitting || prestadorBloqueia}
-                className="h-12 w-full bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                className="h-12 w-full bg-blue-600 text-base font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 {submitting ? (
                   <>

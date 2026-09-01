@@ -38,13 +38,13 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
 const SELLER_TYPES = [
   {
     icon: GraduationCap,
-    gradient: 'from-emerald-500 to-teal-600',
+    gradient: 'from-blue-600 to-teal-600',
     title: 'Criador de Cursos',
     text: 'Transforma o teu conhecimento em rendimento: publica eBooks, cursos online e templates digitais e vende para todo o país sem sair de casa.',
   },
   {
     icon: HomeIcon,
-    gradient: 'from-orange-500 to-amber-500',
+    gradient: 'from-teal-500 to-blue-600',
     title: 'Prestador ao Domicílio',
     text: 'És electricista, técnico de limpeza ou canalizador? Publica os teus serviços, recebe pedidos na tua cidade e cresce a tua carteira de clientes.',
   },
@@ -86,7 +86,7 @@ export default function HomePage() {
       <AnnouncementBanner />
 
       {/* ─────────────────────── Hero ─────────────────────── */}
-      <section className="relative overflow-hidden bg-brand-dark text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
         {/* Brilhos decorativos */}
         <div
           aria-hidden="true"
@@ -94,7 +94,7 @@ export default function HomePage() {
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl"
+          className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-purple-500/10 blur-3xl"
         />
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
@@ -119,7 +119,7 @@ export default function HomePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/produtos"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-700 hover:shadow-blue-600/40"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:shadow-xl hover:brightness-110"
               >
                 Explorar produtos
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -287,7 +287,7 @@ export default function HomePage() {
           <div className="mt-8 text-center">
             <Link
               href="/perfil"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/25 transition-colors hover:bg-amber-600"
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110"
             >
               Quero vender como…
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -315,7 +315,7 @@ export default function HomePage() {
 
       {/* ─────────────── CTA final ─────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-brand-dark px-6 py-12 text-center text-white sm:px-12">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 px-6 py-12 text-center text-white sm:px-12">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl"
@@ -331,7 +331,7 @@ export default function HomePage() {
           <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               href="/produtos"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 font-semibold text-white transition-colors hover:bg-blue-700"
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110"
             >
               Começar a comprar
             </Link>

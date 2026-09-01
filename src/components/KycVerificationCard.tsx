@@ -242,7 +242,7 @@ export default function KycVerificationCard({
           normalmente; o selo azul chega após a aprovação.
         </p>
       ) : (
-        <p className="mt-2 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+        <p className="mt-2 flex items-start gap-2 rounded-xl bg-blue-50 px-3 py-2.5 text-sm text-blue-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             <span className="font-semibold">Verifica a tua identidade para ganhares mais
@@ -302,8 +302,8 @@ export default function KycVerificationCard({
                   onClick={() => setDocType(t)}
                   className={`rounded-xl border px-2 py-2 text-xs font-semibold transition-all ${
                     docType === t
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
                   }`}
                 >
                   {KYC_DOCUMENT_TYPE_LABELS[t]}
@@ -374,7 +374,7 @@ export default function KycVerificationCard({
             type="button"
             onClick={submit}
             disabled={submitting || uploading || !photoUrl}
-            className="h-10 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+            className="h-10 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {submitting ? (
               <>

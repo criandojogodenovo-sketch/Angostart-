@@ -209,12 +209,12 @@ interface GamificationData {
   locked_badges: { code: string; name: string; description: string; icon: string }[];
 }
 
-const PIE_COLORS = ['#3b82f6', '#14b8a6', '#10b981', '#f59e0b', '#8b5cf6'];
+const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#64748b'];
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
   pendente: { label: 'Pendente', className: 'bg-amber-500/20 text-amber-400' },
-  pago: { label: 'Pago', className: 'bg-emerald-500/20 text-emerald-300' },
-  entregue: { label: 'Entregue', className: 'bg-emerald-500/20 text-emerald-300' },
+  pago: { label: 'Pago', className: 'bg-blue-600/20 text-blue-300' },
+  entregue: { label: 'Entregue', className: 'bg-blue-600/20 text-blue-300' },
   rejeitado: { label: 'Rejeitado', className: 'bg-rose-500/20 text-rose-400' },
   falhou: { label: 'Falhou', className: 'bg-rose-500/20 text-rose-400' },
 };
@@ -540,7 +540,7 @@ export default function DashboardVendedorPage() {
           prestadores ao domicílio e freelancers remotos).
         </p>
         <div className="mt-8 flex justify-center gap-3">
-          <Button asChild className="h-11 bg-emerald-500/100 px-6 font-semibold text-white hover:bg-emerald-600">
+          <Button asChild className="h-11 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700">
             <Link href="/perfil">Entrar como vendedor</Link>
           </Button>
           <Button asChild variant="outline" className="h-11 px-6">
@@ -578,7 +578,7 @@ export default function DashboardVendedorPage() {
           <Button asChild variant="outline" className="h-10 border-blue-500/60 text-blue-400 hover:bg-blue-500/10">
             <Link href="/dashboard/vendedor/portfolio">Editar portfólio</Link>
           </Button>
-          <Button asChild className="h-10 bg-amber-500/100 font-semibold text-white hover:bg-amber-600">
+          <Button asChild className="h-10 bg-blue-600 font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700">
             <Link href="/adicionar-produto">Publicar produto</Link>
           </Button>
         </div>
@@ -661,24 +661,24 @@ export default function DashboardVendedorPage() {
       </div>
 
       {/* Mini-Loja — números públicos (Fase 6, ponto 1) */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-500/30 bg-blue-600/10 px-5 py-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-          <span className="flex items-center gap-1.5 font-semibold text-emerald-200">
+          <span className="flex items-center gap-1.5 font-semibold text-blue-200">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             {cards && cards.ratingCount > 0
               ? `${cards.ratingAverage.toFixed(1)} ★ (${cards.ratingCount})`
               : 'Avaliação estimada da plataforma · sem avaliações reais'}
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-200">
-            <Package className="h-4 w-4 text-emerald-400" />
+          <span className="flex items-center gap-1.5 text-blue-200">
+            <Package className="h-4 w-4 text-blue-300" />
             {cards?.productsPublished ?? 0} produtos publicados
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-200">
-            <Users className="h-4 w-4 text-emerald-400" />
+          <span className="flex items-center gap-1.5 text-blue-200">
+            <Users className="h-4 w-4 text-blue-300" />
             {cards?.clients ?? 0} clientes servidos
           </span>
         </div>
-        <p className="text-[11px] text-emerald-300/80">
+        <p className="text-[11px] text-blue-300/80">
           Estes números são o que os clientes veem na tua Mini-Loja.
         </p>
       </div>
@@ -699,7 +699,7 @@ export default function DashboardVendedorPage() {
             label: 'Encomendas recebidas',
             value: String(cards?.totalOrders ?? 0),
             hint: `${cards?.itemsSold ?? 0} artigos vendidos`,
-            tone: 'bg-emerald-500/15 text-emerald-400',
+            tone: 'bg-blue-600/15 text-blue-300',
           },
           {
             icon: PiggyBank,
@@ -726,7 +726,7 @@ export default function DashboardVendedorPage() {
             tone: 'bg-amber-500/15 text-amber-400',
           },
         ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <div key={label} className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
                 <Icon className="h-5 w-5" />
@@ -768,10 +768,10 @@ export default function DashboardVendedorPage() {
             label: 'Produtos publicados',
             value: String(cards?.productsPublished ?? 0),
             hint: 'no catálogo ativo',
-            tone: 'bg-emerald-500/15 text-emerald-400',
+            tone: 'bg-blue-600/15 text-blue-300',
           },
         ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+          <div key={label} className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
             <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
               <Icon className="h-4 w-4" />
             </span>
@@ -784,7 +784,7 @@ export default function DashboardVendedorPage() {
 
       {/* Gráficos */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <section aria-label="Receita por mês" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+        <section aria-label="Receita por mês" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="text-base font-semibold text-slate-100">Receita por mês (confirmada)</h2>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -808,7 +808,7 @@ export default function DashboardVendedorPage() {
           </div>
         </section>
 
-        <section aria-label="Produtos mais vendidos" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+        <section aria-label="Produtos mais vendidos" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="text-base font-semibold text-slate-100">Produtos mais vendidos</h2>
           {(data?.topProducts?.length ?? 0) === 0 ? (
             <p className="mt-10 text-center text-sm text-slate-400">
@@ -845,7 +845,7 @@ export default function DashboardVendedorPage() {
       {/* Fase 4/5 — Carteira / Afiliados / Em alta + Disponibilidade */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Carteira */}
-        <section aria-label="Carteira" className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-blue-600 to-teal-500 p-5 text-white shadow-sm">
+        <section aria-label="Carteira" className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-600 to-teal-500 p-5 text-white shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold">
             <Wallet className="h-5 w-5" /> Carteira AngoStart
           </h2>
@@ -862,7 +862,7 @@ export default function DashboardVendedorPage() {
         </section>
 
         {/* Afiliados — Fase 10 (modelo Shopee/Amazon) */}
-        <section aria-label="Programa de afiliados" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+        <section aria-label="Programa de afiliados" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Share2 className="h-5 w-5 text-amber-500" /> Programa de afiliados
           </h2>
@@ -923,7 +923,7 @@ export default function DashboardVendedorPage() {
 
               <p className="mt-3 text-sm text-slate-300">
                 Total ganho:{' '}
-                <strong className="text-emerald-400">{formatKz(affiliate.total_ganho)}</strong>
+                <strong className="text-blue-300">{formatKz(affiliate.total_ganho)}</strong>
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 {affiliate.earnings.length}{' '}
@@ -931,7 +931,7 @@ export default function DashboardVendedorPage() {
               </p>
 
               {/* Link limpo de afiliado (?ref=CODE) com janela de atribuição */}
-              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2">
                 <code className="min-w-0 flex-1 truncate text-xs text-slate-300">
                   {affiliate.referral_link}
                 </code>
@@ -986,7 +986,7 @@ export default function DashboardVendedorPage() {
               <Button
                 onClick={registarAfiliado}
                 disabled={aRegistarAfiliado}
-                className="mt-4 h-10 w-full bg-amber-500/100 font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                className="mt-4 h-10 w-full bg-blue-600 font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 disabled:opacity-60"
               >
                 {aRegistarAfiliado ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -999,7 +999,7 @@ export default function DashboardVendedorPage() {
         </section>
 
         {/* Em alta — gestão rápida */}
-        <section aria-label="Marcar produtos em alta" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+        <section aria-label="Marcar produtos em alta" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Flame className="h-5 w-5 text-orange-500" /> Produtos em alta
           </h2>
@@ -1036,8 +1036,8 @@ export default function DashboardVendedorPage() {
                         aria-label={`Alternar «em alta» em ${p.name}`}
                         className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${
                           p.is_hot
-                            ? 'bg-orange-500 text-white hover:bg-orange-600'
-                            : 'border border-orange-500/40 bg-slate-800/80 text-orange-400 hover:bg-orange-500/10'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'border border-blue-500/40 bg-slate-800/80 text-blue-300 hover:bg-blue-500/10'
                         }`}
                       >
                         {hotBusyId === p.id ? (
@@ -1102,12 +1102,12 @@ export default function DashboardVendedorPage() {
                   placeholder="ex.: instagram"
                   maxLength={30}
                   aria-label="Nome da campanha (Sub-ID)"
-                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm text-slate-200 outline-none focus:border-amber-400"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-800/60 backdrop-blur-xl px-3 text-sm text-slate-200 outline-none focus:border-amber-400"
                 />
                 {subNormalizado() && (
                   <button
                     onClick={() => copiarTexto(linkComCampanha(), 'Link de campanha copiado!', linkComCampanha())}
-                    className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500/100 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                    className="flex h-10 items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700"
                   >
                     <Copy className="h-4 w-4" /> Copiar
                   </button>
@@ -1119,7 +1119,7 @@ export default function DashboardVendedorPage() {
                 </p>
               )}
               {subNormalizado() && (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 py-2">
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-800/60 backdrop-blur-xl px-3 py-2">
                   <code className="min-w-0 flex-1 truncate text-xs text-slate-300">
                     {linkComCampanha()}
                   </code>
@@ -1134,13 +1134,13 @@ export default function DashboardVendedorPage() {
                 Comissões pagas por campanha — descobre qual canal vale mais a pena.
               </p>
               {affiliate.sub_id_report.length === 0 ? (
-                <p className="mt-3 rounded-xl border border-dashed border-slate-700/60 px-3 py-4 text-center text-xs text-slate-400">
+                <p className="mt-3 rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-slate-400">
                   Ainda sem comissões — partilha o teu link e o relatório aparece aqui.
                 </p>
               ) : (
                 <table className="mt-3 w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-700/60 text-slate-400">
+                    <tr className="border-b border-white/10 text-slate-400">
                       <th scope="col" className="py-2 font-medium">Canal</th>
                       <th scope="col" className="py-2 text-right font-medium">Comissões</th>
                       <th scope="col" className="py-2 text-right font-medium">Total</th>
@@ -1153,7 +1153,7 @@ export default function DashboardVendedorPage() {
                           {r.sub_id ?? '(sem campanha)'}
                         </td>
                         <td className="py-2 text-right text-slate-400">{r.comissoes}</td>
-                        <td className="py-2 text-right font-semibold text-emerald-400">
+                        <td className="py-2 text-right font-semibold text-blue-300">
                           {formatKz(r.total)}
                         </td>
                       </tr>
@@ -1182,12 +1182,12 @@ export default function DashboardVendedorPage() {
                 rows={3}
                 placeholder={'https://angostart.vercel.app/produtos/123\n124\nhttps://angostart.vercel.app/produtos/125'}
                 aria-label="Links ou IDs de produtos (um por linha)"
-                className="mt-3 w-full rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-3 font-mono text-xs text-slate-200 outline-none focus:border-amber-400"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-3 font-mono text-xs text-slate-200 outline-none focus:border-amber-400"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
                   onClick={gerarLinksEmMassa}
-                  className="h-9 bg-amber-500/100 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+                  className="h-9 bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
                 >
                   Gerar links
                 </Button>
@@ -1213,7 +1213,7 @@ export default function DashboardVendedorPage() {
                   {batchLinks.map((l, i) => (
                     <li
                       key={`${i}-${l.link}`}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 py-2"
+                      className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-800/60 backdrop-blur-xl px-3 py-2"
                     >
                       <code className="min-w-0 flex-1 truncate text-xs text-slate-300">{l.link}</code>
                       <button
@@ -1235,7 +1235,7 @@ export default function DashboardVendedorPage() {
       {/* Fase 5 — Atividade recente: avaliações + disponibilidade (domicílio) */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* Últimas avaliações recebidas */}
-        <section aria-label="Avaliações recentes" className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+        <section aria-label="Avaliações recentes" className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Star className="h-5 w-5 text-amber-500" /> Avaliações recentes
           </h2>
@@ -1267,7 +1267,7 @@ export default function DashboardVendedorPage() {
             aria-label="Disponibilidade de serviço"
             className={`rounded-2xl border p-5 text-white shadow-sm ${
               estadoDisponibilidade?.is_available
-                ? 'border-emerald-300 bg-gradient-to-br from-blue-600 to-teal-500'
+                ? 'border-blue-300 bg-gradient-to-br from-blue-600 to-teal-500'
                 : 'border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500'
             }`}
           >
@@ -1289,7 +1289,7 @@ export default function DashboardVendedorPage() {
               >
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    estadoDisponibilidade?.is_available ? 'bg-emerald-400 animate-pulse' : 'bg-white/60'
+                    estadoDisponibilidade?.is_available ? 'bg-blue-400 animate-pulse' : 'bg-white/60'
                   }`}
                 />
                 {estadoDisponibilidade?.is_available
@@ -1301,7 +1301,7 @@ export default function DashboardVendedorPage() {
               <Button
                 onClick={marcarDisponivel}
                 disabled={aAtualizarLocal || estadoDisponibilidade?.is_available}
-                className="h-10 flex-1 bg-white font-semibold text-orange-600 hover:bg-orange-500/10 disabled:opacity-70"
+                className="h-10 flex-1 bg-white font-semibold text-blue-600 hover:bg-blue-50 disabled:opacity-70"
               >
                 {aAtualizarLocal ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1324,7 +1324,7 @@ export default function DashboardVendedorPage() {
       </div>
 
       {/* Encomendas recebidas */}
-      <section aria-label="Encomendas recebidas" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+      <section aria-label="Encomendas recebidas" className="mt-8 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
           <h2 className="text-base font-semibold text-slate-100">Encomendas recebidas</h2>
           <Package className="h-5 w-5 text-slate-300" />
@@ -1357,7 +1357,7 @@ export default function DashboardVendedorPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}>
                       {status.label}
                     </span>
-                    <span className="text-sm font-bold text-emerald-400">
+                    <span className="text-sm font-bold text-blue-300">
                       {formatKz(order.items.reduce((acc, i) => acc + i.price_kz * i.quantity, 0))}
                     </span>
                   </div>
@@ -1389,7 +1389,7 @@ const LEVEL_STYLE: Record<string, { label: string; emoji: string; bar: string }>
   bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-600' },
   prata: { label: 'Prata', emoji: '🥈', bar: 'bg-slate-400' },
   ouro: { label: 'Ouro', emoji: '🥇', bar: 'bg-yellow-500' },
-  platina: { label: 'Platina', emoji: '💎', bar: 'bg-emerald-500/100' },
+  platina: { label: 'Platina', emoji: '💎', bar: 'bg-blue-600' },
 };
 
 /** Selos, nível e progresso para o próximo nível (Fase 7, ponto 3). */
@@ -1412,7 +1412,7 @@ function GamificationCard() {
   const level = LEVEL_STYLE[data.level] ?? LEVEL_STYLE.bronze;
 
   return (
-    <section aria-label="Nível e selos" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+    <section aria-label="Nível e selos" className="mt-8 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
         <h2 className="text-base font-semibold text-slate-100">Nível e selos</h2>
         <Medal className="h-5 w-5 text-slate-300" />
@@ -1447,7 +1447,7 @@ function GamificationCard() {
                 <defs>
                   <linearGradient id="anel-nivel" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#14b8a6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -1469,7 +1469,7 @@ function GamificationCard() {
             </div>
           </div>
         ) : (
-          <p className="mt-3 text-xs font-semibold text-emerald-400">
+          <p className="mt-3 text-xs font-semibold text-blue-300">
             Nível máximo atingido — parabéns! 💎
           </p>
         )}
@@ -1489,7 +1489,7 @@ function GamificationCard() {
             <span
               key={b.code}
               title={b.description}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-900/40 px-3 py-1 text-xs font-medium text-slate-400"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/40 px-3 py-1 text-xs font-medium text-slate-400"
             >
               <Lock className="h-3 w-3" /> {b.name}
             </span>
@@ -1524,10 +1524,10 @@ function CommissionRateCard() {
   return (
     <section
       aria-label="Taxa de comissão"
-      className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-5 py-4 shadow-sm"
+      className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl px-5 py-4 shadow-sm"
     >
       <div className="flex items-center gap-3">
-        <Receipt className="h-5 w-5 text-emerald-400" />
+        <Receipt className="h-5 w-5 text-blue-300" />
         <div>
           <p className="text-sm font-semibold text-slate-100">
             Comissão AngoStart: {percent}%
@@ -1657,7 +1657,7 @@ function PropostasRecebidas() {
   if (!loaded) return null;
 
   return (
-    <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+    <section aria-label="Propostas recebidas" className="mt-8 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-5 py-4">
         <h2 className="text-base font-semibold text-slate-100">Propostas recebidas</h2>
         <div className="flex gap-1">
@@ -1702,7 +1702,7 @@ function PropostasRecebidas() {
                       p.status === 'pendente'
                         ? 'bg-amber-500/20 text-amber-400'
                         : p.status === 'aceite'
-                          ? 'bg-emerald-500/20 text-emerald-300'
+                          ? 'bg-blue-600/20 text-blue-300'
                           : 'bg-slate-700/40 text-slate-300'
                     }`}
                   >
@@ -1722,7 +1722,7 @@ function PropostasRecebidas() {
 
               {/* Histórico da negociação */}
               {history?.proposalId === p.id && (
-                <ol className="mt-3 space-y-2 rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
+                <ol className="mt-3 space-y-2 rounded-xl border border-white/10 bg-slate-900/40 p-3">
                   {history.entries.map((h) => (
                     <li key={h.id} className="text-xs text-slate-300">
                       <span className={h.by_me ? 'font-semibold text-blue-700' : 'font-semibold'}>
@@ -1738,21 +1738,21 @@ function PropostasRecebidas() {
 
               {/* Formulário de contraproposta */}
               {counterFor?.id === p.id && (
-                <div className="mt-3 space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10/50 p-3">
+                <div className="mt-3 space-y-2 rounded-xl border border-blue-500/30 bg-blue-600/10/50 p-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
                       value={counterPrice}
                       onChange={(e) => setCounterPrice(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder={`O teu preço em Kz (atual: ${p.price_kz})`}
-                      className="h-9 w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-white/10 bg-slate-800/60 backdrop-blur-xl px-3 text-sm outline-none focus:border-blue-400"
                     />
                     <input
                       value={counterDeadline}
                       onChange={(e) => setCounterDeadline(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder="Prazo em dias (opcional)"
-                      className="h-9 w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-white/10 bg-slate-800/60 backdrop-blur-xl px-3 text-sm outline-none focus:border-blue-400"
                     />
                   </div>
                   <textarea
@@ -1761,14 +1761,14 @@ function PropostasRecebidas() {
                     rows={2}
                     maxLength={2000}
                     placeholder="Mensagem com a contraproposta (opcional)…"
-                    className="w-full rounded-lg border border-slate-700/60 bg-slate-800/50 backdrop-blur p-2.5 text-sm outline-none focus:border-emerald-400"
+                    className="w-full rounded-lg border border-white/10 bg-slate-800/60 backdrop-blur-xl p-2.5 text-sm outline-none focus:border-blue-400"
                   />
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={sendCounter}
                       disabled={busyId === p.id || counterPrice.length === 0}
-                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500/100 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                      className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                       {busyId === p.id ? 'A enviar…' : 'Enviar contraproposta'}
                     </button>
@@ -1795,7 +1795,7 @@ function PropostasRecebidas() {
                         type="button"
                         onClick={() => answer(p.id, 'aceite')}
                         disabled={busyId === p.id}
-                        className="inline-flex h-8 items-center rounded-lg bg-emerald-500/100 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                        className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                       >
                         Aceitar
                       </button>
@@ -1823,7 +1823,7 @@ function PropostasRecebidas() {
                   <button
                     type="button"
                     onClick={() => openHistory(p.id)}
-                    className="inline-flex h-8 items-center rounded-lg border border-slate-700/60 px-3 text-xs font-semibold text-slate-400 hover:bg-slate-700/40"
+                    className="inline-flex h-8 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-400 hover:bg-slate-700/40"
                   >
                     {history?.proposalId === p.id ? 'Esconder histórico' : 'Histórico'}
                   </button>
@@ -1974,7 +1974,7 @@ function ServicosAtivosCard() {
 
   if (servicos === null) {
     return (
-      <section className="mt-8 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur px-5 py-8 text-center text-sm text-slate-400">
+      <section className="mt-8 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl px-5 py-8 text-center text-sm text-slate-400">
         A carregar serviços…
       </section>
     );
@@ -1985,7 +1985,7 @@ function ServicosAtivosCard() {
   return (
     <section
       aria-label="Serviços ao domicílio ativos"
-      className="mt-8 rounded-2xl border border-sky-500/30 bg-slate-800/50 backdrop-blur shadow-sm"
+      className="mt-8 rounded-2xl border border-sky-500/30 bg-slate-800/60 backdrop-blur-xl shadow-sm"
     >
       <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
@@ -2010,7 +2010,7 @@ function ServicosAtivosCard() {
                   </p>
                   {s.delivery_address && (
                     <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-300">
-                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-300" />
                       <span>
                         <strong>Morada:</strong> {s.delivery_address}
                         {s.notes ? ` · Nota: ${s.notes}` : ''}

@@ -109,7 +109,7 @@ export default function CatalogClient() {
           entrega em Luanda.
         </p>
         {query.trim() && (
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm text-emerald-700">
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm text-blue-700">
             A filtrar por: <strong>“{query.trim()}”</strong>
           </p>
         )}
@@ -145,8 +145,8 @@ export default function CatalogClient() {
           aria-pressed={hotOnly}
           className={`ml-auto flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
             hotOnly
-              ? 'border-orange-500 bg-orange-500 text-white shadow-md shadow-orange-500/25'
-              : 'border-orange-200 bg-white text-orange-600 hover:border-orange-400 hover:bg-orange-50'
+              ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              : 'border-blue-200 bg-white text-blue-600 hover:border-blue-400 hover:bg-blue-50'
           }`}
         >
           <Flame className="h-4 w-4" aria-hidden="true" />

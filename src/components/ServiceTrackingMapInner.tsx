@@ -125,7 +125,7 @@ export default function ServiceTrackingMapInner({
           Rastreamento em tempo real — pedido #{orderId}
         </p>
         {tracking?.service_completed ? (
-          <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+          <span className="rounded-full bg-blue-600/20 px-2.5 py-1 text-[11px] font-bold text-blue-300">
             Serviço concluído ✓
           </span>
         ) : tracking?.tracking_active && prestadorPos ? (
@@ -163,7 +163,7 @@ export default function ServiceTrackingMapInner({
 
       <div className="grid gap-2 bg-slate-900 px-4 py-3 sm:grid-cols-3">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 shrink-0 text-emerald-400" />
+          <Clock className="h-4 w-4 shrink-0 text-blue-300" />
           <div>
             <p className="text-[10px] uppercase tracking-wide text-slate-400">
               Tempo estimado

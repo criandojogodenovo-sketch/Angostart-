@@ -150,7 +150,7 @@ export default function MyProposals() {
   return (
     <section aria-label="Minhas propostas" className="mt-10">
       <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-900">
-        <Handshake className="h-5 w-5 text-emerald-500" /> Minhas propostas
+        <Handshake className="h-5 w-5 text-blue-600" /> Minhas propostas
       </h2>
       {proposals.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-6 text-center text-sm text-slate-400">
@@ -169,7 +169,7 @@ export default function MyProposals() {
                     p.status === 'pendente'
                       ? 'bg-amber-100 text-amber-700'
                       : p.status === 'aceite'
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-blue-100 text-blue-700'
                         : 'bg-slate-100 text-slate-600'
                   }`}
                 >
@@ -178,7 +178,7 @@ export default function MyProposals() {
               </div>
               <p className="mt-1 line-clamp-2 text-sm text-slate-600">{p.description}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Oferta atual: <strong className="text-emerald-700">{formatKz(p.price_kz)}</strong>
+                Oferta atual: <strong className="text-blue-700">{formatKz(p.price_kz)}</strong>
                 {p.deadline_days ? ` · prazo ${p.deadline_days} dias` : ''} · preço de tabela{' '}
                 {formatKz(p.service_price)}
                 {p.order_id ? ` · pedido #${p.order_id}` : ''}
@@ -188,7 +188,7 @@ export default function MyProposals() {
                 <ol className="mt-2 space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   {history.entries.map((h) => (
                     <li key={h.id} className="text-xs text-slate-600">
-                      <span className={h.by_me ? 'font-semibold text-emerald-700' : 'font-semibold'}>
+                      <span className={h.by_me ? 'font-semibold text-blue-700' : 'font-semibold'}>
                         {h.author_name ?? 'Parte'} ofereceu {formatKz(h.price_kz)}
                         {h.deadline_days ? ` · ${h.deadline_days} dias` : ''}
                       </span>
@@ -199,21 +199,21 @@ export default function MyProposals() {
               )}
 
               {counterFor === p.id && (
-                <div className="mt-2 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                <div className="mt-2 space-y-2 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
                       value={price}
                       onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder={`Preço em Kz (atual: ${p.price_kz})`}
-                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400"
                     />
                     <input
                       value={deadline}
                       onChange={(e) => setDeadline(e.target.value.replace(/[^\d]/g, ''))}
                       inputMode="numeric"
                       placeholder="Prazo em dias (opcional)"
-                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -221,7 +221,7 @@ export default function MyProposals() {
                       type="button"
                       onClick={() => sendCounter(p.id)}
                       disabled={busyId === p.id || price.length === 0}
-                      className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                      className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                       Enviar contraproposta
                     </button>
@@ -248,7 +248,7 @@ export default function MyProposals() {
                         type="button"
                         onClick={() => respond(p.id, 'aceite')}
                         disabled={busyId === p.id}
-                        className="inline-flex h-8 items-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                        className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                       >
                         Aceitar e gerar pedido
                       </button>

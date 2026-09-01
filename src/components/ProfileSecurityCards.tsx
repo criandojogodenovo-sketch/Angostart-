@@ -101,7 +101,7 @@ export function MustChangePasswordCard() {
         <Button
           type="submit"
           disabled={busy || !valida || current.length === 0}
-          className="h-10 w-full bg-amber-500 font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+          className="h-10 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
         >
           {busy ? 'A guardar…' : 'Guardar nova palavra-passe'}
         </Button>

@@ -35,7 +35,7 @@ export default async function LojaPage({
     <main className="min-h-dvh bg-slate-50 pb-16">
       {/* Banner */}
       <div
-        className="relative h-40 w-full bg-gradient-to-r from-emerald-600 to-teal-700 sm:h-56"
+        className="relative h-40 w-full bg-gradient-to-r from-blue-600 to-teal-700 sm:h-56"
         style={
           store.banner_url
             ? { backgroundImage: `url(${store.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -46,12 +46,12 @@ export default async function LojaPage({
       <div className="mx-auto max-w-5xl px-4">
         {/* Cabeçalho da loja */}
         <div className="-mt-12 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end">
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-emerald-100 shadow-lg sm:h-28 sm:w-28">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-blue-100 shadow-lg sm:h-28 sm:w-28">
             {store.logo_url ? (
                
               <img src={store.logo_url} alt={store.name} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-3xl font-black text-emerald-700">
+              <div className="flex h-full w-full items-center justify-center text-3xl font-black text-blue-700">
                 {store.name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -63,7 +63,7 @@ export default async function LojaPage({
             </h1>
             <p className="text-sm text-slate-500">
               Por{' '}
-              <Link href={`/portfolio/${store.owner_username ?? ''}`} className="font-medium text-emerald-700 hover:underline">
+              <Link href={`/portfolio/${store.owner_username ?? ''}`} className="font-medium text-blue-700 hover:underline">
                 {store.owner_name}
               </Link>
               {' · '}
@@ -111,7 +111,7 @@ export default async function LojaPage({
                 <div className="p-3">
                   <p className="line-clamp-2 min-h-10 text-sm font-semibold text-slate-800">{p.name}</p>
                   <div className="mt-1 flex items-center justify-between">
-                    <span className="text-sm font-black text-emerald-700">{formatKz(p.price_kz)}</span>
+                    <span className="text-sm font-black text-blue-700">{formatKz(p.price_kz)}</span>
                     {!p.available && (
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">ESGOTADO</span>
                     )}

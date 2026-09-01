@@ -53,8 +53,8 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
 export const ORDER_STATUS_BADGES: Record<string, string> = {
   pendente: 'bg-amber-100 text-amber-700',
   aguardando_validacao: 'bg-sky-100 text-sky-700',
-  pago: 'bg-emerald-100 text-emerald-700',
-  entregue: 'bg-emerald-100 text-emerald-700',
+  pago: 'bg-blue-100 text-blue-700',
+  entregue: 'bg-blue-100 text-blue-700',
   rejeitado: 'bg-rose-100 text-rose-700',
   falhou: 'bg-rose-100 text-rose-700',
 };

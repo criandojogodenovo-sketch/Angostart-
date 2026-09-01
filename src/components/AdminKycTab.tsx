@@ -267,7 +267,7 @@ export default function AdminKycTab() {
                 size="sm"
                 disabled={busyId === s.id}
                 onClick={() => decide(s.id, 'aprovar')}
-                className="h-9 bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                className="h-9 bg-blue-600 font-semibold text-white hover:bg-blue-700"
               >
                 {busyId === s.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -312,7 +312,7 @@ export default function AdminKycTab() {
                   size="sm"
                   disabled={busyId === s.id}
                   onClick={() => decide(s.id, 'aceitar_justificacao')}
-                  className="h-8 bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                  className="h-8 bg-blue-600 font-semibold text-white hover:bg-blue-700"
                 >
                   {busyId === s.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

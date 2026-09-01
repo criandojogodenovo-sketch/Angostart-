@@ -137,7 +137,7 @@ export default function PortfolioPublicoPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-600" />
         <span className="text-sm">A carregar o portfólio…</span>
       </div>
     );
@@ -153,7 +153,7 @@ export default function PortfolioPublicoPage() {
         <p className="mt-2 text-sm text-slate-500">
           O utilizador «{username}» não existe ou não é um vendedor AngoStart.
         </p>
-        <Button asChild className="mt-8 h-12 bg-emerald-500 px-8 font-semibold text-white hover:bg-emerald-600">
+        <Button asChild className="mt-8 h-12 bg-blue-600 px-8 font-semibold text-white hover:bg-blue-700">
           <Link href="/produtos">
             <ArrowLeft className="mr-2 h-5 w-5" /> Explorar o catálogo
           </Link>
@@ -171,14 +171,14 @@ export default function PortfolioPublicoPage() {
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <Link
         href="/produtos"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
       </Link>
 
       {/* Cabeçalho do vendedor — Mini-Loja */}
       <header className="mt-6 overflow-hidden rounded-3xl bg-slate-900 shadow-lg">
-        <div className="h-28 bg-gradient-to-r from-emerald-600/40 via-slate-800 to-slate-900" />
+        <div className="h-28 bg-gradient-to-r from-blue-700/40 via-slate-800 to-slate-900" />
         <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           {seller.portfolio_image ? (
             <img
@@ -187,13 +187,13 @@ export default function PortfolioPublicoPage() {
               className="-mt-12 h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover shadow-xl"
             />
           ) : (
-            <span className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-slate-900 bg-emerald-500 text-3xl font-bold text-white shadow-xl">
+            <span className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-slate-900 bg-blue-600 text-3xl font-bold text-white shadow-xl">
               {seller.name.charAt(0).toUpperCase()}
             </span>
           )}
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">{seller.name}</h1>
-            <p className="text-sm font-semibold text-emerald-400">{seller.role_label}</p>
+            <p className="text-sm font-semibold text-blue-300">{seller.role_label}</p>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
               {seller.cidade && (
                 <span className="inline-flex items-center gap-1">
@@ -226,7 +226,7 @@ export default function PortfolioPublicoPage() {
             )}
           </div>
           {/* 🔒 Fase 6 (ponto 2): contacto apenas via chat interno */}
-          <Button asChild className="h-12 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600">
+          <Button asChild className="h-12 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700">
             <Link href="/chat">
               <MessageCircle className="mr-2 h-5 w-5" /> Falar no chat
             </Link>
@@ -246,20 +246,20 @@ export default function PortfolioPublicoPage() {
           </div>
           <div className="bg-slate-900 px-2 py-4">
             <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
-              <Package className="h-3.5 w-3.5 text-emerald-400" /> Produtos
+              <Package className="h-3.5 w-3.5 text-blue-300" /> Produtos
             </dt>
             <dd className="mt-1 text-lg font-bold text-white">{seller.total_produtos ?? 0}</dd>
           </div>
           <div className="bg-slate-900 px-2 py-4">
             <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
-              <Users className="h-3.5 w-3.5 text-emerald-400" /> Clientes
+              <Users className="h-3.5 w-3.5 text-blue-300" /> Clientes
             </dt>
             <dd className="mt-1 text-lg font-bold text-white">{seller.total_clientes ?? 0}</dd>
           </div>
           {seller.gamificacao && (
             <div className="bg-slate-900 px-2 py-4">
               <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
-                <Medal className="h-3.5 w-3.5 text-emerald-400" /> Nível
+                <Medal className="h-3.5 w-3.5 text-blue-300" /> Nível
               </dt>
               <dd className="mt-1 text-lg font-bold text-white">
                 {LEVEL_BADGE[seller.gamificacao.level]?.emoji ?? '🥉'}{' '}
@@ -275,7 +275,7 @@ export default function PortfolioPublicoPage() {
             {seller.gamificacao.badges.map((b) => (
               <span
                 key={b.code}
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
+                className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-300"
               >
                 <Award className="h-3.5 w-3.5" /> {b.name}
               </span>
@@ -295,7 +295,7 @@ export default function PortfolioPublicoPage() {
             href={seller.portfolio_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:underline"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline"
           >
             <Globe className="h-4 w-4" /> Website / portfólio externo
           </a>
@@ -347,7 +347,7 @@ export default function PortfolioPublicoPage() {
                     {PRODUCT_TYPES[product.type as ProductType]?.short ?? product.type}
                   </p>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-base font-bold text-emerald-600">
+                    <span className="text-base font-bold text-blue-600">
                       {formatKz(product.price_kz)}
                     </span>
                     {/* Fase 11: sem média real → "Novo" (nunca um 4.5 falso) */}

@@ -79,13 +79,13 @@ export default function PrivacidadePage() {
 
       <p className="mt-10 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
         Questões de privacidade? Consulta também os nossos{' '}
-        <Link href="/termos" className="font-semibold text-emerald-600 hover:underline">
+        <Link href="/termos" className="font-semibold text-blue-600 hover:underline">
           Termos de Uso
         </Link>{' '}
         ou fala connosco pelo WhatsApp{' '}
         <a
           href="https://wa.me/244958176915"
-          className="font-semibold text-emerald-600 hover:underline"
+          className="font-semibold text-blue-600 hover:underline"
           rel="noopener noreferrer"
           target="_blank"
         >

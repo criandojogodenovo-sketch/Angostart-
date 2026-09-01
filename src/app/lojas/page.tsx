@@ -136,14 +136,14 @@ export default async function LojasPage({
               defaultValue={filters.q}
               placeholder="Nome da loja, descrição ou vendedor…"
               aria-label="Pesquisar por nome da loja, descrição ou vendedor"
-              className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             />
           </div>
           <select
             name="categoria"
             defaultValue={filters.categoria}
             aria-label="Filtrar por categoria"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <option value="">Todas as categorias</option>
             {CATEGORIAS.map((c) => (
@@ -156,7 +156,7 @@ export default async function LojasPage({
             name="cidade"
             defaultValue={filters.cidade}
             aria-label="Filtrar por cidade"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <option value="">Todas as cidades</option>
             {CIDADES.map((slug) => (
@@ -167,7 +167,7 @@ export default async function LojasPage({
           </select>
           <button
             type="submit"
-            className="h-11 rounded-md bg-emerald-500 px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600"
+            className="h-11 rounded-md bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
           >
             <Search className="mr-2 inline h-4 w-4" /> Pesquisar
           </button>
@@ -181,9 +181,9 @@ export default async function LojasPage({
             name="produtos"
             value="1"
             defaultChecked={onlyWithProducts}
-            className="h-4 w-4 accent-emerald-500"
+            className="h-4 w-4 accent-blue-500"
           />
-          <Package className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+          <Package className="h-4 w-4 text-blue-600" aria-hidden="true" />
           Mostrar apenas lojas com produtos publicados
         </label>
       </form>
@@ -206,7 +206,7 @@ export default async function LojasPage({
                 className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
               >
                 <div
-                  className="h-24 bg-gradient-to-r from-emerald-500 to-teal-600"
+                  className="h-24 bg-gradient-to-r from-blue-600 to-teal-600"
                   style={s.logo_url ? { backgroundImage: `url(${s.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                 />
                 <div className="p-4">
@@ -226,7 +226,7 @@ export default async function LojasPage({
                   {s.description && (
                     <p className="mt-2 line-clamp-2 text-sm text-slate-600">{s.description}</p>
                   )}
-                  <p className="mt-3 text-xs font-semibold text-emerald-700">
+                  <p className="mt-3 text-xs font-semibold text-blue-700">
                     {s.product_count} produto(s) · {s.follower_count} seguidor(es)
                   </p>
                 </div>
@@ -239,7 +239,7 @@ export default async function LojasPage({
       <div className="mt-10">
         <Link
           href="/prestadores"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
         >
           <MapPin className="h-4 w-4" /> Explorar também os prestadores de serviços
         </Link>

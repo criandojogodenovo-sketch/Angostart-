@@ -56,7 +56,7 @@ export default function RecuperarSenhaPage() {
             </p>
             <Link
               href="/perfil"
-              className="mt-6 inline-block text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+              className="mt-6 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
               ← Voltar ao início de sessão
             </Link>
@@ -64,7 +64,7 @@ export default function RecuperarSenhaPage() {
         ) : (
           <>
             <div className="text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
                 <KeyRound className="h-6 w-6 text-white" />
               </span>
               <h1 className="mt-4 text-2xl font-bold text-slate-900">Recuperar senha</h1>
@@ -89,7 +89,7 @@ export default function RecuperarSenhaPage() {
               <Button
                 type="submit"
                 disabled={sending || email.trim().length === 0}
-                className="h-11 w-full bg-emerald-500 hover:bg-emerald-600"
+                className="h-11 w-full bg-blue-600 hover:bg-blue-700"
               >
                 {sending ? (
                   <>
@@ -102,7 +102,7 @@ export default function RecuperarSenhaPage() {
             </form>
             <Link
               href="/perfil"
-              className="mt-4 block text-center text-sm font-medium text-slate-500 hover:text-emerald-600"
+              className="mt-4 block text-center text-sm font-medium text-slate-500 hover:text-blue-700"
             >
               ← Voltar ao início de sessão
             </Link>

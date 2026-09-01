@@ -60,7 +60,7 @@ export default function ChatPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center sm:px-6">
-        <MessageCircle className="mx-auto h-12 w-12 text-emerald-500" />
+        <MessageCircle className="mx-auto h-12 w-12 text-blue-600" />
         <h1 className="mt-4 text-2xl font-bold text-slate-900">Chat da AngoStart</h1>
         <p className="mt-2 text-sm text-slate-500">
           Entra na tua conta para falar com vendedores e clientes — tudo protegido pela
@@ -68,7 +68,7 @@ export default function ChatPage() {
         </p>
         <Link
           href="/perfil"
-          className="mt-6 inline-flex h-11 items-center rounded-xl bg-emerald-500 px-6 font-semibold text-white transition-colors hover:bg-emerald-600"
+          className="mt-6 inline-flex h-11 items-center rounded-xl bg-blue-600 px-6 font-semibold text-white transition-colors hover:bg-blue-700"
         >
           Entrar / criar conta
         </Link>
@@ -195,7 +195,7 @@ function ChatClient({ userId }: { userId: number }) {
                 </p>
                 <Link
                   href="/produtos"
-                  className="mt-4 inline-block text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+                  className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
                 >
                   Explorar catálogo →
                 </Link>
@@ -208,13 +208,13 @@ function ChatClient({ userId }: { userId: number }) {
                       onClick={() => setActiveId(c.id)}
                       className={cn(
                         'w-full rounded-xl p-3 text-left transition-colors',
-                        activeId === c.id ? 'bg-emerald-50 ring-1 ring-emerald-300' : 'hover:bg-slate-50'
+                        activeId === c.id ? 'bg-blue-50 ring-1 ring-blue-300' : 'hover:bg-slate-50'
                       )}
                     >
                       <div className="flex items-center gap-2">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
                           {c.other_role && c.other_role !== 'cliente' ? (
-                            <Briefcase className="h-4 w-4 text-emerald-600" />
+                            <Briefcase className="h-4 w-4 text-blue-600" />
                           ) : (
                             <UserRound className="h-4 w-4" />
                           )}
@@ -263,7 +263,7 @@ function ChatClient({ userId }: { userId: number }) {
                   {active.product_name && (
                     <Link
                       href={`/produtos/${active.product_id}`}
-                      className="text-xs font-medium text-emerald-600 hover:underline"
+                      className="text-xs font-medium text-blue-600 hover:underline"
                     >
                       {active.product_name}
                     </Link>
@@ -290,7 +290,7 @@ function ChatClient({ userId }: { userId: number }) {
                         className={cn(
                           'max-w-[75%] rounded-2xl px-4 py-2 text-sm',
                           m.sender_id === userId
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-blue-600 text-white'
                             : 'bg-slate-100 text-slate-800'
                         )}
                       >
@@ -298,7 +298,7 @@ function ChatClient({ userId }: { userId: number }) {
                         <p
                           className={cn(
                             'mt-1 text-[10px]',
-                            m.sender_id === userId ? 'text-emerald-100' : 'text-slate-400'
+                            m.sender_id === userId ? 'text-blue-100' : 'text-slate-400'
                           )}
                         >
                           {new Date(m.created_at).toLocaleTimeString('pt-PT', {
@@ -324,7 +324,7 @@ function ChatClient({ userId }: { userId: number }) {
                 <Button
                   type="submit"
                   disabled={sending || draft.trim().length === 0}
-                  className="h-11 bg-emerald-500 px-4 hover:bg-emerald-600"
+                  className="h-11 bg-blue-600 px-4 hover:bg-blue-700"
                   aria-label="Enviar mensagem"
                 >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

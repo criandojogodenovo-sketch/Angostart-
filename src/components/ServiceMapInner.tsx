@@ -146,7 +146,7 @@ export default function ServiceMapInner({
 
       <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 px-4 py-2.5">
         <p className="flex items-center gap-1.5 text-xs text-slate-300">
-          <MapPin className="h-3.5 w-3.5 text-emerald-400" />
+          <MapPin className="h-3.5 w-3.5 text-blue-300" />
           {editable
             ? 'Toca no mapa para escolher o ponto de serviço.'
             : 'Ponto de atendimento do prestador (mapa escuro).'}
@@ -155,7 +155,7 @@ export default function ServiceMapInner({
           type="button"
           onClick={requestLocation}
           disabled={locating}
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-400 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-blue-400 hover:text-blue-300 disabled:opacity-60"
         >
           {locating ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

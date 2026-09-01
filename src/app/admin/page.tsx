@@ -961,7 +961,7 @@ function AdminPanel() {
                 onClick={() => setStatusFilter(filter.value)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   statusFilter === filter.value
-                    ? 'bg-emerald-500 text-white shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'bg-slate-800/60 text-slate-300 shadow-sm hover:bg-slate-700/60'
                 }`}
               >
@@ -979,8 +979,8 @@ function AdminPanel() {
                 onClick={() => setMethodFilter(filter.value)}
                 className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
                   methodFilter === filter.value
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                    : 'border-slate-700/60 bg-slate-800/50 backdrop-blur text-slate-400 hover:bg-slate-700/40'
+                    ? 'border-blue-500 bg-blue-600/10 text-blue-300'
+                    : 'border-white/10 bg-slate-800/60 backdrop-blur-xl text-slate-400 hover:bg-slate-700/40'
                 }`}
               >
                 {filter.label}
@@ -1003,7 +1003,7 @@ function AdminPanel() {
 
       {/* ── Carteira: depósitos e saques ── */}
       {tab === 'carteira' && (
-        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
             <div>
               <h2 className="text-base font-semibold text-slate-100">
@@ -1047,14 +1047,14 @@ function AdminPanel() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-emerald-600">{formatKz(op.valor)}</span>
+                    <span className="text-sm font-bold text-blue-600">{formatKz(op.valor)}</span>
                     {op.tipo === 'deposito' ? (
                       <>
                         <Button
                           size="sm"
                           onClick={() => decideWalletOp(op, true)}
                           disabled={walletBusyId === op.id}
-                          className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
+                          className="h-9 bg-blue-600 text-white hover:bg-blue-700"
                         >
                           {walletBusyId === op.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1080,7 +1080,7 @@ function AdminPanel() {
                           size="sm"
                           onClick={() => decideWalletOp(op, true)}
                           disabled={walletBusyId === op.id}
-                          className="h-9 bg-emerald-500 text-white hover:bg-emerald-600"
+                          className="h-9 bg-blue-600 text-white hover:bg-blue-700"
                         >
                           {walletBusyId === op.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1110,7 +1110,7 @@ function AdminPanel() {
 
       {/* ── Utilizadores ── */}
       {tab === 'utilizadores' && (
-        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
             <h2 className="text-base font-semibold text-slate-100">Utilizadores ({users.length})</h2>
             <Button variant="ghost" size="sm" onClick={loadUsers}>
@@ -1130,7 +1130,7 @@ function AdminPanel() {
                       {ROLE_LABELS[u.role as Role] ?? u.role}
                     </span>
                     {u.two_factor_enabled && (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-600">
+                      <span className="rounded-full bg-blue-600/10 px-2 py-0.5 font-semibold text-blue-600">
                         2FA ativa
                       </span>
                     )}
@@ -1143,7 +1143,7 @@ function AdminPanel() {
                   onClick={() => toggleBlock(u)}
                   className={`h-9 ${
                     u.blocked
-                      ? 'border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10'
+                      ? 'border-blue-500/40 text-blue-600 hover:bg-blue-600/10'
                       : 'border-rose-500/40 text-rose-600 hover:bg-rose-500/10'
                   }`}
                 >
@@ -1165,7 +1165,7 @@ function AdminPanel() {
 
       {/* ── Produtos ── */}
       {tab === 'produtos' && (
-        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
             <h2 className="text-base font-semibold text-slate-100">Produtos ({products.length})</h2>
             <Button variant="ghost" size="sm" onClick={loadProducts}>
@@ -1202,7 +1202,7 @@ function AdminPanel() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-emerald-600">{formatKz(p.price_kz)}</span>
+                    <span className="text-sm font-bold text-blue-600">{formatKz(p.price_kz)}</span>
                     <Button
                       size="sm"
                       variant="outline"
@@ -1223,7 +1223,7 @@ function AdminPanel() {
       {tab === 'admins' && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {/* Convidar */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
               <UserPlus className="h-4 w-4" /> Convidar Admin Limitado
             </h2>
@@ -1253,7 +1253,7 @@ function AdminPanel() {
           </section>
 
           {/* Estado */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-100">Estado da equipa de validação</h2>
               <Button variant="ghost" size="sm" onClick={loadAdminSecurityData}>
@@ -1277,7 +1277,7 @@ function AdminPanel() {
                             <p className="truncate text-sm font-semibold text-slate-100">{a.name}</p>
                             <p className="truncate text-xs text-slate-400">{a.email}</p>
                             <p className="mt-0.5 flex gap-1.5 text-[11px]">
-                              <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                              <span className={`rounded-full px-2 py-0.5 font-semibold ${a.two_factor_enabled ? 'bg-blue-600/10 text-blue-600' : 'bg-amber-500/10 text-amber-600'}`}>
                                 {a.two_factor_enabled ? '2FA ativa' : '2FA pendente'}
                               </span>
                               {a.blocked && <span className="rounded-full bg-rose-500/10 px-2 py-0.5 font-semibold text-rose-600">bloqueado</span>}
@@ -1294,7 +1294,7 @@ function AdminPanel() {
                               variant="outline"
                               onClick={() => sendDailyCode(a)}
                               disabled={busyAdminId === a.id}
-                              className="h-8 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                              className="h-8 border-blue-500/40 text-blue-600 hover:bg-blue-600/10"
                             >
                               {busyAdminId === a.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />}
                               Código diário
@@ -1353,7 +1353,7 @@ function AdminPanel() {
                       const state = i.accepted_at ? 'aceite' : expired ? 'expirado' : 'pendente';
                       const stateCls =
                         state === 'aceite'
-                          ? 'bg-emerald-500/10 text-emerald-600'
+                          ? 'bg-blue-600/10 text-blue-600'
                           : state === 'pendente'
                             ? 'bg-amber-500/10 text-amber-600'
                             : 'bg-slate-700/40 text-slate-400';
@@ -1401,7 +1401,7 @@ function AdminPanel() {
                           <p className="truncate text-sm text-slate-200">{c.admin_email}</p>
                           <p className="text-xs text-slate-400">dia {c.date}</p>
                         </div>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.used_at ? 'bg-slate-700/40 text-slate-400' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.used_at ? 'bg-slate-700/40 text-slate-400' : 'bg-blue-600/10 text-blue-600'}`}>
                           {c.used_at ? 'usado' : 'ativo'}
                         </span>
                       </li>
@@ -1423,7 +1423,7 @@ function AdminPanel() {
       {tab === 'anuncios' && (
         <div className="mt-6 grid gap-6 lg:grid-cols-[380px_1fr]">
           {/* Criar anúncio */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
               <Megaphone className="h-4 w-4" /> Criar anúncio
             </h2>
@@ -1453,7 +1453,7 @@ function AdminPanel() {
                   onChange={(e) => setAnnContent(e.target.value)}
                   rows={3}
                   placeholder="Detalhes do anúncio…"
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   required
                   minLength={5}
                   maxLength={800}
@@ -1490,7 +1490,7 @@ function AdminPanel() {
               <Button
                 type="submit"
                 disabled={annCreating}
-                className="h-11 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600"
+                className="h-11 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700"
               >
                 {annCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" /> Publicar anúncio
@@ -1499,7 +1499,7 @@ function AdminPanel() {
           </section>
 
           {/* Lista de anúncios */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-100">
                 Anúncios ({announcements.length})
@@ -1526,7 +1526,7 @@ function AdminPanel() {
                               : a.type === 'promo'
                                 ? 'bg-amber-500/20 text-amber-300'
                                 : a.type === 'destaque'
-                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  ? 'bg-blue-600/20 text-blue-300'
                                   : 'bg-sky-500/20 text-sky-300'
                           }`}
                         >
@@ -1572,7 +1572,7 @@ function AdminPanel() {
 
       {/* ── Monitorização anti-burla (Fase 5) ── */}
       {tab === 'monitorizacao' && (
-        <section className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur shadow-sm">
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-5 py-4">
             <div>
               <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
@@ -1644,7 +1644,7 @@ function AdminPanel() {
                       <Button
                         size="sm"
                         onClick={() => suspiciousAction(row, 'desbloquear')}
-                        className="h-8 bg-emerald-500 text-white hover:bg-emerald-600"
+                        className="h-8 bg-blue-600 text-white hover:bg-blue-700"
                       >
                         <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Desbloquear
                       </Button>
@@ -1691,7 +1691,7 @@ function AdminPanel() {
         <section className="mt-6" aria-label="Gestão de disputas">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 text-lg font-bold text-slate-100">
-              <Gavel className="h-5 w-5 text-emerald-600" /> Disputas
+              <Gavel className="h-5 w-5 text-blue-600" /> Disputas
             </h2>
             <Button
               variant="outline"
@@ -1708,7 +1708,7 @@ function AdminPanel() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar disputas…
             </p>
           ) : disputes.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-dashed border-slate-600 bg-slate-800/50 p-10 text-center text-sm text-slate-400">
+            <p className="mt-4 rounded-2xl border border-dashed border-slate-600 bg-slate-800/60 p-10 text-center text-sm text-slate-400">
               Sem disputas registadas — bom sinal! 🎉
             </p>
           ) : (
@@ -1718,8 +1718,8 @@ function AdminPanel() {
                 return (
                   <li
                     key={d.id}
-                    className={`rounded-2xl border bg-slate-800/50 p-5 shadow-sm ${
-                      aberta ? 'border-amber-500/40' : 'border-slate-700/60 opacity-90'
+                    className={`rounded-2xl border bg-slate-800/60 p-5 shadow-sm ${
+                      aberta ? 'border-amber-500/40' : 'border-white/10 opacity-90'
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1740,7 +1740,7 @@ function AdminPanel() {
                         className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
                           aberta
                             ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-blue-600/20 text-blue-300'
                         }`}
                       >
                         {d.status === 'aberta'
@@ -1791,7 +1791,7 @@ function AdminPanel() {
                           <Button
                             onClick={() => resolveDispute(d, 'vendedor')}
                             disabled={disputeBusyId === d.id}
-                            className="h-10 bg-emerald-500 text-white hover:bg-emerald-600"
+                            className="h-10 bg-blue-600 text-white hover:bg-blue-700"
                           >
                             {disputeBusyId === d.id ? (
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1824,19 +1824,19 @@ function AdminPanel() {
             <>
               {/* KPIs gerais */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Receita confirmada</p>
-                  <p className="mt-1 text-2xl font-bold text-emerald-600">{formatKz(report.totals.revenue)}</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-600">{formatKz(report.totals.revenue)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Comissões AngoStart</p>
                   <p className="mt-1 text-2xl font-bold text-slate-100">{formatKz(report.totals.commission)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Novos utilizadores (30d)</p>
                   <p className="mt-1 text-2xl font-bold text-slate-100">{report.totals.newUsers30d}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Produtos ativos</p>
                   <p className="mt-1 text-2xl font-bold text-slate-100">
                     {report.products.total}{' '}
@@ -1844,9 +1844,9 @@ function AdminPanel() {
                   </p>
                 </div>
                 {report.completion && (
-                  <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                  <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-slate-400">Taxa de conclusão</p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-600">{report.completion.rate}%</p>
+                    <p className="mt-1 text-2xl font-bold text-blue-600">{report.completion.rate}%</p>
                     <p className="mt-0.5 text-[11px] text-slate-400">
                       {report.completion.concluidas} concluídas · {report.completion.perdidas} perdidas ·{' '}
                       {report.completion.total} total
@@ -1857,7 +1857,7 @@ function AdminPanel() {
 
               {/* ── Fase 6 (ponto 8): gráficos Recharts ── */}
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Receita mensal (Recharts)</h3>
                   <div className="mt-4 h-56">
                     <ResponsiveContainer width="100%" height="100%">
@@ -1875,7 +1875,7 @@ function AdminPanel() {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Utilizadores registados por mês</h3>
                   <div className="mt-4 h-56">
                     {(report.usersByMonth?.length ?? 0) > 0 ? (
@@ -1885,7 +1885,7 @@ function AdminPanel() {
                           <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                           <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", color: "#e2e8f0" }} />
-                          <Line type="monotone" dataKey="n" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#14b8a6' }} name="Registos" />
+                          <Line type="monotone" dataKey="n" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#8b5cf6' }} name="Registos" />
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
@@ -1899,7 +1899,7 @@ function AdminPanel() {
 
               {/* Top produtos e top vendedores */}
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Top 5 produtos mais vendidos</h3>
                   {(report.topProducts?.length ?? 0) === 0 ? (
                     <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
@@ -1908,7 +1908,7 @@ function AdminPanel() {
                       {report.topProducts!.map((p, i) => (
                         <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/40 px-3 py-2 text-sm">
                           <span className="min-w-0 truncate text-slate-200">
-                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
+                            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                               {i + 1}
                             </span>
                             {p.name}
@@ -1923,7 +1923,7 @@ function AdminPanel() {
                   )}
                 </section>
 
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Top 5 vendedores por receita</h3>
                   {(report.topSellers?.length ?? 0) === 0 ? (
                     <p className="mt-3 text-sm text-slate-400">Ainda sem vendas confirmadas.</p>
@@ -1951,7 +1951,7 @@ function AdminPanel() {
 
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Receita mensal */}
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Receita mensal (pagas + entregues)</h3>
                   <div className="mt-4 flex h-44 items-end gap-3">
                     {report.monthly.map((m) => {
@@ -1962,7 +1962,7 @@ function AdminPanel() {
                             {m.revenue > 0 ? formatKz(m.revenue).replace(' Kz', '') : '0'}
                           </span>
                           <div
-                            className="w-full rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all"
+                            className="w-full rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400 transition-all"
                             style={{ height: `${Math.max((m.revenue / max) * 130, 4)}px` }}
                             title={`${m.orders} encomendas — ${formatKz(m.revenue)}`}
                           />
@@ -1977,7 +1977,7 @@ function AdminPanel() {
                 </section>
 
                 {/* Utilizadores por perfil + encomendas por estado */}
-                <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-5 shadow-sm">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-100">Utilizadores por perfil</h3>
                   <ul className="mt-3 space-y-2">
                     {report.usersByRole.map((r) => (
@@ -2013,7 +2013,7 @@ function AdminPanel() {
       {tab === 'comissoes' && (
         <div className="mt-6 space-y-6">
           {/* Taxas por tipo */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-100">Taxas por tipo de venda</h2>
             <p className="mt-1 text-xs text-slate-400">
               Aplicadas no escrow quando o pedido é pago (máx. 50%). Toda a alteração fica
@@ -2028,7 +2028,7 @@ function AdminPanel() {
                       ? 'Serviços ao domicílio'
                       : 'Freelancers (remoto)';
                 return (
-                  <div key={r.scope} className="rounded-xl border border-slate-700/60 p-4">
+                  <div key={r.scope} className="rounded-xl border border-white/10 p-4">
                     <p className="text-xs font-semibold text-slate-400">{label}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <Input
@@ -2057,7 +2057,7 @@ function AdminPanel() {
           </section>
 
           {/* Overrides por vendedor */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-100">Taxa individual (override)</h2>
             <p className="mt-1 text-xs text-slate-400">
               Define uma taxa especial para um vendedor pelo ID do utilizador. Vazio + Guardar
@@ -2111,7 +2111,7 @@ function AdminPanel() {
                     <span className="text-slate-200">
                       #{o.user_id} — {o.name ?? o.email ?? 'Vendedor'}
                     </span>
-                    <span className="font-semibold text-emerald-300">{o.percent}%</span>
+                    <span className="font-semibold text-blue-300">{o.percent}%</span>
                   </li>
                 ))}
               </ul>
@@ -2119,7 +2119,7 @@ function AdminPanel() {
           </section>
 
           {/* Relatório de comissões */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-100">
               Receita de comissões — total {formatKz(commissions?.report.total_comissoes ?? 0)}
             </h2>
@@ -2143,7 +2143,7 @@ function AdminPanel() {
                         <td className="py-1.5 font-medium text-slate-200">{cat.categoria}</td>
                         <td className="py-1.5">{cat.vendas}</td>
                         <td className="py-1.5">{formatKz(cat.receita)}</td>
-                        <td className="py-1.5 font-semibold text-emerald-300">
+                        <td className="py-1.5 font-semibold text-blue-300">
                           {formatKz(cat.comissao)}
                         </td>
                       </tr>
@@ -2178,7 +2178,7 @@ function AdminPanel() {
           </section>
 
           {/* Auditoria */}
-          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-100">Auditoria de alterações</h2>
             <ul className="mt-3 divide-y divide-slate-100 text-sm">
               {(commissions?.audit ?? []).map((a) => (
@@ -2187,7 +2187,7 @@ function AdminPanel() {
                   alterou <span className="font-medium">{a.scope}</span>
                   {a.seller_name ? ` (vendedor ${a.seller_name})` : ''}:{' '}
                   {a.old_percent === null ? '—' : `${a.old_percent}%`} →{' '}
-                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-emerald-300'}>
+                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-blue-300'}>
                     {a.new_percent < 0 ? 'removido' : `${a.new_percent}%`}
                   </span>{' '}
                   <span className="text-xs text-slate-400">
@@ -2205,18 +2205,18 @@ function AdminPanel() {
 
       {/* ── Segurança 2FA ── */}
       {tab === 'seguranca' && (
-        <section className="mt-6 max-w-xl rounded-2xl border border-slate-700/60 bg-slate-800/50 backdrop-blur p-6 shadow-sm">
+        <section className="mt-6 max-w-xl rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-100">Ativar / reconfigurar 2FA (TOTP)</h2>
           <p className="mt-1 text-xs text-slate-400">
             1. Clica em gerar → 2. abre a app autenticadora (Google Authenticator, Aegis, Authy…) →
             3. lê o QR → 4. valida o código de 6 dígitos no ecrã de entrada do painel.
           </p>
-          <Button onClick={setup2FA} disabled={generating} className="mt-4 h-11 bg-emerald-500 font-semibold text-white hover:bg-emerald-600">
+          <Button onClick={setup2FA} disabled={generating} className="mt-4 h-11 bg-blue-600 font-semibold text-white hover:bg-blue-700">
             {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
             Gerar QR Code do 2FA
           </Button>
           {qr && (
-            <div className="mt-4 rounded-xl border border-slate-700/60 p-4 text-center">
+            <div className="mt-4 rounded-xl border border-white/10 p-4 text-center">
               { }
               <img src={qr} alt="QR Code 2FA" className="mx-auto rounded-lg" width={220} height={220} />
               <p className="mt-3 break-all text-[11px] text-slate-400">{otpauth}</p>

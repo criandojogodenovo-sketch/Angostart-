@@ -56,7 +56,7 @@
 
 :root {
   --radius: 0.625rem;
-  /* Fase 16: páginas públicas com fundo Light Clean (#F8FAFC) */
+  /* Fase 17: páginas públicas Light Clean + brilho azul/roxo subtil */
   --background: oklch(0.984 0.003 247.86);
   --foreground: oklch(0.208 0.042 265.75);
   --card: oklch(1 0 0);
@@ -135,6 +135,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    /* Fase 17: halos fixos azul/roxo — dão profundidade ao glassmorphism.
+       Dashboards escuros cobrem com o próprio fundo #0B1120. */
+    background-image:
+      radial-gradient(1100px 520px at 88% -8%, rgba(139, 92, 246, 0.09), transparent 62%),
+      radial-gradient(950px 480px at -12% 12%, rgba(59, 130, 246, 0.11), transparent 62%),
+      radial-gradient(720px 420px at 50% 118%, rgba(20, 184, 166, 0.07), transparent 60%);
+    background-attachment: fixed;
   }
   ::selection {
     background-color: #3b82f633;
@@ -146,29 +153,34 @@
    (Light Clean nas páginas públicas · Dark Premium nos dashboards)
    ———————————————————————————————————————————————————————————————— */
 @layer components {
-  /* Card premium (páginas públicas) — elevação suave no hover */
+  /* Card premium em vidro (páginas públicas) — glassmorphism + elevação */
   .card-premium {
-    @apply rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+    @apply rounded-2xl border border-white/50 bg-white/70 shadow-xl shadow-blue-500/5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl;
   }
 
   /* Card premium (dashboards dark) — vidro fumado sobre #0B1120 */
   .card-dark {
-    @apply rounded-2xl border border-slate-700/60 bg-slate-800/50 shadow-sm backdrop-blur;
+    @apply rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl backdrop-blur-xl;
   }
 
-  /* Botão primário — azul #3B82F6 */
+  /* Botão primário — gradiente azul→roxo + sombra premium */
   .btn-primary {
-    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
-  /* Botão secundário — cinza suave */
+  /* Botão secundário — cinza suave (páginas claras) */
   .btn-secondary {
     @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 text-sm font-semibold text-slate-700 transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
-  /* Input moderno — cantos arredondados + anel azul no foco */
+  /* Botão secundário em contexto escuro (dashboards) */
+  .btn-secondary-dark {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-800 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Input moderno — vidro leve + anel azul no foco */
   .input-modern {
-    @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/25 disabled:opacity-60;
+    @apply w-full rounded-xl border border-gray-200 bg-white/60 px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none backdrop-blur transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/25 disabled:opacity-60;
   }
 
   /* Label dos formulários modernos */
@@ -184,6 +196,33 @@
   /* Variante em dark (dashboards) */
   .chip-keyword-dark {
     @apply inline-flex max-w-full items-center truncate rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] font-medium text-blue-300;
+  }
+
+  /* ————— Fase 17: glassmorphism ————— */
+
+  /* Navbar clara em vidro */
+  .glass-navbar {
+    @apply border-b border-white/20 bg-white/70 shadow-sm backdrop-blur-xl;
+  }
+
+  /* Pílula da BottomNav (mobile) em vidro */
+  .glass-pill {
+    @apply border border-white/30 bg-white/80 shadow-2xl backdrop-blur-xl;
+  }
+
+  /* Painel de modal/menu escuro em vidro */
+  .glass-panel {
+    @apply border border-white/10 bg-slate-900/80 shadow-2xl backdrop-blur-lg;
+  }
+
+  /* Chip de filtro ativo (prestadores/lojas) */
+  .filter-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100;
+  }
+
+  /* Barra de progresso com gradiente azul→roxo */
+  .progress-gradient {
+    @apply bg-gradient-to-r from-blue-500 to-purple-500;
   }
 }
 

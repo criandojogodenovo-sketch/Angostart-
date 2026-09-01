@@ -204,7 +204,7 @@ export default function ProfileGamificationCard() {
             type="button"
             onClick={enablePush}
             disabled={busy}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-500 px-4 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
             <Bell className="h-4 w-4" /> {busy ? 'A ativar…' : 'Ativar notificações'}
           </button>

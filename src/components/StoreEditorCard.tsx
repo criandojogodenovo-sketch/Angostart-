@@ -110,12 +110,12 @@ export default function StoreEditorCard() {
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-          <Store className="h-5 w-5 text-emerald-600" /> Minha Loja
+          <Store className="h-5 w-5 text-blue-600" /> Minha Loja
         </h2>
         {store && (
           <Link
             href={`/loja/${store.slug}`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:underline"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Ver página pública
           </Link>
@@ -129,7 +129,7 @@ export default function StoreEditorCard() {
         <div className="mt-4 space-y-3">
           {/* Banner atual */}
           <div
-            className="h-24 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600"
+            className="h-24 w-full rounded-xl bg-gradient-to-r from-blue-600 to-teal-600"
             style={bannerUrl ? { backgroundImage: `url(${bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
           />
 
@@ -194,7 +194,7 @@ export default function StoreEditorCard() {
             type="button"
             onClick={save}
             disabled={saving || name.trim().length < 3}
-            className="h-10 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+            className="h-10 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {saving ? 'A guardar…' : 'Guardar alterações'}
           </Button>

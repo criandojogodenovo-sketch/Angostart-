@@ -42,13 +42,13 @@ export default function BottomNav() {
         aria-label={label}
         aria-current={active ? 'page' : undefined}
         className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors ${
-          active ? 'text-blue-400' : 'text-slate-300 active:bg-white/10'
+          active ? 'text-blue-600' : 'text-slate-500 active:bg-slate-100'
         }`}
       >
         <span className="relative">
           <Icon className="h-6 w-6" aria-hidden="true" />
           {badge !== undefined && badge > 0 && (
-            <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white">
+            <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
               {badge > 9 ? '9+' : badge}
             </span>
           )}
@@ -62,7 +62,7 @@ export default function BottomNav() {
     <>
       {/* Overlay de pesquisa (Fase 6, ponto 4 — item "Pesquisar") */}
       <div
-        className={`fixed inset-x-0 top-0 z-[80] bg-slate-900/95 p-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-2xl backdrop-blur transition-transform duration-300 md:hidden ${
+        className={`fixed inset-x-0 top-0 z-[80] bg-white/95 p-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-2xl backdrop-blur-xl transition-transform duration-300 md:hidden ${
           searchOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
         role="dialog"
@@ -77,7 +77,7 @@ export default function BottomNav() {
             type="button"
             onClick={() => setSearchOpen(false)}
             aria-label="Fechar pesquisa"
-            className="rounded-full p-2.5 text-slate-300 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           >
             <X className="h-5 w-5" />
           </button>
@@ -90,7 +90,7 @@ export default function BottomNav() {
         className="fixed inset-x-3 bottom-3 z-[75] md:hidden"
         style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="mx-auto flex max-w-lg items-stretch gap-0.5 rounded-2xl border border-white/10 bg-slate-900/95 px-2 py-1.5 shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur">
+        <div className="glass-pill mx-auto flex max-w-lg items-stretch gap-0.5 rounded-2xl px-2 py-1.5">
           {ITEMS.map(({ href, label, icon }) => navLink(href, label, icon))}
 
           {/* Pesquisar — abre o overlay */}
@@ -99,7 +99,7 @@ export default function BottomNav() {
             onClick={() => setSearchOpen((v) => !v)}
             aria-label="Pesquisar"
             aria-expanded={searchOpen}
-            className="flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-slate-300 transition-colors active:bg-white/10"
+            className="flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-slate-500 transition-colors active:bg-slate-100"
           >
             <Search className="h-6 w-6" aria-hidden="true" />
             <span className="text-[10px] font-semibold">Pesquisar</span>
@@ -110,10 +110,10 @@ export default function BottomNav() {
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent(AI_CHAT_OPEN_EVENT))}
             aria-label="Abrir assistente de IA"
-            className="flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-slate-300 transition-colors active:bg-white/10"
+            className="flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-slate-500 transition-colors active:bg-slate-100"
           >
             <span className="relative">
-              <Sparkles className="h-6 w-6" aria-hidden="true" />
+              <Sparkles className="h-6 w-6 text-purple-600" aria-hidden="true" />
             </span>
             <span className="text-[10px] font-semibold">IA</span>
           </button>

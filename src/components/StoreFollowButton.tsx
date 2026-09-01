@@ -61,8 +61,8 @@ export default function StoreFollowButton({ storeId, following = false }: Props)
       disabled={loading}
       className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-60 ${
         isFollowing
-          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300 hover:bg-emerald-100'
-          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-300 hover:bg-blue-100'
+          : 'bg-blue-600 text-white hover:bg-blue-700'
       }`}
     >
       {isFollowing ? '✓ A seguir' : '+ Seguir loja'}

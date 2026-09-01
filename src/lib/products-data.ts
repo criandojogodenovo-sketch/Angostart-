@@ -66,7 +66,7 @@ export const PRODUCT_TYPES: Record<
     label: 'Infoprodutos',
     short: 'Infoprodutos',
     icon: 'graduation-cap',
-    gradient: 'from-emerald-500 to-teal-600',
+    gradient: 'from-blue-600 to-teal-600',
   },
   produto_fisico: {
     label: 'Produtos Físicos',
@@ -78,7 +78,7 @@ export const PRODUCT_TYPES: Record<
     label: 'Serviço ao Domicílio',
     short: 'Domicílio',
     icon: 'home',
-    gradient: 'from-orange-500 to-amber-500',
+    gradient: 'from-teal-500 to-blue-600',
   },
   servico_remoto: {
     label: 'Serviço Remoto',

@@ -161,7 +161,7 @@ export default function PortfolioEditorPage() {
   if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-600" />
         <span className="text-sm">A carregar o portfólio…</span>
       </div>
     );
@@ -177,7 +177,7 @@ export default function PortfolioEditorPage() {
         <p className="mt-2 text-sm text-slate-500">
           O editor de portfólio é exclusivo para vendedores AngoStart.
         </p>
-        <Button asChild className="mt-8 h-11 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600">
+        <Button asChild className="mt-8 h-11 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700">
           <Link href="/perfil">Entrar como vendedor</Link>
         </Button>
       </div>
@@ -188,16 +188,16 @@ export default function PortfolioEditorPage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <Link
         href="/dashboard/vendedor"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar ao painel de vendas
       </Link>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-          <UserRound className="h-7 w-7 text-emerald-500" /> O meu portfólio público
+          <UserRound className="h-7 w-7 text-blue-600" /> O meu portfólio público
         </h1>
         {data?.portfolio?.username && (
-          <Button asChild variant="outline" className="h-10 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+          <Button asChild variant="outline" className="h-10 border-blue-500 text-blue-600 hover:bg-blue-50">
             <Link href={`/portfolio/${data.portfolio.username}`} target="_blank">
               Ver página pública <ExternalLink className="ml-1.5 h-4 w-4" />
             </Link>
@@ -263,7 +263,7 @@ export default function PortfolioEditorPage() {
         <Button
           type="submit"
           disabled={saving}
-          className="h-12 w-full bg-emerald-500 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60 sm:w-48"
+          className="h-12 w-full bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60 sm:w-48"
         >
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Guardar portfólio

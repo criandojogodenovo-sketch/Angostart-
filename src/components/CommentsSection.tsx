@@ -131,7 +131,7 @@ export default function CommentsSection({
   return (
     <section aria-label={title} className="mt-12">
       <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900">
-        <MessageSquare className="h-5 w-5 text-emerald-500" />
+        <MessageSquare className="h-5 w-5 text-blue-600" />
         {title} ({comments.length})
       </h2>
       <p className="mt-1 text-sm text-slate-500">
@@ -157,7 +157,7 @@ export default function CommentsSection({
             <Button
               type="submit"
               disabled={sending || content.trim().length < 2}
-              className="h-10 bg-emerald-500 px-5 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+              className="h-10 bg-blue-600 px-5 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {sending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -177,7 +177,7 @@ export default function CommentsSection({
       {/* Lista */}
       {loading ? (
         <div className="flex items-center justify-center py-8 text-slate-400">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-500" />
+          <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-600" />
           <span className="text-sm">A carregar comentários…</span>
         </div>
       ) : comments.length === 0 ? (

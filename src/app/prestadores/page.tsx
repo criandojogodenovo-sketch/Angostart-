@@ -153,7 +153,7 @@ export default function PrestadoresPage() {
             value={cidade}
             onChange={(e) => setCidade(e.target.value)}
             aria-label="Filtrar por cidade"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <option value="">Todas as cidades</option>
             {CIDADES.map((slug) => (
@@ -166,7 +166,7 @@ export default function PrestadoresPage() {
             value={ordenar}
             onChange={(e) => setOrdenar(e.target.value)}
             aria-label="Ordenar resultados"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             {ORDENACOES.map((o) => (
               <option key={o.value} value={o.value}>
@@ -176,7 +176,7 @@ export default function PrestadoresPage() {
           </select>
           <Button
             type="submit"
-            className="h-11 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600"
+            className="h-11 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700"
           >
             <Search className="mr-2 h-4 w-4" /> Pesquisar
           </Button>
@@ -194,8 +194,8 @@ export default function PrestadoresPage() {
                 aria-pressed={active}
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-all ${
                   active
-                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-600'
+                    ? 'border-blue-500 bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
@@ -246,7 +246,7 @@ export default function PrestadoresPage() {
       <div className="mt-8">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <p className="text-sm">A procurar prestadores…</p>
           </div>
         ) : prestadores.length === 0 ? (
@@ -285,7 +285,7 @@ export default function PrestadoresPage() {
                           className="h-14 w-14 shrink-0 rounded-xl object-cover shadow"
                         />
                       ) : (
-                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-xl font-bold text-white shadow">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-bold text-white shadow">
                           {p.name.charAt(0).toUpperCase()}
                         </span>
                       )}
@@ -293,7 +293,7 @@ export default function PrestadoresPage() {
                         <h2 className="truncate text-base font-semibold text-slate-900">
                           {p.name}
                         </h2>
-                        <p className="text-xs font-semibold text-emerald-600">
+                        <p className="text-xs font-semibold text-blue-600">
                           {ROLE_LABELS[p.role] ?? p.role}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
@@ -357,7 +357,7 @@ export default function PrestadoresPage() {
                     <div className="mt-auto flex gap-2 p-5 pt-4">
                       <Button
                         asChild
-                        className="h-10 flex-1 bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600"
+                        className="h-10 flex-1 bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
                       >
                         <Link href={`/portfolio/${p.username ?? ''}`}>
                           Ver portfólio
@@ -375,7 +375,7 @@ export default function PrestadoresPage() {
       <div className="mt-10">
         <Link
           href="/produtos"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" /> Explorar também o catálogo de produtos
         </Link>

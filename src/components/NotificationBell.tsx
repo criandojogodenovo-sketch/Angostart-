@@ -93,7 +93,7 @@ export default function NotificationBell() {
       >
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bell className="h-5 w-5" />}
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-bold text-white shadow">
+          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-bold text-white shadow">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -106,7 +106,7 @@ export default function NotificationBell() {
             {unread > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
               >
                 Marcar todas como lidas
               </button>
@@ -124,12 +124,12 @@ export default function NotificationBell() {
                     <div
                       className={cn(
                         'border-b border-slate-50 px-4 py-3 transition-colors hover:bg-slate-50',
-                        !n.read && 'bg-emerald-50/60'
+                        !n.read && 'bg-blue-50/60'
                       )}
                     >
                       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                         {!n.read && (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden />
                         )}
                         {n.title}
                       </p>

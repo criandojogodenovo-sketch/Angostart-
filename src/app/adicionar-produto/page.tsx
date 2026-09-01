@@ -84,9 +84,9 @@ const TYPE_OPTIONS: {
 ];
 
 const GRADIENTS: Record<ProductType, string> = {
-  infoproduto: 'from-emerald-500 to-teal-600',
+  infoproduto: 'from-blue-600 to-teal-600',
   produto_fisico: 'from-blue-600 to-cyan-500',
-  servico_domicilio: 'from-orange-500 to-amber-500',
+  servico_domicilio: 'from-teal-500 to-blue-600',
   servico_remoto: 'from-violet-600 to-purple-500',
 };
 
@@ -196,7 +196,7 @@ function AdicionarProdutoContent() {
   if (!user) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center sm:px-6">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30">
           <CircleDollarSign className="h-7 w-7" />
         </span>
         <h1 className="mt-4 text-2xl font-bold text-slate-900">
@@ -209,7 +209,7 @@ function AdicionarProdutoContent() {
         </p>
         <Button
           asChild
-          className="mt-6 h-12 bg-emerald-500 px-8 text-white hover:bg-emerald-600"
+          className="mt-6 h-12 bg-blue-600 px-8 text-white hover:bg-blue-700"
         >
           <Link href="/perfil">Entrar / criar conta de vendedor</Link>
         </Button>
@@ -233,7 +233,7 @@ function AdicionarProdutoContent() {
         <Button
           asChild
           variant="outline"
-          className="mt-6 h-12 border-emerald-500 px-8 text-emerald-600 hover:bg-emerald-50"
+          className="mt-6 h-12 border-blue-500 px-8 text-blue-600 hover:bg-blue-50"
         >
           <Link href="/perfil">Voltar ao perfil</Link>
         </Button>
@@ -549,14 +549,14 @@ function AdicionarProdutoContent() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <button
         onClick={() => router.push('/perfil')}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-emerald-600"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-blue-700"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar ao perfil
       </button>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30">
             {editId ? <Package className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}
           </span>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">
@@ -720,7 +720,7 @@ function AdicionarProdutoContent() {
                         key={s}
                         type="button"
                         onClick={() => addSuggestion(s)}
-                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-amber-300 transition-colors hover:bg-amber-500 hover:text-white hover:ring-amber-500"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-blue-300 transition-colors hover:bg-blue-500 hover:text-white hover:ring-blue-500"
                       >
                         <Sparkles className="h-3 w-3" /> {s}
                       </button>
@@ -745,7 +745,7 @@ function AdicionarProdutoContent() {
                 required
               />
               {form.price && Number(form.price) > 0 && (
-                <p className="text-xs font-medium text-emerald-600">
+                <p className="text-xs font-medium text-blue-600">
                   {formatKz(Number(form.price))}
                 </p>
               )}
@@ -754,7 +754,7 @@ function AdicionarProdutoContent() {
             {/* Foto do produto — UPLOAD REAL da galeria (Vercel Blob) */}
             <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
               <Label className="flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-emerald-600" />
+                <ImageIcon className="h-4 w-4 text-blue-600" />
                 Foto do produto/serviço{' '}
                 <span className="font-normal text-slate-400">
                   (opcional — JPG, PNG ou WebP, máx. 5 MB)
@@ -778,7 +778,7 @@ function AdicionarProdutoContent() {
                 )}
                 <label
                   htmlFor="prod-imagem-upload"
-                  className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                  className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                 >
                   {imageUploading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -798,7 +798,7 @@ function AdicionarProdutoContent() {
                 />
                 {form.image_url && (
                   <>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-300">
                       <BadgeCheck className="h-3.5 w-3.5" /> Foto pronta
                     </span>
                     <button
@@ -839,13 +839,13 @@ function AdicionarProdutoContent() {
                     onClick={() => setForm({ ...form, type: value })}
                     className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
                       form.type === value
-                        ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
-                        : 'border-slate-200 bg-white hover:border-emerald-300'
+                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                        : 'border-slate-200 bg-white hover:border-blue-300'
                     }`}
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${
-                        form.type === value ? 'bg-emerald-500' : 'bg-slate-300'
+                        form.type === value ? 'bg-blue-600' : 'bg-slate-300'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -861,9 +861,9 @@ function AdicionarProdutoContent() {
 
             {/* PDF do infoproduto (Fase 5) */}
             {form.type === 'infoproduto' && (
-              <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <div className="space-y-2 rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
                 <Label className="flex items-center gap-1.5">
-                  <FileUp className="h-4 w-4 text-emerald-600" />
+                  <FileUp className="h-4 w-4 text-blue-600" />
                   Ficheiro PDF do teu eBook/curso{' '}
                   <span className="font-normal text-slate-400">(opcional, máx. 20 MB)</span>
                 </Label>
@@ -874,7 +874,7 @@ function AdicionarProdutoContent() {
                 <div className="flex flex-wrap items-center gap-3">
                   <label
                     htmlFor="prod-pdf"
-                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                   >
                     {pdfUploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -892,7 +892,7 @@ function AdicionarProdutoContent() {
                     disabled={pdfUploading}
                   />
                   {form.file_url && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-300">
                       <BadgeCheck className="h-3.5 w-3.5" /> PDF carregado
                     </span>
                   )}
@@ -921,7 +921,7 @@ function AdicionarProdutoContent() {
                   height={300}
                 />
                 {form.service_lat !== null && form.service_lng !== null ? (
-                  <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                  <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
                     Ponto definido: {form.service_lat.toFixed(5)}, {form.service_lng.toFixed(5)} — os
                     clientes verão este marcador na página do serviço.
                   </p>
@@ -980,7 +980,7 @@ function AdicionarProdutoContent() {
                 onClick={handleKycSave}
                 disabled={kycSaving || (kycBi.trim().length === 0 && kycNif.trim().length === 0)}
                 variant="outline"
-                className="mt-3 h-10 border-emerald-300 text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                className="mt-3 h-10 border-blue-300 text-blue-600 hover:bg-blue-50 disabled:opacity-60"
               >
                 {kycSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar dados de confiança
@@ -1013,7 +1013,7 @@ function AdicionarProdutoContent() {
                   <p className="truncate text-xs text-slate-500">
                     {form.description || 'A descrição aparece aqui…'}
                   </p>
-                  <p className="text-sm font-bold text-emerald-600">
+                  <p className="text-sm font-bold text-blue-600">
                     {Number(form.price) > 0 ? formatKz(Number(form.price)) : 'Preço em Kz'}
                   </p>
                 </div>
@@ -1023,7 +1023,7 @@ function AdicionarProdutoContent() {
             <Button
               type="submit"
               disabled={submitting}
-              className="h-12 w-full bg-amber-500 text-base font-semibold text-white hover:bg-amber-600"
+              className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-lg shadow-blue-600/25 hover:brightness-110"
             >
               {submitting ? 'A guardar…' : editId ? 'Guardar alterações' : 'Publicar produto/serviço'}
             </Button>

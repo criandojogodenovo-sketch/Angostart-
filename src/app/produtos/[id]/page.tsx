@@ -292,7 +292,7 @@ export default function ProdutoDetalhePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32 text-slate-400">
-        <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
+        <Loader2 className="mr-3 h-5 w-5 animate-spin text-blue-600" />
         <span className="text-sm">A carregar o produto…</span>
       </div>
     );
@@ -305,7 +305,7 @@ export default function ProdutoDetalhePage() {
         <p className="mt-2 text-sm text-slate-500">
           Pode ter sido removido pelo vendedor ou o endereço está incorreto.
         </p>
-        <Button asChild className="mt-8 h-12 bg-emerald-500 px-8 font-semibold text-white hover:bg-emerald-600">
+        <Button asChild className="mt-8 h-12 bg-blue-600 px-8 font-semibold text-white hover:bg-blue-700">
           <Link href="/produtos">
             <ArrowLeft className="mr-2 h-5 w-5" /> Voltar ao catálogo
           </Link>
@@ -320,7 +320,7 @@ export default function ProdutoDetalhePage() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <Link
         href="/produtos"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
       </Link>
@@ -346,7 +346,7 @@ export default function ProdutoDetalhePage() {
             <div className="p-6">
               <div className="flex flex-wrap items-center gap-2">
                 {typeInfo && (
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                     {typeInfo.label}
                   </span>
                 )}
@@ -377,7 +377,7 @@ export default function ProdutoDetalhePage() {
               <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600">
                 {product.description}
               </p>
-              <p className="mt-6 text-3xl font-bold text-emerald-600">
+              <p className="mt-6 text-3xl font-bold text-blue-600">
                 {formatKz(product.price_kz)}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
@@ -386,14 +386,14 @@ export default function ProdutoDetalhePage() {
                     addItem(product, 1);
                     toast({ title: 'Adicionado ao carrinho', description: product.name });
                   }}
-                  className="h-12 bg-emerald-500 px-6 font-semibold text-white hover:bg-emerald-600"
+                  className="h-12 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700"
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" /> Adicionar ao carrinho
                 </Button>
                 <Button
                   onClick={startChat}
                   disabled={chatStarting}
-                  className="h-12 border border-emerald-500 bg-white px-6 font-semibold text-emerald-600 hover:bg-emerald-50"
+                  className="h-12 border border-blue-500 bg-white px-6 font-semibold text-blue-600 hover:bg-blue-50"
                 >
                   {chatStarting ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -418,7 +418,7 @@ export default function ProdutoDetalhePage() {
                     <button
                       type="button"
                       onClick={() => (user ? setProposalOpen(true) : toast({ title: 'Entra na tua conta', description: 'Precisas de sessão para enviar propostas.' }))}
-                      className="mt-2 text-xs font-semibold text-emerald-600 hover:underline"
+                      className="mt-2 text-xs font-semibold text-blue-600 hover:underline"
                     >
                       Enviar uma proposta ao prestador →
                     </button>
@@ -430,28 +430,28 @@ export default function ProdutoDetalhePage() {
                         maxLength={3000}
                         rows={3}
                         placeholder="Descreve o que precisas (mín. 20 caracteres)…"
-                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-blue-400"
                       />
                       <input
                         value={proposalBudget}
                         onChange={(e) => setProposalBudget(e.target.value.replace(/[^\d]/g, ''))}
                         inputMode="numeric"
                         placeholder="O teu preço proposto em Kz (ex.: 15000)"
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400"
                       />
                       <input
                         value={proposalDeadline}
                         onChange={(e) => setProposalDeadline(e.target.value.replace(/[^\d]/g, ''))}
                         inputMode="numeric"
                         placeholder="Prazo em dias (opcional, ex.: 7)"
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400"
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={submitProposal}
                           disabled={proposalSending || proposalDesc.trim().length < 20 || proposalBudget.length === 0}
-                          className="inline-flex h-9 items-center rounded-lg bg-emerald-500 px-4 text-xs font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {proposalSending ? 'A enviar…' : 'Enviar proposta'}
                         </button>
@@ -474,7 +474,7 @@ export default function ProdutoDetalhePage() {
           {isDomicilio && (
             <section aria-label="Mapa do serviço" className="mt-8">
               <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                <MapPin className="h-5 w-5 text-emerald-500" /> Área de atendimento
+                <MapPin className="h-5 w-5 text-blue-600" /> Área de atendimento
               </h2>
               <p className="mb-3 mt-1 text-sm text-slate-500">
                 {product.seller_cidade
@@ -494,7 +494,7 @@ export default function ProdutoDetalhePage() {
                 height={340}
               />
               {picked && (
-                <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
                   <CheckCircle2 className="h-4 w-4" /> Ponto escolhido: {picked.lat.toFixed(5)},{' '}
                   {picked.lng.toFixed(5)} — menciona-o na conversa com o vendedor.
                 </p>
@@ -527,13 +527,13 @@ export default function ProdutoDetalhePage() {
               {product.store_name && product.store_slug && (
                 <p className="mt-1 text-sm text-slate-500">
                   Loja:{' '}
-                  <Link href={`/loja/${product.store_slug}`} className="font-semibold text-emerald-700 hover:underline">
+                  <Link href={`/loja/${product.store_slug}`} className="font-semibold text-blue-700 hover:underline">
                     {product.store_name}
                   </Link>
                 </p>
               )}
               {product.seller_role && (
-                <p className="text-sm text-emerald-600">
+                <p className="text-sm text-blue-600">
                   {ROLE_LABELS[product.seller_role as Role] ?? product.seller_role}
                 </p>
               )}
@@ -546,7 +546,7 @@ export default function ProdutoDetalhePage() {
                 <p className="text-sm text-slate-500">Cidade: {product.seller_cidade}</p>
               )}
               {product.seller_username && (
-                <Button asChild variant="outline" className="mt-4 h-10 w-full border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+                <Button asChild variant="outline" className="mt-4 h-10 w-full border-blue-500 text-blue-600 hover:bg-blue-50">
                   <Link href={`/portfolio/${product.seller_username}`}>
                     Ver portfólio público
                   </Link>
@@ -554,7 +554,7 @@ export default function ProdutoDetalhePage() {
               )}
               {/* Fase 11 — atalho direto para a loja do vendedor */}
               {product.store_slug && (
-                <Button asChild variant="outline" className="mt-2 h-10 w-full border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+                <Button asChild variant="outline" className="mt-2 h-10 w-full border-blue-500 text-blue-600 hover:bg-blue-50">
                   <Link href={`/loja/${product.store_slug}`}>
                     <Store className="mr-2 h-4 w-4" />
                     Ver loja
@@ -621,7 +621,7 @@ export default function ProdutoDetalhePage() {
                             className="rounded p-0.5 hover:scale-110 transition-transform"
                           >
                             <Star
-                              className={`h-4 w-4 ${i <= value ? 'fill-emerald-500 text-emerald-500' : 'text-slate-300'}`}
+                              className={`h-4 w-4 ${i <= value ? 'fill-blue-500 text-blue-600' : 'text-slate-300'}`}
                             />
                           </button>
                         ))}

@@ -55,13 +55,13 @@ export default function ProductCard({ product }: { product: Product }) {
           {typeInfo.short}
         </Badge>
         {product.is_hot && (
-          <Badge className="absolute right-3 top-3 animate-pulse border-0 bg-orange-500 text-white shadow-lg">
+          <Badge className="absolute right-3 top-3 animate-pulse border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
             <Flame className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
             Em alta
           </Badge>
         )}
         {product.featured && !product.is_hot && (
-          <Badge className="absolute right-3 top-3 border-0 bg-amber-400 text-amber-950">
+          <Badge className="absolute right-3 top-3 border-0 bg-blue-600 text-white">
             Destaque
           </Badge>
         )}
@@ -90,7 +90,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
         {product.seller_name && (
           <p className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-            <UserRound className="h-3 w-3 text-emerald-600" />
+            <UserRound className="h-3 w-3 text-blue-600" />
             {product.seller_name}
             {product.seller_verified && <VerifiedBadge size={12} />}
           </p>

@@ -487,11 +487,11 @@ function defaultIconFor(type: string): string {
 function defaultGradientFor(type: string): string {
   switch (type) {
     case 'infoproduto':
-      return 'from-emerald-500 to-teal-600';
+      return 'from-blue-600 to-teal-600';
     case 'produto_fisico':
       return 'from-blue-600 to-cyan-500';
     case 'servico_domicilio':
-      return 'from-orange-500 to-amber-500';
+      return 'from-teal-500 to-blue-600';
     default:
       return 'from-violet-600 to-purple-500';
   }

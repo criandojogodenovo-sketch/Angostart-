@@ -165,7 +165,7 @@ function AuthGate() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30">
             <UserRound className="h-7 w-7" />
           </span>
           <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -180,9 +180,9 @@ function AuthGate() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <button
             onClick={() => setKind('cliente')}
-            className="group flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl"
+            className="group flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
           >
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-teal-600 text-white shadow-md">
               <ShoppingCart className="h-7 w-7" />
             </span>
             <h2 className="mt-4 text-lg font-semibold text-slate-900">Sou Cliente</h2>
@@ -190,7 +190,7 @@ function AuthGate() {
               Navega, pesquisa e compra infoprodutos, produtos físicos e
               serviços com preços em Kwanzas.
             </p>
-            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600">
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600">
               Entrar / criar conta
               <LogIn className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </span>
@@ -198,9 +198,9 @@ function AuthGate() {
 
           <button
             onClick={() => setKind('vendedor')}
-            className="group flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl"
+            className="group flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
           >
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-md">
               <Briefcase className="h-7 w-7" />
             </span>
             <h2 className="mt-4 text-lg font-semibold text-slate-900">Quero Vender</h2>
@@ -208,16 +208,16 @@ function AuthGate() {
               Publica cursos, produtos ou serviços e recebe pedidos de clientes
               de todo o país.
             </p>
-            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600">
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600">
               Entrar / criar conta
               <LogIn className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </span>
           </button>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+        <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-800">
           <p className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
             A tua conta serve para comprar <strong>e</strong> vender. Podes ter
             os dois tipos de acesso com emails diferentes — os dados ficam
             seguros com palavra-passe.
@@ -410,7 +410,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
       <button
         onClick={onBack}
-        className="mb-4 text-sm font-medium text-slate-500 transition-colors hover:text-emerald-600"
+        className="mb-4 text-sm font-medium text-slate-500 transition-colors hover:text-blue-700"
       >
         ← Voltar às opções
       </button>
@@ -420,8 +420,8 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           <span
             className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg ${
               isClient
-                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/30'
-                : 'bg-gradient-to-br from-orange-400 to-amber-600 shadow-amber-500/30'
+                ? 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-blue-500/30'
+                : 'bg-gradient-to-br from-purple-400 to-indigo-500 shadow-purple-500/30'
             }`}
           >
             {isClient ? (
@@ -539,7 +539,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                       <li
                         key={regra.label}
                         className={`flex items-center gap-1 font-medium ${
-                          regra.ok ? 'text-emerald-600' : 'text-slate-400'
+                          regra.ok ? 'text-blue-600' : 'text-slate-400'
                         }`}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -553,7 +553,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
             {mode === 'login' && (
               <Link
                 href="/recuperar-senha"
-                className="inline-block text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                className="inline-block text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
               >
                 Esqueci a senha — recuperar por email
               </Link>
@@ -591,14 +591,14 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                         onClick={() => setForm({ ...form, role: value })}
                         className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
                           form.role === value
-                            ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
-                            : 'border-slate-200 bg-white hover:border-emerald-300'
+                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                            : 'border-slate-200 bg-white hover:border-blue-300'
                         }`}
                       >
                         <span
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                             form.role === value
-                              ? 'bg-emerald-500 text-white'
+                              ? 'bg-blue-600 text-white'
                               : 'bg-slate-100 text-slate-500'
                           }`}
                         >
@@ -666,8 +666,8 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                         onClick={() => setKycRegType(t)}
                         className={`rounded-xl border px-2 py-1.5 text-xs font-semibold transition-all ${
                           kycRegType === t
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
                         }`}
                       >
                         {KYC_DOCUMENT_TYPE_LABELS[t]}
@@ -737,7 +737,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                     placeholder="Ex.: Sou formador em marketing digital e vendo cursos práticos para pequenas empresas."
                     value={form.bio}
                     onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     required
                   />
                 </div>
@@ -802,7 +802,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
             </>
           )}
 
-          {/* Ativo = MESMA cor vibrante do «Entrar» (amber-500 / emerald-500).
+          {/* Ativo = MESMA cor vibrante do «Entrar» (gradiente azul→roxo).
               Inativo = cinzento INTENCIONAL (não o antigo branco pálido de
               opacity-50 sobre laranja, que parecia botão partido). */}
           <Button
@@ -810,8 +810,8 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
             disabled={submitting || (isRegisto && camposEmFalta.length > 0)}
             className={`h-12 w-full text-base font-semibold text-white transition-colors ${
               isClient
-                ? 'bg-emerald-500 hover:bg-emerald-600'
-                : 'bg-amber-500 hover:bg-amber-600'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-600/25 hover:brightness-110'
+                : 'bg-blue-600 hover:bg-blue-700'
             } disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:opacity-100`}
             title={
               isRegisto && camposEmFalta.length > 0
@@ -854,12 +854,12 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
 
 function ProfileHeader({ user, badge }: { user: AuthUser; badge: string }) {
   return (
-    <div className="bg-brand-dark px-6 py-8 text-center text-white sm:px-10">
-      <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-2xl font-bold text-white shadow-lg shadow-emerald-500/30">
+    <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 px-6 py-8 text-center text-white sm:px-10">
+      <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white shadow-lg shadow-blue-500/30">
         {initialsOf(user.name)}
       </span>
       <h1 className="mt-4 text-xl font-bold sm:text-2xl">{user.name}</h1>
-      <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+      <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-300">
         <BadgeCheck className="h-3.5 w-3.5" /> {badge}
       </p>
     </div>
@@ -869,7 +869,7 @@ function ProfileHeader({ user, badge }: { user: AuthUser; badge: string }) {
 function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string | null }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-      <Icon className="h-4 w-4 shrink-0 text-emerald-600" />
+      <Icon className="h-4 w-4 shrink-0 text-blue-600" />
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
         <p className="text-sm font-medium text-slate-800">{value || '—'}</p>
@@ -1031,7 +1031,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           <div className="grid gap-3 pt-2 sm:grid-cols-2">
             <Button
               asChild
-              className="h-11 bg-emerald-500 text-white hover:bg-emerald-600"
+              className="h-11 bg-blue-600 text-white hover:bg-blue-700"
             >
               <Link href="/produtos">
                 <ShoppingCart className="mr-2 h-4 w-4" /> Continuar a comprar
@@ -1049,7 +1049,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           {/* Histórico de compras */}
           <div className="mt-6">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <History className="h-5 w-5 text-emerald-600" /> Histórico de compras
+              <History className="h-5 w-5 text-blue-600" /> Histórico de compras
             </h2>
 
             {!ordersLoaded ? (
@@ -1064,7 +1064,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                 <Button
                   asChild
                   size="sm"
-                  className="mt-4 bg-emerald-500 text-white hover:bg-emerald-600"
+                  className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
                 >
                   <Link href="/produtos">Ver produtos</Link>
                 </Button>
@@ -1114,7 +1114,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                                   type="button"
                                   onClick={() => handleDownload(item.id, item.name)}
                                   disabled={downloadingId === item.id}
-                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   <Download className="h-3.5 w-3.5" />
                                   {downloadingId === item.id ? 'A descarregar…' : 'Descarregar'}
@@ -1181,7 +1181,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                                 type="button"
                                 onClick={() => submitDispute(order.id)}
                                 disabled={disputeSubmitting || disputeReason.trim().length < 15}
-                                className="inline-flex h-8 items-center rounded-lg bg-amber-500 px-3 text-xs font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {disputeSubmitting ? 'A enviar…' : 'Enviar disputa'}
                               </button>
@@ -1314,7 +1314,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           <div className="grid gap-3 pt-2 sm:grid-cols-2">
             <Button
               onClick={() => router.push('/adicionar-produto')}
-              className="h-11 bg-amber-500 text-white hover:bg-amber-600"
+              className="h-11 bg-blue-600 text-white hover:bg-blue-700"
             >
               <Plus className="mr-2 h-4 w-4" /> Adicionar Produto
             </Button>
@@ -1327,7 +1327,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
             <Button
               onClick={() => router.push('/dashboard/vendedor/portfolio')}
               variant="outline"
-              className="h-11 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+              className="h-11 border-blue-500 text-blue-600 hover:bg-blue-50"
             >
               <Pencil className="mr-2 h-4 w-4" /> Editar portfólio
             </Button>
@@ -1335,7 +1335,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
               <Button
                 onClick={() => router.push(`/portfolio/${user.username}`)}
                 variant="outline"
-                className="h-11 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                className="h-11 border-blue-500 text-blue-600 hover:bg-blue-50"
               >
                 <ExternalLink className="mr-2 h-4 w-4" /> Ver portfólio público
               </Button>
@@ -1352,7 +1352,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           {/* Lista dos produtos publicados */}
           <div className="mt-6">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <Package className="h-5 w-5 text-emerald-600" /> Os meus produtos e serviços
+              <Package className="h-5 w-5 text-blue-600" /> Os meus produtos e serviços
             </h2>
 
             {!loaded ? (
@@ -1367,7 +1367,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                 <Button
                   onClick={() => router.push('/adicionar-produto')}
                   size="sm"
-                  className="mt-4 bg-amber-500 text-white hover:bg-amber-600"
+                  className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
                 >
                   <Plus className="mr-2 h-4 w-4" /> Publicar agora
                 </Button>
@@ -1386,7 +1386,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                       <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">
                         {product.description}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-emerald-600">
+                      <p className="mt-1 text-sm font-bold text-blue-600">
                         {formatKz(product.price_kz)}
                         <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                           {product.type.replace('_', ' ')}
@@ -1398,7 +1398,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                         onClick={() => router.push(`/adicionar-produto?edit=${product.id}`)}
                         size="sm"
                         variant="outline"
-                        className="h-9 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                        className="h-9 border-blue-500 text-blue-600 hover:bg-blue-50"
                         aria-label={`Editar ${product.name}`}
                       >
                         <Pencil className="h-4 w-4" />
@@ -1534,7 +1534,7 @@ function DomicilioServiceCard({
 
       <div className="mt-3">
         {confirmed ? (
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-blue-300">
             <CheckCircle2 className="h-4 w-4" />
             Serviço concluído e confirmado — pagamento libertado ao prestador.
           </p>
@@ -1544,7 +1544,7 @@ function DomicilioServiceCard({
               type="button"
               onClick={handleConfirm}
               disabled={confirming}
-              className="h-11 w-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+              className="h-11 w-full bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               <CheckCircle2 className="mr-2 h-4 w-4" />
               {confirming ? 'A confirmar…' : 'Confirmar conclusão do serviço'}

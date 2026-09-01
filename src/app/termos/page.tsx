@@ -85,14 +85,14 @@ export default function TermosPage() {
         Dúvidas sobre estes termos? Fala connosco pelo WhatsApp{' '}
         <a
           href="https://wa.me/244958176915"
-          className="font-semibold text-emerald-600 hover:underline"
+          className="font-semibold text-blue-600 hover:underline"
           rel="noopener noreferrer"
           target="_blank"
         >
           +244 958 176 915
         </a>{' '}
         ou consulta a nossa{' '}
-        <Link href="/privacidade" className="font-semibold text-emerald-600 hover:underline">
+        <Link href="/privacidade" className="font-semibold text-blue-600 hover:underline">
           Política de Privacidade
         </Link>
         .
