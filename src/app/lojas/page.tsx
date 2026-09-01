@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import VerifiedBadge from '@/components/VerifiedBadge';
-import { Search, MapPin, Package, Sparkles } from 'lucide-react';
+import { Search, MapPin, Package, Sparkles, Store } from 'lucide-react';
+import { FadeIn } from '@/components/motion';
+import PatternWaves from '@/components/illustrations/PatternWaves';
 import { CIDADES_ANGOLA } from '@/lib/cidades-angola';
 
 export const dynamic = 'force-dynamic';
@@ -116,10 +118,17 @@ export default async function LojasPage({
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Lojas virtuais</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Cada vendedor AngoStart tem a sua própria loja — explora, segue e compra com confiança.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="animate-float flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-600/25">
+          <Store className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Lojas virtuais</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Cada vendedor AngoStart tem a sua própria loja — explora, segue e compra com confiança.
+          </p>
+        </div>
+      </div>
 
       {/* ── Fase 11: pesquisa + filtros (form GET, funciona sem JS) ── */}
       <form
@@ -199,16 +208,18 @@ export default async function LojasPage({
             {stores.length} {stores.length === 1 ? 'loja encontrada' : 'lojas encontradas'}
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {stores.map((s) => (
+            {stores.map((s, i) => (
+              <FadeIn key={s.id} delay={Math.min(i * 0.05, 0.4)} className="h-full">
               <Link
-                key={s.id}
                 href={`/loja/${s.slug}`}
-                className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
               >
                 <div
-                  className="h-24 bg-gradient-to-r from-blue-600 to-teal-600"
+                  className="relative h-24 overflow-hidden bg-gradient-to-r from-blue-600 to-teal-600 transition-transform duration-500 group-hover:scale-105"
                   style={s.logo_url ? { backgroundImage: `url(${s.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-                />
+                >
+                  {!s.logo_url && <PatternWaves />}
+                </div>
                 <div className="p-4">
                   <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
                     {s.name}
@@ -231,6 +242,7 @@ export default async function LojasPage({
                   </p>
                 </div>
               </Link>
+              </FadeIn>
             ))}
           </div>
         </>

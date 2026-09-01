@@ -7,6 +7,7 @@
 
 import { Star, ShoppingCart, Check, Flame, UserRound, Store } from 'lucide-react';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Product } from '@/lib/products-data';
 import { PRODUCT_TYPES } from '@/lib/products-data';
@@ -39,10 +40,16 @@ export default function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="card-premium group flex flex-col overflow-hidden">
-      {/* Cabeçalho ilustrativo */}
+    <motion.article
+      className="card-premium group flex flex-col overflow-hidden"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
+    >
+      {/* Cabeçalho ilustrativo — zoom suave no hover (Fase 18) */}
       <div
-        className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${product.gradient}`}
+        className={`relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04] ${product.gradient}`}
       >
         <ProductIcon
           name={product.icon}
@@ -100,20 +107,34 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.description}
         </p>
 
-        {/* Fase 16 — palavras-chave do produto (busca + IA) como chips */}
+        {/* Fase 16 — palavras-chave do produto (busca + IA) como chips, entrada em cascata */}
         {product.keywords && product.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-1.5" aria-label="Palavras-chave do produto">
+          <motion.div
+            className="flex flex-wrap gap-1.5"
+            aria-label="Palavras-chave do produto"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+          >
             {product.keywords.slice(0, 4).map((kw) => (
-              <span key={kw} className="chip-keyword">
+              <motion.span
+                key={kw}
+                className="chip-keyword"
+                variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0 } }}
+              >
                 #{kw}
-              </span>
+              </motion.span>
             ))}
             {product.keywords.length > 4 && (
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+              <motion.span
+                className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500"
+                variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0 } }}
+              >
                 +{product.keywords.length - 4}
-              </span>
+              </motion.span>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* Fase 11 — explorar o vendedor: loja em primeiro lugar; sem loja → portfólio */}
@@ -138,7 +159,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <Button
             onClick={handleBuy}
             disabled={outOfStock}
-            className="h-10 min-w-0 flex-1 max-w-[150px] bg-blue-600 px-3 text-white shadow-sm shadow-blue-600/25 hover:bg-blue-700 disabled:opacity-50"
+            className="h-10 min-w-0 flex-1 max-w-[150px] bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-white shadow-md shadow-blue-600/25 transition-all hover:shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50"
             aria-label={`Comprar ${product.name} por ${formatKz(product.price_kz)}`}
           >
             {added ? (
@@ -153,6 +174,6 @@ export default function ProductCard({ product }: { product: Product }) {
           </Button>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }

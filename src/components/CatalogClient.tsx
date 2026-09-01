@@ -7,8 +7,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { GradientSpinner } from '@/components/motion';
+import EmptyIllustration from '@/components/illustrations/EmptyIllustration';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Flame, Loader2, PackageSearch, RotateCcw, SearchX } from 'lucide-react';
+import { Flame, PackageSearch, RotateCcw, SearchX } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
 import ProductIcon from '@/components/ProductIcon';
 import { useSearch } from '@/context/StoreContext';
@@ -157,12 +159,13 @@ export default function CatalogClient() {
       {/* Estados */}
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          <p className="text-sm">A carregar o catálogo do Neon…</p>
+          <GradientSpinner className="h-9 w-9" />
+          <p className="text-sm">A carregar o catálogo…</p>
         </div>
       ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <EmptyIllustration className="h-36 w-36" />
+          <span className="sr-only">
             {query.trim() || filter !== 'todos' || hotOnly ? (
               <SearchX className="h-8 w-8 text-slate-400" />
             ) : (

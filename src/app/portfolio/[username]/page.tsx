@@ -13,6 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import PatternWaves from '@/components/illustrations/PatternWaves';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -178,16 +179,18 @@ export default function PortfolioPublicoPage() {
 
       {/* Cabeçalho do vendedor — Mini-Loja */}
       <header className="mt-6 overflow-hidden rounded-3xl bg-slate-900 shadow-lg">
-        <div className="h-28 bg-gradient-to-r from-blue-700/40 via-slate-800 to-slate-900" />
+        <div className="relative h-28 overflow-hidden bg-gradient-to-r from-blue-700/40 via-slate-800 to-slate-900">
+          <PatternWaves />
+        </div>
         <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           {seller.portfolio_image ? (
             <img
               src={seller.portfolio_image}
               alt={`Foto de ${seller.name}`}
-              className="-mt-12 h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover shadow-xl"
+              className="-mt-12 h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover shadow-xl ring-2 ring-blue-500/40 transition-transform duration-300 hover:scale-105"
             />
           ) : (
-            <span className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-slate-900 bg-blue-600 text-3xl font-bold text-white shadow-xl">
+            <span className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-slate-900 bg-gradient-to-br from-blue-500 to-purple-600 text-3xl font-bold text-white shadow-xl ring-2 ring-blue-500/40">
               {seller.name.charAt(0).toUpperCase()}
             </span>
           )}

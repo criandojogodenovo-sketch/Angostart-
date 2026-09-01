@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import PatternWaves from '@/components/illustrations/PatternWaves';
 import { notFound } from 'next/navigation';
 import {
   getStoreBySlug,
@@ -33,15 +34,17 @@ export default async function LojaPage({
 
   return (
     <main className="min-h-dvh bg-slate-50 pb-16">
-      {/* Banner */}
+      {/* Banner — ondas SVG quando não há imagem (Fase 18) */}
       <div
-        className="relative h-40 w-full bg-gradient-to-r from-blue-600 to-teal-700 sm:h-56"
+        className="relative h-40 w-full overflow-hidden bg-gradient-to-r from-blue-600 to-teal-700 sm:h-56"
         style={
           store.banner_url
             ? { backgroundImage: `url(${store.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
             : undefined
         }
-      />
+      >
+        {!store.banner_url && <PatternWaves />}
+      </div>
 
       <div className="mx-auto max-w-5xl px-4">
         {/* Cabeçalho da loja */}

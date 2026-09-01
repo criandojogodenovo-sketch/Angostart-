@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Loader2, MessageCircle, Send, Sparkles, X } from 'lucide-react';
 
 interface Turn {
@@ -125,16 +126,21 @@ export default function SupportChatWidget() {
           type="button"
           onClick={() => setAberto(true)}
           aria-label="Abrir assistente de suporte IA"
-          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-[76] flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:from-blue-700 hover:to-purple-700 active:scale-95 md:bottom-5 md:left-5"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-[76] flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:shadow-xl hover:brightness-110 active:scale-95 md:bottom-5 md:left-5"
         >
           <Sparkles className="h-5 w-5" />
           <span className="hidden sm:inline">Ajuda IA</span>
+          {/* Indicador «online» pulsante (Fase 18) */}
+          <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-white bg-teal-400" />
+          </span>
         </button>
       )}
 
       {aberto && (
         <div
-          className="fixed inset-0 z-[90] flex h-[100dvh] w-full flex-col overflow-hidden rounded-none bg-white shadow-2xl md:inset-auto md:bottom-5 md:left-5 md:h-[560px] md:w-[400px] md:rounded-2xl md:border md:border-white/50 md:bg-white/80 md:backdrop-blur-xl"
+          className="fixed inset-0 z-[90] flex h-[100dvh] w-full flex-col overflow-hidden rounded-none bg-white shadow-2xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-6 md:inset-auto md:bottom-5 md:left-5 md:h-[560px] md:w-[400px] md:rounded-2xl md:border md:border-white/50 md:bg-white/80 md:backdrop-blur-xl"
           role="dialog"
           aria-modal="true"
           aria-label="Assistente de suporte da AngoStart"

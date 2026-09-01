@@ -1822,27 +1822,41 @@ function AdminPanel() {
             <p className="px-5 py-10 text-center text-sm text-slate-400">Sem dados de relatório.</p>
           ) : (
             <>
-              {/* KPIs gerais */}
+              {/* KPIs gerais — contagem animada + entrada em cascata (Fase 18) */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <FadeIn delay={0}>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Receita confirmada</p>
-                  <p className="mt-1 text-2xl font-bold text-blue-600">{formatKz(report.totals.revenue)}</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-600">
+                    <AnimatedStat value={report.totals.revenue} format={formatKz} />
+                  </p>
                 </div>
+                </FadeIn>
+                <FadeIn delay={0.06}>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Comissões AngoStart</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-100">{formatKz(report.totals.commission)}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-100">
+                    <AnimatedStat value={report.totals.commission} format={formatKz} />
+                  </p>
                 </div>
+                </FadeIn>
+                <FadeIn delay={0.12}>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Novos utilizadores (30d)</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-100">{report.totals.newUsers30d}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-100">
+                    <AnimatedStat value={report.totals.newUsers30d} />
+                  </p>
                 </div>
+                </FadeIn>
+                <FadeIn delay={0.18}>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-slate-400">Produtos ativos</p>
                   <p className="mt-1 text-2xl font-bold text-slate-100">
-                    {report.products.total}{' '}
+                    <AnimatedStat value={report.products.total} />{' '}
                     <span className="text-sm font-semibold text-amber-500">({report.products.hot} em alta)</span>
                   </p>
                 </div>
+                </FadeIn>
                 {report.completion && (
                   <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-slate-400">Taxa de conclusão</p>
@@ -2227,3 +2241,4 @@ function AdminPanel() {
     </div>
   );
 }
+import { AnimatedStat, FadeIn } from '@/components/motion';

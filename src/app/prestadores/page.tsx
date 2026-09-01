@@ -214,8 +214,8 @@ export default function PrestadoresPage() {
               aria-pressed={categoria === ''}
               className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
                 categoria === ''
-                  ? 'border-slate-900 bg-slate-900 text-white shadow'
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                  : 'border-slate-200 bg-white text-slate-500 hover:border-blue-400 hover:text-blue-700'
               }`}
             >
               Todas as categorias
@@ -228,12 +228,16 @@ export default function PrestadoresPage() {
                   type="button"
                   onClick={() => setCategoria(active ? '' : c.value)}
                   aria-pressed={active}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
                     active
-                      ? 'border-slate-900 bg-slate-900 text-white shadow'
-                      : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-blue-400 hover:text-blue-700'
                   }`}
                 >
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 rounded-full ${active ? 'animate-pulse bg-white' : 'bg-blue-400/70'}`}
+                  />
                   {c.label}
                 </button>
               );

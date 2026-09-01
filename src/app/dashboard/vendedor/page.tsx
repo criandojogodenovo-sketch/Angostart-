@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AnimatedBar, AnimatedStat, FadeIn } from '@/components/motion';
 import {
   ArrowLeft,
   Award,
@@ -698,6 +699,8 @@ export default function DashboardVendedorPage() {
             icon: Receipt,
             label: 'Encomendas recebidas',
             value: String(cards?.totalOrders ?? 0),
+            num: cards?.totalOrders ?? 0,
+            money: false,
             hint: `${cards?.itemsSold ?? 0} artigos vendidos`,
             tone: 'bg-blue-600/15 text-blue-300',
           },
@@ -705,6 +708,8 @@ export default function DashboardVendedorPage() {
             icon: PiggyBank,
             label: 'Receita bruta confirmada',
             value: formatKz(cards?.revenueConfirmed ?? 0),
+            num: cards?.revenueConfirmed ?? 0,
+            money: true,
             hint: 'pagamentos validados',
             tone: 'bg-sky-500/15 text-sky-400',
           },
@@ -712,6 +717,8 @@ export default function DashboardVendedorPage() {
             icon: TrendingUp,
             label: 'Receita líquida (após comissão)',
             value: formatKz(cards?.revenueNet ?? 0),
+            num: cards?.revenueNet ?? 0,
+            money: true,
             hint:
               cards && cards.commissionRetained > 0
                 ? `comissão AngoStart ${cards.commissionPercent}%: ${formatKz(cards.commissionRetained)}`
@@ -722,20 +729,27 @@ export default function DashboardVendedorPage() {
             icon: ClipboardList,
             label: 'Receita pendente',
             value: formatKz(cards?.revenuePending ?? 0),
+            num: cards?.revenuePending ?? 0,
+            money: true,
             hint: 'à espera de validação',
             tone: 'bg-amber-500/15 text-amber-400',
           },
-        ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
+        ].map(({ icon: Icon, label, value, num, money, hint, tone }, i) => (
+          <FadeIn key={label} delay={i * 0.06}>
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
+            <Icon aria-hidden="true" className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 text-slate-700/25" />
             <div className="flex items-center justify-between">
               <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
                 <Icon className="h-5 w-5" />
               </span>
             </div>
-            <p className="mt-3 text-2xl font-bold text-slate-100">{value}</p>
+            <p className="mt-3 text-2xl font-bold text-slate-100">
+              <AnimatedStat value={num} format={money ? formatKz : undefined} />
+            </p>
             <p className="text-sm font-medium text-slate-300">{label}</p>
             <p className="text-xs text-slate-400">{hint}</p>
           </div>
+          </FadeIn>
         ))}
       </div>
 
@@ -770,8 +784,10 @@ export default function DashboardVendedorPage() {
             hint: 'no catálogo ativo',
             tone: 'bg-blue-600/15 text-blue-300',
           },
-        ].map(({ icon: Icon, label, value, hint, tone }) => (
-          <div key={label} className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
+        ].map(({ icon: Icon, label, value, hint, tone }, i) => (
+          <FadeIn key={label} delay={i * 0.06}>
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
+            <Icon aria-hidden="true" className="pointer-events-none absolute -right-3 -top-3 h-16 w-16 text-slate-700/25" />
             <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
               <Icon className="h-4 w-4" />
             </span>
@@ -779,6 +795,7 @@ export default function DashboardVendedorPage() {
             <p className="text-xs font-medium text-slate-300">{label}</p>
             <p className="text-[11px] text-slate-400">{hint}</p>
           </div>
+          </FadeIn>
         ))}
       </div>
 
@@ -904,12 +921,11 @@ export default function DashboardVendedorPage() {
                         {affiliate.escalao.comissoes_recebidas === 1 ? 'comissão paga' : 'comissões pagas'}
                       </span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-500/20">
-                      <div
-                        className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all"
-                        style={{ width: `${affiliate.escalao.no_escalao_maximo ? 100 : pct}%` }}
-                      />
-                    </div>
+                    <AnimatedBar
+                      pct={affiliate.escalao.no_escalao_maximo ? 100 : pct}
+                      className="mt-2 h-2 rounded-full bg-amber-500/20"
+                      barClassName="bg-gradient-to-r from-amber-400 to-amber-600"
+                    />
                     <p className="mt-1.5 text-xs text-slate-400">
                       {affiliate.escalao.no_escalao_maximo
                         ? `Escalão máximo atingido — ganhas ${affiliate.escalao.percentual_escalao_seguinte}% por venda. 🎉`

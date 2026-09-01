@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
+import { FadeIn } from "@/components/motion";
+import HeroIllustration from "@/components/illustrations/HeroIllustration";
+import PatternWaves from "@/components/illustrations/PatternWaves";
 import { PRODUCT_TYPES, PRODUCT_TYPE_ORDER } from "@/lib/products-data";
 import type { LucideIcon } from "lucide-react";
 
@@ -87,7 +90,8 @@ export default function HomePage() {
 
       {/* ─────────────────────── Hero ─────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
-        {/* Brilhos decorativos */}
+        {/* Brilhos decorativos + padrão de ondas (Fase 18) */}
+        <PatternWaves className="opacity-70" />
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl"
@@ -98,7 +102,8 @@ export default function HomePage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
-          <div className="max-w-3xl">
+          <div className="flex items-center gap-8">
+          <div className="max-w-3xl flex-1">
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-400">
               <BadgeCheck className="h-4 w-4" />
               100% angolana · Luanda
@@ -154,6 +159,8 @@ export default function HomePage() {
               ))}
             </dl>
           </div>
+            <HeroIllustration />
+          </div>
         </div>
       </section>
 
@@ -174,10 +181,10 @@ export default function HomePage() {
             const info = PRODUCT_TYPES[type];
             const Icon = CATEGORY_ICONS[type];
             return (
+              <FadeIn key={type} delay={0.05 * PRODUCT_TYPE_ORDER.indexOf(type)} className="h-full">
               <Link
-                key={type}
                 href={`/produtos?tipo=${type}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
               >
                 <span
                   className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${info.gradient} text-white shadow-md`}
@@ -195,6 +202,7 @@ export default function HomePage() {
                   <ArrowRight className="h-4 w-4" />
                 </span>
               </Link>
+              </FadeIn>
             );
           })}
         </div>
@@ -230,10 +238,10 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {DIFFERENTIALS.map(({ icon: Icon, title, text }) => (
+              {DIFFERENTIALS.map(({ icon: Icon, title, text }, i) => (
+                <FadeIn key={title} delay={i * 0.06} className="h-full">
                 <div
-                  key={title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                  className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
                     <Icon className="h-5 w-5" />
@@ -245,6 +253,7 @@ export default function HomePage() {
                     {text}
                   </p>
                 </div>
+                </FadeIn>
               ))}
             </div>
           </div>
@@ -268,10 +277,10 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
-            {SELLER_TYPES.map(({ icon: Icon, gradient, title, text }) => (
+            {SELLER_TYPES.map(({ icon: Icon, gradient, title, text }, i) => (
+              <FadeIn key={title} delay={i * 0.08} className="h-full">
               <div
-                key={title}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
+                className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
               >
                 <span
                   className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}
@@ -281,6 +290,7 @@ export default function HomePage() {
                 <h3 className="mt-4 text-lg font-semibold text-slate-900">{title}</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{text}</p>
               </div>
+              </FadeIn>
             ))}
           </div>
 
@@ -315,7 +325,9 @@ export default function HomePage() {
 
       {/* ─────────────── CTA final ─────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <FadeIn>
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 px-6 py-12 text-center text-white sm:px-12">
+          <PatternWaves />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl"
@@ -343,6 +355,7 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+        </FadeIn>
       </section>
     </>
   );

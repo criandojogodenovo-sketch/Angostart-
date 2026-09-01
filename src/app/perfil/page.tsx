@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import PatternWaves from '@/components/illustrations/PatternWaves';
 import { useRouter } from 'next/navigation';
 import {
   BadgeCheck,
@@ -855,9 +856,23 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
 function ProfileHeader({ user, badge }: { user: AuthUser; badge: string }) {
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 px-6 py-8 text-center text-white sm:px-10">
-      <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white shadow-lg shadow-blue-500/30">
-        {initialsOf(user.name)}
-      </span>
+      <PatternWaves />
+      <div className="relative mx-auto h-[88px] w-[88px]">
+        {/* Anel de gradiente rodante + halo (efeito glow — Fase 18) */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-[-4px] animate-[spin_6s_linear_infinite] rounded-full opacity-90 blur-[1px]"
+          style={{ background: 'conic-gradient(from 0deg, #3b82f6, #8b5cf6, #14b8a6, #3b82f6)' }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-[-6px] rounded-full opacity-40 blur-lg"
+          style={{ background: 'conic-gradient(from 180deg, #8b5cf6, #3b82f6, #14b8a6, #8b5cf6)' }}
+        />
+        <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white shadow-lg shadow-blue-500/30">
+          {initialsOf(user.name)}
+        </span>
+      </div>
       <h1 className="mt-4 text-xl font-bold sm:text-2xl">{user.name}</h1>
       <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-300">
         <BadgeCheck className="h-3.5 w-3.5" /> {badge}

@@ -28,7 +28,7 @@ const QUICK_LINKS = [
 
 export default function Footer() {
   return (
-    <footer className="mt-auto w-full bg-slate-900 text-slate-300">
+    <footer className="mt-auto w-full bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-slate-300">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-3">
           {/* Marca */}
