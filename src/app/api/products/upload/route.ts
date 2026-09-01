@@ -61,9 +61,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* ── Parse + pré-validação do evento JSON do SDK ──
+
+     ⚠️ O ficheiro NUNCA passa por esta rota: o browser faz PUT direto
+     ao URL pré-assinado. Aqui chega apenas o evento JSON
+     { type: 'blob.generate-client-token', payload: { pathname, … } }
+     (ou o webhook assinado 'blob.upload-completed' da Vercel).
+     O SDK (handleUpload) espera o evento JÁ PARSED — passar
+     request.body (ReadableStream) fazia body.type = undefined →
+     "Invalid event type" → 400 em TODOS os uploads. */
+  const peek: unknown = await request
+    .clone()
+    .json()
+    .catch(() => null);
+  const peekType =
+    typeof peek === 'object' && peek !== null
+      ? (peek as { type?: unknown }).type
+      : undefined;
+  if (
+    typeof peekType !== 'string' ||
+    !['blob.generate-client-token', 'blob.upload-completed'].includes(peekType)
+  ) {
+    return NextResponse.json(
+      { error: 'Pedido de upload inválido — recarrega a página e tenta de novo.' },
+      { status: 400 }
+    );
+  }
+  // Namespace/extensão são enforceados em onBeforeGenerateToken (abaixo)
+  // e o tamanho/tipo de conteúdo pelo Blob Store (maximumSizeInBytes /
+  // allowedContentTypes fixados server-side no token).
+
   try {
     const jsonResponse = await handleUpload({
-      body: request.body as HandleUploadBody,
+      body: peek as HandleUploadBody,
       request,
       onBeforeGenerateToken: async (pathname) => {
         // Namespace obrigatório do próprio vendedor

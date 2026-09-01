@@ -124,13 +124,14 @@ function sourceChecks() {
   check('proof: preserva método manual existente', proof.includes('isManualTransferMethod(order.payment_method)'));
 
   const upload = fs.readFileSync('src/app/api/upload/image/route.ts', 'utf8');
-  check('upload/image: store privado (access private)', upload.includes("access: 'private'"));
-  check('upload/image: magic bytes JPEG/PNG/WebP', upload.includes('0xff, 0xd8, 0xff') && upload.includes('0x89, 0x50'));
+  check('upload/image: evento JSON parsed p/ handleUpload (client-side)', upload.includes('body: peek as HandleUploadBody') && upload.includes('blob.generate-client-token'));
+  check('upload/image: MIME fixado server-side (jpeg/png/webp)', upload.includes("'image/jpeg'") && upload.includes("'image/png'") && upload.includes("'image/webp'"));
   check('upload/image: limite 5 MB', upload.includes('5 * 1024 * 1024'));
-  check('upload/image: apenas vendedores', upload.includes('requireSeller'));
+  check('upload/image: namespace próprio (produtos|perfil/<id>/)', upload.includes('ALLOWED_PREFIXES') && upload.includes('ownedPrefixes'));
+  check('upload/image: autenticação (requireRole)', upload.includes('requireRole(request)'));
 
   const media = fs.readFileSync('src/app/api/media/[...path]/route.ts', 'utf8');
-  check('media: regex restrita a produtos/', media.includes('/^produtos\\/\\d+\\/\\d{13}-[A-Za-z0-9._-]{1,120}$/'));
+  check('media: regex restrita a produtos/ e perfil/', media.includes('/^(?:produtos|perfil)\\/\\d+\\/\\d{13}-[A-Za-z0-9._-]{1,120}$/'));
   check('media: cache imutável', media.includes('immutable'));
   check('media: 404 para paths fora de produtos/', media.includes('status: 404'));
 
@@ -143,7 +144,7 @@ function sourceChecks() {
   check('carrinho: envia comprovativo p/ métodos manuais', carrinho.includes('isManualTransferMethod(paymentMethod) &&'));
 
   const form = fs.readFileSync('src/app/adicionar-produto/page.tsx', 'utf8');
-  check('form produto: upload real (api/upload/image)', form.includes("fetch('/api/upload/image'"));
+  check('form produto: upload client-side (uploadFileSmart → api/upload/image)', form.includes('uploadFileSmart') && form.includes("'/api/upload/image'"));
   check('form produto: aceita 5MB/JPG/PNG/WebP', form.includes('PRODUCT_IMAGE_MAX_BYTES'));
   check('form produto: ainda suporta link externo (retrocompat.)', form.includes('Preferes usar um link externo?'));
 
@@ -178,53 +179,65 @@ async function main() {
   const sellerId = sellerRows[0]?.id;
   await sql`UPDATE users SET bi_number = ${'00' + uniq + 'LA080'} WHERE id = ${sellerId}`;
 
-  console.log('\n━━━ Fase 8 — upload de imagens ━━━');
+  console.log('\n━━━ Fase 8 — upload de imagens (client-side) ━━━');
 
   const anonUpload = await api('POST', '/api/upload/image', {
-    raw: new URLSearchParams().toString(),
+    body: { type: 'blob.generate-client-token', payload: { pathname: `produtos/1/x-${uniq}.png` } },
   });
   check('upload sem sessão → 401', anonUpload.status === 401 || anonUpload.status === 403, `got ${anonUpload.status}`);
 
-  // MIME inválido (texto) — rejeitado
+  // Corpo que NÃO é evento do SDK (multipart com ficheiro) — rejeitado:
+  // no fluxo client-side a rota só aceita o pedido de token JSON.
   const badForm = new FormData();
   badForm.append('file', new Blob([Buffer.from('isto não é uma imagem')], { type: 'text/plain' }), 'nota.txt');
   const badMime = await api('POST', '/api/upload/image', { token: sellerToken, raw: badForm });
-  check('upload MIME inválido → 400', badMime.status === 400, `got ${badMime.status}`);
+  check('upload corpo não-SDK (multipart) → 400', badMime.status === 400, `got ${badMime.status}`);
 
-  // JPEG com magic bytes falsos (conteúdo de texto com type image/jpeg) → 400
-  const fakeForm = new FormData();
-  fakeForm.append('file', new Blob([Buffer.from('não sou um jpeg de verdade')], { type: 'image/jpeg' }), 'fake.jpg');
-  const fakeJpeg = await api('POST', '/api/upload/image', { token: sellerToken, raw: fakeForm });
-  check('upload JPEG falso (magic bytes) → 400', fakeJpeg.status === 400, `got ${fakeJpeg.status}`);
+  // Evento SDK com namespace de OUTRO utilizador → 400
+  const wrongNs = await api('POST', '/api/upload/image', {
+    token: sellerToken,
+    body: { type: 'blob.generate-client-token', payload: { pathname: `produtos/999999/x-${uniq}.jpg` } },
+  });
+  check('upload namespace alheio → 400', wrongNs.status === 400, `got ${wrongNs.status}`);
 
-  // Upload válido — o token REAL do Blob só existe na Vercel; localmente
-  // usamos um token fake (erro tratado com 503 sem crash, sem leak).
-  const okForm = new FormData();
-  okForm.append('file', new Blob([tinyJpeg()], { type: 'image/jpeg' }), `produto-${uniq}.jpg`);
-  const okUpload = await api('POST', '/api/upload/image', { token: sellerToken, raw: okForm });
-  let mediaUrl = '';
-  if (okUpload.status === 201) {
-    mediaUrl = String(okUpload.data?.url ?? '');
-    check('upload JPEG válido → 201 + url /api/media', mediaUrl.startsWith('/api/media/produtos/'), JSON.stringify(okUpload.data));
-    const served = await api('GET', mediaUrl);
-    check('media: serve imagem publicamente (200 + jpeg)', served.status === 200 && served.buffer?.byteLength === tinyJpeg().length, `got ${served.status}`);
+  // Evento SDK com extensão proibida (executável disfarçado) → 400
+  const badExt = await api('POST', '/api/upload/image', {
+    token: sellerToken,
+    body: { type: 'blob.generate-client-token', payload: { pathname: `produtos/${sellerId}/script-${uniq}.exe` } },
+  });
+  check('upload extensão .exe → 400', badExt.status === 400, `got ${badExt.status}`);
+
+  // Evento SDK válido — o token REAL do Blob só existe na Vercel; localmente
+  // a rota valida o pedido (auth, rate limit, namespace, extensão) e responde
+  // 503 sem crash e sem leak. Na Vercel (com token) responde 200 + clientToken
+  // e o browser faz PUT direto do ficheiro ao Blob (5 MB máx., jpeg/png/webp).
+  const okUpload = await api('POST', '/api/upload/image', {
+    token: sellerToken,
+    body: { type: 'blob.generate-client-token', payload: { pathname: `produtos/${sellerId}/produto-${uniq}.jpg` } },
+  });
+  if (okUpload.status === 200) {
+    check('upload evento válido → 200 + clientToken', Boolean(okUpload.data?.clientToken), JSON.stringify(okUpload.data).slice(0, 120));
   } else {
     check(
-      'upload sem token real → 503 tratado (sem crash, sem leak)',
+      'upload evento válido → 503 local (sem crash, sem leak)',
       okUpload.status === 503 && !JSON.stringify(okUpload.data).includes('vercel_blob_rw'),
       `got ${okUpload.status} ${JSON.stringify(okUpload.data)}`
     );
     console.log('  ℹ️  (BLOB_READ_WRITE_TOKEN real só na Vercel — caminho feliz do Blob valida-se em produção)');
-    // URL sintático válido para testar a aceitação do products API
-    mediaUrl = `/api/media/produtos/${sellerId}/${uniq}-foto-teste.jpg`;
   }
+  // URL sintático válido para testar a aceitação do products API
+  let mediaUrl = `/api/media/produtos/${sellerId}/${uniq}-foto-teste.jpg`;
 
   // Paths proibidos
   check('media: path ebooks/ → 404', (await api('GET', '/api/media/ebooks/1/1700000000000-x.pdf')).status === 404);
   check('media: traversal → 404', (await api('GET', '/api/media/produtos/1/1700000000000-..%2Febooks')).status === 404);
   check('media: path mal formado → 404', (await api('GET', '/api/media/produtos/1/nao-existe.jpg')).status === 404);
   const missingBlob = (await api('GET', '/api/media/produtos/1/1700000000000-foto-fantasma.jpg')).status;
-  check('media: blob inexistente → 404/502 (sem crash)', missingBlob === 404 || missingBlob === 502, `got ${missingBlob}`);
+  check(
+    'media: blob inexistente → 404/502 (503 sem token Blob local)',
+    [404, 502, 503].includes(missingBlob),
+    `got ${missingBlob}`
+  );
 
   console.log('\n━━━ Fase 8 — produto com foto real ━━━');
 

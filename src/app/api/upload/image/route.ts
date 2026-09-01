@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { requireRole, clientKey, rateLimit } from '@/lib/security';
+import { isSellerRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,8 +29,9 @@ export const maxDuration = 60;
  *
  * 🔒 SEGURANÇA:
  * - Qualquer utilizador autenticado (cliente incluído — foto de perfil).
- * - Namespace obrigatório: `produtos/<id>/…` ou `perfil/<id>/…` do PRÓPRIO
- *   utilizador — não é possível escrever no namespace de outro.
+ * - Namespace obrigatório, do PRÓPRIO utilizador e por papel:
+ *   clientes → `perfil/<id>/…`; vendedores → `produtos/<id>/…` e
+ *   `perfil/<id>/…`. Não é possível escrever no namespace de outro.
  * - Tipos permitidos fixados server-side (jpeg/png/webp), máx. 5 MB.
  * - Rate limit: 30 tokens / 10 min por IP.
  *
@@ -64,57 +66,103 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* ── Pré-validação do multipart (ANTES de depender do Blob) ──
-     Falha rápido com 400 mesmo sem BLOB_READ_WRITE_TOKEN: ficheiros
-     maliciosos são rejeitados por REGRAS PRÓPRIAS (extensão, MIME
-     declarado, magic bytes, tamanho), não por indisponibilidade. */
-  const pre = await request.clone().formData().catch(() => null);
-  let preFile: File | null = null;
-  if (pre) {
-    for (const v of pre.values()) {
-      if (typeof File !== 'undefined' && v instanceof File) {
-        preFile = v;
-        break;
-      }
+  /* ── Pré-validação do pedido de token (ANTES de depender do Blob) ──
+
+     ⚠️ ARQUITETURA DO UPLOAD CLIENT-SIDE: o ficheiro NUNCA passa por
+     esta rota. O SDK (@vercel/blob/client) envia apenas um corpo JSON
+     { type: 'blob.generate-client-token' | 'blob.generate-presigned-url',
+       payload: { pathname, clientPayload, multipart } } e depois faz
+     PUT do ficheiro DIRETAMENTE ao URL pré-assinado do Blob Store.
+     (Um POST multipart com o ficheiro aqui quebraria TODOS os uploads
+     legítimos — pedido de token é JSON, não form-data.)
+
+     Por isso a validação própria desta rota é sobre o PEDIDO:
+     - corpo tem de ser um evento JSON conhecido do SDK (lixo → 400);
+     - namespace tem de pertencer ao PRÓPRIO utilizador (→ 400);
+     - extensão tem de ser jpg/jpeg/png/webp (→ 400).
+     Falha rápido com 400 mesmo sem BLOB_READ_WRITE_TOKEN.
+
+     🛡️ MIME/magic bytes — onde é que a enforce acontece de verdade:
+     1. `allowedContentTypes` + `maximumSizeInBytes` são FIXADOS
+        server-side no token pré-assinado (onBeforeGenerateToken) — o
+        cliente não os pode alterar; o Blob Store rejeita o PUT se o
+        Content-Type declarado não for jpeg/png/webp ou se exceder 5 MB.
+     2. O store é PRIVADO — nenhum byte é servido por URL direto.
+     3. GET /api/media/[...path] serve apenas paths de imagem com regex
+        estrita, Content-Type fixo pela extensão + nosniff — um
+        executável disfarçado de .png nunca executa (nem nasce XSS).
+     Como o ficheiro não transita por esta função, não há magic bytes
+     para inspecionar aqui — validar bytes seria exigir multipart e
+     regressar ao limite de 4.5 MB de corpo serverless. */
+  const peek: unknown = await request
+    .clone()
+    .json()
+    .catch(() => null);
+  const peekType =
+    typeof peek === 'object' && peek !== null
+      ? (peek as { type?: unknown }).type
+      : undefined;
+  const peekPayload =
+    typeof peek === 'object' && peek !== null
+      ? (peek as { payload?: unknown }).payload
+      : undefined;
+
+  if (
+    typeof peekType !== 'string' ||
+    !['blob.generate-client-token', 'blob.generate-presigned-url', 'blob.upload-completed'].includes(
+      peekType
+    ) ||
+    typeof peekPayload !== 'object' ||
+    peekPayload === null
+  ) {
+    return NextResponse.json(
+      { error: 'Pedido de upload inválido — recarrega a página e tenta de novo.' },
+      { status: 400 }
+    );
+  }
+
+  // O webhook 'blob.upload-completed' (Vercel → callback assinado) passa
+  // direto para o handleUpload, que valida a assinatura x-vercel-signature.
+  if (peekType !== 'blob.upload-completed') {
+    const peekPathname = (peekPayload as { pathname?: unknown }).pathname;
+    if (typeof peekPathname !== 'string' || peekPathname.length === 0) {
+      return NextResponse.json(
+        { error: 'Pedido de upload inválido — pathname em falta.' },
+        { status: 400 }
+      );
     }
-  }
-  if (!preFile || preFile.size === 0) {
-    return NextResponse.json(
-      { error: 'Pedido de upload inválido — envia um ficheiro de imagem.' },
-      { status: 400 }
+    // Namespaces por papel: clientes só podem FOTO DE PERFIL (perfil/);
+    // vendedores também o catálogo (produtos/). Admin não publica produtos.
+    const allowedNamespaces = isSellerRole(auth.user.role)
+      ? ALLOWED_PREFIXES
+      : (['perfil/'] as const);
+    const ownedPrefixes = allowedNamespaces.map((ns) => `${ns}${auth.user.id}/`);
+    const matchedPrefix = ownedPrefixes.find((prefix) =>
+      peekPathname.startsWith(prefix)
     );
-  }
-  const preExt = (preFile.name.split('.').pop() || '').toLowerCase();
-  if (!IMAGE_EXTENSIONS.has(preExt)) {
-    return NextResponse.json(
-      { error: 'Formato inválido — usa JPG, PNG ou WebP.' },
-      { status: 400 }
-    );
-  }
-  if (!(IMAGE_MIME_TYPES as readonly string[]).includes(preFile.type)) {
-    return NextResponse.json(
-      { error: 'Tipo de conteúdo inválido — usa JPG, PNG ou WebP.' },
-      { status: 400 }
-    );
-  }
-  if (preFile.size > MAX_IMAGE_BYTES) {
-    return NextResponse.json(
-      { error: 'A imagem excede o limite de 5 MB.' },
-      { status: 400 }
-    );
-  }
-  /* Magic bytes: o conteúdo tem de corresponder ao formato declarado —
-     bloqueia executáveis disfarçados (MZ/ELF) com extensão .png. */
-  const headBuf = Buffer.from(await preFile.slice(0, 16).arrayBuffer());
-  const magicOk =
-    (preExt === 'png' && headBuf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) ||
-    (['jpg', 'jpeg'].includes(preExt) && headBuf.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) ||
-    (preExt === 'webp' && headBuf.subarray(0, 4).toString('latin1') === 'RIFF' && headBuf.subarray(8, 12).toString('latin1') === 'WEBP');
-  if (!magicOk) {
-    return NextResponse.json(
-      { error: 'O conteúdo do ficheiro não corresponde ao formato declarado.' },
-      { status: 400 }
-    );
+    if (!matchedPrefix) {
+      return NextResponse.json(
+        { error: 'Namespace de upload inválido para a tua conta.' },
+        { status: 400 }
+      );
+    }
+    // Nome de ficheiro estrito: um único segmento, sem traversal e sem
+    // subdirectórios (o Blob trata o pathname como chave plana, mas a
+    // defesa em profundidade mantém o namespace normalizado).
+    const fileName = peekPathname.slice(matchedPrefix.length);
+    if (fileName.length === 0 || fileName.includes('/') || fileName.includes('..')) {
+      return NextResponse.json(
+        { error: 'Pathname de upload inválido.' },
+        { status: 400 }
+      );
+    }
+    const peekExt = (fileName.split('.').pop() || '').toLowerCase();
+    if (!IMAGE_EXTENSIONS.has(peekExt)) {
+      return NextResponse.json(
+        { error: 'Formato inválido — usa JPG, PNG ou WebP.' },
+        { status: 400 }
+      );
+    }
   }
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
@@ -129,23 +177,36 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // ⚠️ O SDK espera o EVENTO JSON PARSED (body.type é lido diretamente).
+    // Passar request.body (ReadableStream) → "Invalid event type" → 400
+    // em TODOS os uploads. `peek` é o clone já parsed da pré-validação.
     const jsonResponse = await handleUpload({
-      body: request.body as HandleUploadBody,
+      body: peek as HandleUploadBody,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        // 1. Namespace obrigatório do próprio utilizador
-        const ownedPrefixes = ALLOWED_PREFIXES.map(
+        // 1. Namespace obrigatório do próprio utilizador (por papel:
+        //    clientes → perfil/; vendedores → produtos/ + perfil/)
+        const allowedNamespaces = isSellerRole(auth.user.role)
+          ? ALLOWED_PREFIXES
+          : (['perfil/'] as const);
+        const ownedPrefixes = allowedNamespaces.map(
           (ns) => `${ns}${auth.user.id}/`
         );
-        const isOwned = ownedPrefixes.some((prefix) =>
+        const matchedPrefix = ownedPrefixes.find((prefix) =>
           pathname.startsWith(prefix)
         );
-        if (!isOwned) {
+        if (!matchedPrefix) {
           throw new Error('PATH_FORBIDDEN');
         }
 
-        // 2. Extensão válida
-        const extension = (pathname.split('.').pop() || '').toLowerCase();
+        // 2. Nome de ficheiro estrito (sem traversal, sem subdirectórios)
+        const fileName = pathname.slice(matchedPrefix.length);
+        if (fileName.length === 0 || fileName.includes('/') || fileName.includes('..')) {
+          throw new Error('PATH_FORBIDDEN');
+        }
+
+        // 3. Extensão válida
+        const extension = (fileName.split('.').pop() || '').toLowerCase();
         if (!IMAGE_EXTENSIONS.has(extension)) {
           throw new Error('EXTENSION_FORBIDDEN');
         }

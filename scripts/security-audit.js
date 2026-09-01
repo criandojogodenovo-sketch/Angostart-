@@ -621,61 +621,88 @@ async function testarIDOR({ tokenA, tokenB, tokenC, produtoA }) {
 /* ─────────────── G. Upload de ficheiros maliciosos ─────────────────── */
 
 async function testarUpload({ tokenA, tokenB, tokenC }) {
-  section('G. UPLOAD DE FICHEIROS MALICIOSOS');
+  section('G. UPLOAD DE FICHEIROS MALICIOSOS (fluxo client-side)');
 
-  const multipart = (buf, filename, mime) => {
-    const fd = new FormData();
-    fd.append('file', new Blob([buf], { type: mime }), filename);
-    return fd;
+  /* No fluxo client-side (upload() de @vercel/blob/client) a rota recebe
+     apenas o EVENTO JSON { type: 'blob.generate-client-token',
+     payload: { pathname } } — o ficheiro vai direto ao Blob pré-assinado.
+     A rota enforce: auth (401), corpo não-SDK (400), namespace próprio
+     (400), traversal (400) e extensão (400). MIME declarado + tamanho do
+     ficheiro são enforceados pelo Blob Store (allowedContentTypes +
+     maximumSizeInBytes fixados server-side no token pré-assinado) e o
+     serving público só acontece por /api/media com Content-Type de
+     imagem + nosniff. */
+  const evento = (id, name, ns = 'produtos') => ({
+    type: 'blob.generate-client-token',
+    payload: { pathname: `${ns}/${id}/${Date.now()}-${name}`, clientPayload: null, multipart: false },
+  });
+  const meuId = async (token) => {
+    const me = await api('/api/auth/me', { token });
+    return me.json?.user?.id;
   };
+  const idA = await meuId(tokenA);
+  const idC = await meuId(tokenC);
+  check('G0 IDs dos fixtures obtidos (/api/auth/me)', Number.isInteger(idA) && Number.isInteger(idC), `idA=${idA} idC=${idC}`);
 
-  // sem sessão
-  const semSessao = await fetch(`${BASE}/api/upload/image`, { method: 'POST', body: multipart(pngBuffer(), 'x.png', 'image/png') });
+  // G1 sem sessão (evento SDK legítimo) → 401
+  const semSessao = await fetch(`${BASE}/api/upload/image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(evento(1, 'x.png')),
+  });
   check('G1 upload sem sessão → 401', semSessao.status === 401, `status ${semSessao.status}`);
 
-  // cliente autenticado NÃO é vendedor — desde a Fase 16, clientes podem
-  // subir FOTO DE PERFIL (namespace perfil/<id>/), por isso 403 já não é o
-  // esperado. 200 = token emitido; 503 = Blob não configurado no ambiente
-  // local (a pré-validação do route corre antes e só depois vem o Blob).
+  // G2 corpo multipart (não-SDK) com sessão → 400 — no fluxo client-side
+  // a rota só aceita o pedido de token JSON; multipart é protocolo errado.
+  const fdNaoSdk = new FormData();
+  fdNaoSdk.append('file', new Blob([pngBuffer()], { type: 'image/png' }), 'x.png');
+  const multipartRes = await fetch(`${BASE}/api/upload/image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenA}` },
+    body: fdNaoSdk,
+  });
+  check('G2 corpo multipart (não-SDK) → 400', multipartRes.status === 400, `status ${multipartRes.status}`);
+
+  // G3 cliente autenticado no namespace perfil/<próprio-id>/ → 200/503
+  // (Fase 16: clientes podem subir FOTO DE PERFIL; 503 = Blob não
+  // configurado no ambiente local — pré-validação toda passa).
   const cliente = await fetch(`${BASE}/api/upload/image`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${tokenC}` },
-    body: multipart(pngBuffer(), 'x.png', 'image/png'),
+    headers: { Authorization: `Bearer ${tokenC}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(evento(idC, 'avatar.png', 'perfil')),
   });
-  check('G2 cliente (avatar Fase 16) → 200/503 (nunca 401/403)', cliente.status === 200 || cliente.status === 503, `status ${cliente.status}`);
+  check('G3 cliente (avatar Fase 16) → 200/503 (nunca 401/403)', cliente.status === 200 || cliente.status === 503, `status ${cliente.status}`);
 
   const casos = [
-    ['G3 shell PHP com extensão .php', Buffer.from('<?php system($_GET["c"]); ?>'), 'shell.php', 'application/x-php', 400],
-    ['G4 executável Windows .exe (MZ)', Buffer.from('4d5a90000300000004000000ffff', 'hex'), 'malware.exe', 'application/octet-stream', 400],
-    ['G5 script .sh', Buffer.from('#!/bin/bash\nrm -rf /\n'), 'script.sh', 'application/x-sh', 400],
-    ['G6 PNG mágico mas MIME text/html', pngBuffer(), 'img.png', 'text/html', 400],
-    ['G7 extensão .png mas bytes MZ (exe disfarçado)', Buffer.from('4d5a90000300000004000000ffff', 'hex'), 'falso.png', 'image/png', 400],
-    ['G8 dupla extensão .php.png (blob inerte — servidor de prod guarda e serve como image/png)', pngBuffer(), 'shell.php.png', 'image/png', [400, 503]],
+    ['G4 shell PHP com extensão .php', 'shell.php', 400],
+    ['G5 executável Windows .exe (MZ)', 'malware.exe', 400],
+    ['G6 script .sh', 'script.sh', 400],
+    ['G7 path traversal ../ no pathname', '../../ebooks/x.png', 400],
+    ['G8 namespace de OUTRO utilizador', 'outeiro.png', 400, 999999],
+    ['G9 dupla extensão .php.png (blob inerte — servido como image/png + nosniff)', 'shell.php.png', [200, 503]],
   ];
-  for (const [nome, buf, filename, mime, esperados] of casos) {
+  for (const [nome, filename, esperados, donoId] of casos) {
+    const eventoCaso = evento(donoId ?? idA, filename);
     const res = await fetch(`${BASE}/api/upload/image`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenA}` },
-      body: multipart(buf, filename, mime),
+      headers: { Authorization: `Bearer ${tokenA}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventoCaso),
     });
     const lista = Array.isArray(esperados) ? esperados : [esperados];
     check(`${nome} → ${lista.join('/')}`, lista.includes(res.status), `status ${res.status}`);
   }
 
-  // positivo: PNG real (se storage configurado)
+  // positivo: evento SDK válido do vendedor B (se storage configurado)
   const ok = await fetch(`${BASE}/api/upload/image`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${tokenB}` },
-    body: multipart(pngBuffer(), 'auditoria.png', 'image/png'),
+    headers: { Authorization: `Bearer ${tokenB}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(evento(await meuId(tokenB), 'auditoria.png')),
   });
-  if (ok.status === 201) {
+  if (ok.status === 200) {
     const j = await ok.json();
-    check('G9 PNG real aceite → 201 + URL interno /api/media/', String(j?.url || '').startsWith('/api/media/produtos/'), JSON.stringify(j).slice(0, 120));
-    const servido = await api(j?.url || '/api/media/inexistente.png');
-    check('G10 imagem servida com Content-Type de imagem', /^image\//.test(servido.headers.get('content-type') || ''));
+    check('G10 evento válido (PNG real) → 200 + clientToken emitido', Boolean(j?.clientToken), JSON.stringify(j).slice(0, 120));
   } else {
-    skip('G9 upload positivo (PNG real)', ok.status === 503 ? 'Blob não configurado' : `status ${ok.status}`);
-    skip('G10 servir imagem', 'depende de G9');
+    skip('G10 token emitido (PNG real)', ok.status === 503 ? 'Blob não configurado' : `status ${ok.status}`);
   }
 }
 
