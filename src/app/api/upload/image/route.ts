@@ -184,6 +184,11 @@ export async function POST(request: NextRequest) {
       body: peek as HandleUploadBody,
       request,
       onBeforeGenerateToken: async (pathname) => {
+        console.debug('[API upload/image] Pedido de token:', {
+          userId: auth.user.id,
+          role: auth.user.role,
+          pathname,
+        });
         // 1. Namespace obrigatório do próprio utilizador (por papel:
         //    clientes → perfil/; vendedores → produtos/ + perfil/)
         const allowedNamespaces = isSellerRole(auth.user.role)

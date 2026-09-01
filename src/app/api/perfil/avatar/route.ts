@@ -72,6 +72,11 @@ export async function POST(request: NextRequest) {
   /* ── Guardar foto ── */
   const url =
     typeof body.profile_image === 'string' ? body.profile_image.trim() : '';
+  console.debug('[API perfil/avatar] Pedido recebido:', {
+    userId: user.id,
+    url,
+    clear: body.clear === true,
+  });
 
   if (!url) {
     return NextResponse.json({ error: 'Envia profile_image ou clear: true.' }, { status: 400 });
@@ -79,6 +84,10 @@ export async function POST(request: NextRequest) {
 
   // 1. Formato interno (namespace perfil/) — nunca URLs externos
   if (!isInternalMediaUrl(url)) {
+    console.warn(
+      '[API perfil/avatar] URL rejeitado — formato interno inválido:',
+      { userId: user.id, url }
+    );
     return NextResponse.json(
       {
         error:
@@ -102,6 +111,7 @@ export async function POST(request: NextRequest) {
       UPDATE users SET profile_image = ${url}
       WHERE id = ${user.id}
     `;
+    console.debug('[API perfil/avatar] Foto guardada:', { userId: user.id, url });
 
     return NextResponse.json({ ok: true, profile_image: url });
   } catch (error) {

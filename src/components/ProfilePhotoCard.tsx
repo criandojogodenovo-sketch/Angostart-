@@ -50,6 +50,12 @@ export default function ProfilePhotoCard({
       acceptExtensions: ['jpg', 'jpeg', 'png', 'webp'],
       makeUrl: (pathname) => `/api/media/${pathname}`,
     });
+    console.debug(
+      '[ProfilePhotoCard] Resultado do upload:',
+      result.ok
+        ? { url: result.url, pathname: result.pathname, size: result.size }
+        : { erro: result.error, tipo: result.kind }
+    );
     if (!result.ok) {
       setUploading(false);
       toast({
@@ -73,6 +79,12 @@ export default function ProfilePhotoCard({
         body: JSON.stringify({ profile_image: result.url }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
+      console.debug('[ProfilePhotoCard] Resposta POST /api/perfil/avatar:', {
+        status: res.status,
+        ok: data.ok,
+        erro: data.error,
+        urlEnviada: result.url,
+      });
       if (!res.ok || !data.ok) {
         toast({ title: 'Não foi possível guardar', description: data.error, variant: 'destructive' });
         return;

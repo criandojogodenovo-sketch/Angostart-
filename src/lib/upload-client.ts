@@ -79,6 +79,26 @@ export function safeFileName(name: string, fallback: string): string {
 }
 
 /**
+ * Insere prefixo de timestamp no último segmento do pathname.
+ *
+ * ⚠️ CONTRATO DE FORMATO — as rotas que servem/guardam media impõem
+ * `<timestamp 13 dígitos>-<nome>` (herdado do antigo upload server-side):
+ * - GET /api/media/[...path]      → `/^(?:produtos|perfil)\/\d+\/\d{13}-…/`
+ * - isInternalMediaUrl (perfil, lojas, estabelecimentos, produtos)
+ * - GET /api/kyc/document/[...path] → `/^(\d+)\/(\d{13})-…/`
+ *
+ * Sem este prefixo o upload até succeeds, mas o URL é REJEITADO ao
+ * guardar (ex.: foto de perfil → 400 «deve ser enviada pelo upload da
+ * AngoStart») ou devolve 404 ao ser servida.
+ */
+export function withTimestampPrefix(pathname: string): string {
+  const idx = pathname.lastIndexOf('/');
+  const dir = idx >= 0 ? pathname.slice(0, idx + 1) : '';
+  const name = idx >= 0 ? pathname.slice(idx + 1) : pathname;
+  return `${dir}${Date.now()}-${name}`;
+}
+
+/**
  * Classifica um erro de rede/upload numa categoria amigável.
  */
 function classifyError(error: unknown): UploadFailure {
@@ -244,7 +264,14 @@ export async function uploadFileSmart(
     signal?.addEventListener('abort', onExternalAbort, { once: true });
 
     try {
-      const blob = await upload(pathname, file, {
+      // Contrato de formato: pathname final = <ns>/<id>/<timestamp>-<nome>
+      // (ver withTimestampPrefix) — o blob.pathname devolvido já vem com
+      // o timestamp + sufixo aleatório do store.
+      const finalPathname = withTimestampPrefix(pathname);
+      if (attempt === 1) {
+        console.debug('[upload] pathname final:', finalPathname);
+      }
+      const blob = await upload(finalPathname, file, {
         access: 'private',
         handleUploadUrl,
         headers: authHeaders(), // Bearer JWT para a emissão do token
