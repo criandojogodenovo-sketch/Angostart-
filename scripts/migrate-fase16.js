@@ -116,7 +116,8 @@ async function main() {
       .replace(/\s+/g, ' ')
       .slice(0, 72);
     try {
-      await sql(statement);
+      // Driver >=1.x: chamada convencional mudou para sql.query()
+      await (typeof sql.query === 'function' ? sql.query(statement) : sql(statement));
       console.log(`✅ ${label}…`);
     } catch (error) {
       console.error(`❌ Falhou: ${label}…`);
