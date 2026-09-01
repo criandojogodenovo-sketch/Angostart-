@@ -1,17 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { toggleStoreFollow } from '@/lib/stores';
+import { isFollowingStore, toggleStoreFollow } from '@/lib/stores';
 import { clientKey, rateLimit } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/stores/follow — segue/deixa de seguir uma loja (Fase 9).
- * Corpo: { store_id }
- * Devolve { following: boolean }. Seguidores recebem notificação de
- * novos produtos da loja.
+ * GET  /api/stores/follow?store_id=X — estado atual do follow (Fase 19b:
+ *      o servidor NÃO conhece o visitante (token em localStorage), por isso
+ *      o botão sincroniza `isFollowing` no cliente — corrige o bug de o
+ *      botão mostrar «+ Seguir loja» a quem já segue).
+ * Seguidores recebem notificação de novos produtos da loja.
  */
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Entra na tua conta para seguir lojas.' },
+      { status: 401 }
+    );
+  }
+
+  const storeId = Number(request.nextUrl.searchParams.get('store_id'));
+  if (!Number.isInteger(storeId) || storeId <= 0) {
+    return NextResponse.json({ error: 'Loja inválida.' }, { status: 400 });
+  }
+
+  try {
+    const store = (await sql`
+      SELECT id, owner_id FROM stores WHERE id = ${storeId} LIMIT 1
+    `) as unknown as { id: number; owner_id: number }[];
+    if (!store[0]) {
+      return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 });
+    }
+
+    /* O dono não segue a própria loja — o botão mostra «É a tua loja». */
+    if (store[0].owner_id === user.id) {
+      return NextResponse.json({ following: false, own_store: true });
+    }
+
+    const following = await isFollowingStore(storeId, user.id);
+    return NextResponse.json({ following, own_store: false });
+  } catch (error) {
+    console.error('[API /api/stores/follow GET] Erro:', error);
+    return NextResponse.json(
+      { error: 'Não foi possível verificar agora.' },
+      { status: 503 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) {

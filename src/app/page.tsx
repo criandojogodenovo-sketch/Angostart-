@@ -14,6 +14,7 @@ import FeaturedProducts from "@/components/FeaturedProducts";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { FadeIn } from "@/components/motion";
 import PersonalizedHero from "@/components/home/PersonalizedHero";
+import { SellerTypesCta, FinalCta } from "@/components/home/HomeCtas";
 import PatternWaves from "@/components/illustrations/PatternWaves";
 import { PRODUCT_TYPES, PRODUCT_TYPE_ORDER } from "@/lib/products-data";
 import type { LucideIcon } from "lucide-react";
@@ -220,17 +221,9 @@ export default function HomePage() {
             ))}
           </div>
 
+          {/* Fase 19b: CTA contextual — logados vêem atalhos do seu perfil */}
           <div className="mt-8 text-center">
-            <Link
-              href="/perfil"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110"
-            >
-              Quero vender como…
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-            <p className="mt-3 text-xs text-slate-400">
-              Registo gratuito · Publica infoprodutos, produtos físicos ou serviços
-            </p>
+            <SellerTypesCta />
           </div>
         </div>
       </section>
@@ -266,20 +259,8 @@ export default function HomePage() {
             A equipa AngoStart está disponível de segunda a sábado, das 08h às
             18h.
           </p>
-          <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link
-              href="/produtos"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110"
-            >
-              Começar a comprar
-            </Link>
-            <Link
-              href="/perfil"
-              className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 px-8 font-semibold text-white transition-colors hover:bg-white/10"
-            >
-              Criar o meu perfil
-            </Link>
-          </div>
+          {/* Fase 19b: CTA contextual — logados não vêem registo */}
+          <FinalCta />
         </div>
         </FadeIn>
       </section>

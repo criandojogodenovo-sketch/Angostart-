@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'O assistente não conseguiu responder agora. Tenta de novo em instantes ou contacta o suporte humano.',
+          'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.',
       },
       { status: 502 }
     );

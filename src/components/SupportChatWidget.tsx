@@ -91,6 +91,9 @@ export default function SupportChatWidget() {
     setErro(null);
 
     try {
+      // Fase 19b: timeout do LADO DO CLIENTE (30s) — em redes lentas o
+      // indicador «A escrever…» nunca fica preso: ao expirar mostra erro
+      // amigável e volta a permitir enviar. Servidor responde em ≤ ~23s.
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,6 +103,7 @@ export default function SupportChatWidget() {
             .slice(-8)
             .map((t) => ({ role: t.role, content: t.content })),
         }),
+        signal: AbortSignal.timeout(30_000),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
       if (res.ok && data.reply) {
@@ -111,7 +115,9 @@ export default function SupportChatWidget() {
         );
       }
     } catch {
-      setErro('Sem ligação ao assistente. Verifica a internet e tenta de novo.');
+      setErro(
+        'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.'
+      );
     } finally {
       setAEnviar(false);
     }

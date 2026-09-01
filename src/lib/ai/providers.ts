@@ -6,19 +6,21 @@ import 'server-only';
  * MISSÃO: a IA da plataforma NUNCA fica offline por rate limit ou modelo
  * indisponível de um único fornecedor. Custo zero (planos gratuitos).
  *
- * CADEIA DE FALLBACK (ordem de prioridade, definida pelo CTO):
+ * CADEIA DE FALLBACK (ordem de prioridade, definida pelo CTO — Fase 19b):
  *   0. bai          — B.AI (gateway unificado estilo Z.ai): UMA chave, OpenAI-
  *                     compat, modelos flagship gratuitos (glm-5.3-flash,
  *                     deepseek-v4-flash; visão: deepseek-v4-flash-vision-exp).
- *                     PRINCIPAL — se responder, nada mais é chamado.
+ *                     PRINCIPAL — timeout curto 15s (redes móveis 4G).
  *   1. openrouter  — 18 modelos :free (50 req/dia; 1000/dia com ≥10 créditos
  *                    na conta; 20 req/min). Texto E visão (:free com imagem).
- *   2. gemini      — endpoint OpenAI-compat do Google (texto E visão;
- *                    free tier reduzido em 2025-26 — fica em 3.º lugar a
- *                    absorver picos de visão quando bai/openrouter falham).
- *   3. groq        — ~14.400 req/dia no tier free (texto E visão).
- *   4. cerebras    — free trial (texto; catálogo podado, ~5 req/min).
- *   5. sambanova   — texto (Llama 3.3 70B; free tier migrado para créditos).
+ *                    ÚNICO fallback — timeout agressivo 8s.
+ *   Se AMBOS falharem, a rota devolve mensagem amigável ao utilizador
+ *   (tempo máximo de espera ≈ 23s — cabe nos limites da Vercel e do 4G).
+ *
+ * RESERVA (fora da cadeia — `inChain: false`, reativáveis por env/commit se
+ * o CTO decidir): gemini, groq, cerebras, sambanova. Continuam no status de
+ * diagnóstico mas NUNCA são chamados em produção — evitam esperas de 30s+
+ * em cascata em redes lentas.
  *
  * O sistema funciona com QUALQUER subconjunto de chaves (mínimo 1; com 2+
  * já há redundância real — recomendado: B_AI_API_KEY + 1 fallback).
@@ -72,6 +74,14 @@ export interface ProviderConfig {
   jsonMode: boolean;
   extraHeaders: () => Record<string, string>;
   timeoutMs: number;
+  /** Fase 19b: `false` = reserva — fora da cadeia de fallback (não é chamado). */
+  inChain?: boolean;
+}
+
+/** Lê env var numérico no momento da chamada (tuning de timeout sem deploy). */
+function envNum(key: string, fallback: number): number {
+  const v = Number(process.env[key]);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
 /** Lê env var no MOMENTO da chamada (permite override/testes sem reload). */
@@ -98,7 +108,9 @@ export const PROVIDERS: ProviderConfig[] = [
     visionModel: () => envOr('B_AI_MODEL_VISION', 'deepseek-v4-flash-vision-exp'),
     jsonMode: true,
     extraHeaders: () => ({}),
-    timeoutMs: 30_000,
+    // Fase 19b: timeout curto — 4G não deve esperar 30s pelo principal.
+    timeoutMs: envNum('AI_TIMEOUT_BAI_MS', 15_000),
+    inChain: true,
   },
   {
     name: 'openrouter',
@@ -120,7 +132,9 @@ export const PROVIDERS: ProviderConfig[] = [
         process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://angostart.ao',
       'X-Title': 'AngoStart',
     }),
-    timeoutMs: 30_000,
+    // Fase 19b: único fallback — agressivo 8s (pior caso total ≈ 23s).
+    timeoutMs: envNum('AI_TIMEOUT_OPENROUTER_MS', 8_000),
+    inChain: true,
   },
   {
     name: 'gemini',
@@ -133,6 +147,7 @@ export const PROVIDERS: ProviderConfig[] = [
     jsonMode: true,
     extraHeaders: () => ({}),
     timeoutMs: 30_000,
+    inChain: false, // reserva — fora da cadeia (Fase 19b)
   },
   {
     name: 'groq',
@@ -146,6 +161,7 @@ export const PROVIDERS: ProviderConfig[] = [
     jsonMode: true,
     extraHeaders: () => ({}),
     timeoutMs: 25_000,
+    inChain: false, // reserva — fora da cadeia (Fase 19b)
   },
   {
     name: 'cerebras',
@@ -159,6 +175,7 @@ export const PROVIDERS: ProviderConfig[] = [
     jsonMode: true,
     extraHeaders: () => ({}),
     timeoutMs: 25_000,
+    inChain: false, // reserva — fora da cadeia (Fase 19b)
   },
   {
     name: 'sambanova',
@@ -171,6 +188,7 @@ export const PROVIDERS: ProviderConfig[] = [
     jsonMode: false, // conservador — extractJSON trata a resposta na mesma
     extraHeaders: () => ({}),
     timeoutMs: 30_000,
+    inChain: false, // reserva — fora da cadeia (Fase 19b)
   },
 ];
 
@@ -190,11 +208,11 @@ export function modelFor(p: ProviderConfig, type: ModelType): string | null {
   return type === 'text' ? p.textModel() : p.visionModel();
 }
 
-/** Cadeia efetiva para o tipo: providers com chave + modelo do tipo. */
+/** Cadeia efetiva para o tipo: na cadeia + com chave + modelo do tipo. */
 export function configuredProviders(
   type: ModelType
 ): { provider: ProviderConfig; model: string }[] {
-  return PROVIDERS.filter(providerAvailable)
+  return PROVIDERS.filter((p) => p.inChain !== false && providerAvailable(p))
     .map((provider) => ({ provider, model: modelFor(provider, type) }))
     .filter(
       (entry): entry is { provider: ProviderConfig; model: string } =>

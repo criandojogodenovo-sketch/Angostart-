@@ -59,13 +59,14 @@ export default function RootLayout({
   return (
     <html lang="pt-AO" suppressHydrationWarning>
       <body
-        className={`${poppins.variable} flex min-h-screen flex-col antialiased bg-background text-foreground pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-0`}
+        className={`${poppins.variable} flex min-h-screen flex-col overflow-x-hidden antialiased bg-background text-foreground pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >
         <AuthProvider>
           <StoreProvider>
             <RefCapture />
             <Navbar />
-            <main className="flex-1">{children}</main>
+            {/* Fase 19b: overflow-x-hidden impede scroll lateral em 375–414px */}
+            <main className="flex-1 overflow-x-hidden">{children}</main>
             <Footer />
             <WhatsAppButton />
             {/* Fase 14: assistente de suporte IA (canto inferior esquerdo) */}
