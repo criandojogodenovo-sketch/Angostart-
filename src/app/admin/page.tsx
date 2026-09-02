@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Eye,
   FileText,
+  Film,
   Gavel,
   Loader2,
   LogOut,
@@ -126,6 +127,7 @@ interface CommissionData {
 type Tab =
   | 'utilizadores'
   | 'produtos'
+  | 'videos'
   | 'encomendas'
   | 'carteira'
   | 'disputas'
@@ -136,6 +138,34 @@ type Tab =
   | 'monitorizacao'
   | 'relatorios'
   | 'seguranca';
+
+interface AdminVideoRow {
+  id: string;
+  title: string;
+  status: string;
+  playback_id: string | null;
+  error_message: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  user_id: number | null;
+  author_name: string | null;
+  author_email: string | null;
+}
+
+const VIDEO_STATUS_LABELS: Record<string, string> = {
+  uploading: 'A finalizar envio',
+  processing: 'A processar',
+  ready: 'Pronto',
+  errored: 'Falhou',
+};
+
+const VIDEO_STATUS_STYLES: Record<string, string> = {
+  uploading: 'bg-amber-500/15 text-amber-400',
+  processing: 'bg-blue-600/15 text-blue-400',
+  ready: 'bg-emerald-500/15 text-emerald-400',
+  errored: 'bg-rose-500/15 text-rose-400',
+};
 
 interface AdminInviteRow {
   id: number;
@@ -262,6 +292,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'utilizadores', label: 'Utilizadores', icon: Users },
   { key: 'kyc', label: 'Verificação de Identidade', icon: BadgeCheck },
   { key: 'produtos', label: 'Produtos', icon: Package },
+  { key: 'videos', label: 'Vídeos', icon: Film },
   { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
   { key: 'monitorizacao', label: 'Monitorização', icon: Eye },
   { key: 'relatorios', label: 'Relatórios', icon: BarChart3 },
@@ -305,6 +336,11 @@ function AdminPanel() {
   /* ── Produtos ── */
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+
+  /* ── Vídeos (Busbt / Mux) ── */
+  const [videos, setVideos] = useState<AdminVideoRow[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [videoBusyId, setVideoBusyId] = useState<string | null>(null);
 
   /* ── Encomendas / comprovativos KWiK ── */
   const [orders, setOrders] = useState<KwikAdminOrder[]>([]);
@@ -389,6 +425,83 @@ function AdminPanel() {
       setProductsLoading(false);
     }
   }, []);
+
+  const loadVideos = useCallback(async () => {
+    setVideosLoading(true);
+    try {
+      const res = await fetch('/api/admin/videos', { headers: authHeaders() });
+      const data = (await res.json()) as { videos?: AdminVideoRow[]; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      setVideos(data.videos ?? []);
+    } finally {
+      setVideosLoading(false);
+    }
+  }, [toast]);
+
+  /** Força o estado de um vídeo preso (errored = desbloqueia o cartão). */
+  async function forceVideoStatus(v: AdminVideoRow, status: string) {
+    setVideoBusyId(v.id);
+    try {
+      const res = await fetch(`/api/admin/videos/${v.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ status }),
+      });
+      const data = (await res.json()) as { status?: string; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Não foi possível atualizar', description: data.error });
+        return;
+      }
+      toast({ title: 'Vídeo atualizado', description: `«${v.title || v.id}» → ${data.status}` });
+      loadVideos();
+    } finally {
+      setVideoBusyId(null);
+    }
+  }
+
+  /** Pergunta ao Mux o estado real e atualiza a linha (self-healing). */
+  async function refreshVideoAtMux(v: AdminVideoRow) {
+    setVideoBusyId(v.id);
+    try {
+      const res = await fetch(`/api/admin/videos/${v.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ refresh: true }),
+      });
+      const data = (await res.json()) as { status?: string; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Não foi possível reverificar', description: data.error });
+        return;
+      }
+      toast({ title: 'Estado verificado no Mux', description: `«${v.title || v.id}» → ${data.status}` });
+      loadVideos();
+    } finally {
+      setVideoBusyId(null);
+    }
+  }
+
+  /** Apaga o vídeo (linha + asset no Mux, via /api/videos/[id]). */
+  async function deleteVideo(v: AdminVideoRow) {
+    setVideoBusyId(v.id);
+    try {
+      const res = await fetch(`/api/videos/${v.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        toast({ title: 'Não foi possível eliminar', description: data.error });
+        return;
+      }
+      toast({ title: 'Vídeo eliminado', description: v.title || v.id });
+      loadVideos();
+    } finally {
+      setVideoBusyId(null);
+    }
+  }
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -610,6 +723,7 @@ function AdminPanel() {
   useEffect(() => {
     if (tab === 'utilizadores') loadUsers();
     if (tab === 'produtos') loadProducts();
+    if (tab === 'videos') loadVideos();
     if (tab === 'admins') loadAdminSecurityData();
     if (tab === 'carteira') loadWalletOps();
     if (tab === 'anuncios') loadAnnouncements();
@@ -1210,6 +1324,85 @@ function AdminPanel() {
                       className="h-9 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                     >
                       <Trash2 className="mr-1 h-4 w-4" /> Eliminar
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* ── Vídeos (Busbt / Mux) — limpar presos, forçar estado ── */}
+      {tab === 'videos' && (
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+            <h2 className="text-base font-semibold text-slate-100">Vídeos — Busbt ({videos.length})</h2>
+            <Button variant="ghost" size="sm" onClick={loadVideos}>
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${videosLoading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+          </div>
+          {videos.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-400">Sem vídeos publicados.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {videos.map((v) => (
+                <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-100">
+                      {v.title || '(sem título)'}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-slate-400">
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-semibold ${
+                          VIDEO_STATUS_STYLES[v.status] ?? 'bg-slate-700/40 text-slate-300'
+                        }`}
+                      >
+                        {VIDEO_STATUS_LABELS[v.status] ?? v.status}
+                      </span>
+                      <span>{v.author_name ?? '—'} ({v.author_email ?? 'sem email'})</span>
+                      <span>{new Date(v.created_at).toLocaleString('pt-PT')}</span>
+                      {v.error_message && (
+                        <span className="text-rose-400">{v.error_message}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(v.status === 'uploading' || v.status === 'processing') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={videoBusyId === v.id}
+                        onClick={() => refreshVideoAtMux(v)}
+                        className="h-9 border-blue-500/40 text-blue-400 hover:bg-blue-600/10"
+                      >
+                        {videoBusyId === v.id ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-1 h-4 w-4" />
+                        )}
+                        Reverificar
+                      </Button>
+                    )}
+                    {v.status !== 'errored' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={videoBusyId === v.id}
+                        onClick={() => forceVideoStatus(v, 'errored')}
+                        className="h-9 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                      >
+                        <XCircle className="mr-1 h-4 w-4" /> Marcar falhou
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={videoBusyId === v.id}
+                      onClick={() => deleteVideo(v)}
+                      className="h-9 border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" /> Apagar
                     </Button>
                   </div>
                 </li>

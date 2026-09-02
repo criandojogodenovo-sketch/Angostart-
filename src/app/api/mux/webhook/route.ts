@@ -105,14 +105,30 @@ export async function POST(request: NextRequest) {
 
     if (type === 'video.asset.errored') {
       const message = (event.data?.errors?.messages?.[0] ?? 'Processamento falhou no Mux.').slice(0, 500);
-      await sql`
+      const updated = (await sql`
         UPDATE videos
         SET status = 'errored',
             mux_asset_id = COALESCE(${assetId}, mux_asset_id),
             error_message = ${message},
             updated_at = now()
         WHERE id = ${row.id}
-      `;
+        RETURNING user_id, title
+      `) as unknown as { user_id: number; title: string }[];
+      /* Notifica o dono (sino + web push) — melhor-esforço. */
+      const owner = updated[0];
+      if (owner) {
+        try {
+          const { pushNotification } = await import('@/lib/notifications');
+          await pushNotification(
+            owner.user_id,
+            'O teu vídeo não foi publicado',
+            `«${owner.title || 'Sem título'}» falhou no processamento: ${message}`,
+            '/busbt'
+          );
+        } catch {
+          /* notificação opcional — o webhook tem de responder 200 */
+        }
+      }
       return NextResponse.json({ received: true, status: 'errored' });
     }
 

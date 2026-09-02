@@ -143,7 +143,10 @@ export default function BusbtClient() {
       return;
     }
     try {
-      const res = await fetch('/api/videos?meu=1', {
+      /* include=stale: o servidor aplica o timeout de 15 min E verifica
+         os pendentes no Mux (self-healing quando o webhook não chega)
+         antes de devolver a lista — o cartão existente é atualizado. */
+      const res = await fetch('/api/videos?meu=1&include=stale', {
         cache: 'no-store',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
