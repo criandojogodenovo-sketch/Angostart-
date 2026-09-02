@@ -34,10 +34,15 @@ import {
   ACCEPTED,
   MAX_BYTES,
   isAcceptableVideoFile,
+  MuxUploadError,
   putFileToMux,
   resolveVideoMime,
   safeOrigin,
 } from '@/lib/mux-upload-client';
+import {
+  dedupeVideosById,
+  mergeVideosById,
+} from '@/lib/video-list';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /* O Mux Player é um Web Component (Lit) — só pode carregar no browser. */
@@ -92,6 +97,24 @@ export default function BusbtClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /* Guarda o videoId da tentativa atual — usado pelo resgate pós-erro. */
   const lastVideoIdRef = useRef<string | null>(null);
+  /* Guarda SÍNCRONA contra duplo clique: refs atualizam sem re-render,
+     ao contrário do estado `step` (assíncrono) — dois cliques rápidos
+     liam ambos step === 'idle' e criavam 2 uploads (cartões duplicados). */
+  const publishingRef = useRef(false);
+  /* Direct Upload da tentativa atual — o retry REUTILIZA o mesmo
+     uploadId/uploadUrl em vez de criar uma nova linha (que ficava
+     presa em 'uploading' e aparecia como cartão extra "A finalizar
+     envio…"). O reuso só acontece para o MESMO ficheiro (nome+tamanho). */
+  const savedAttemptRef = useRef<{
+    videoId: string;
+    uploadUrl: string;
+    fileName: string;
+    fileSize: number;
+  } | null>(null);
+
+  /* Publicação em curso — desativa botões/campos e impede fechar o diálogo. */
+  const isPublishing =
+    step === 'creating' || step === 'sending' || step === 'confirming';
 
   /* Modal de reprodução */
   const [playing, setPlaying] = useState<VideoItem | null>(null);
@@ -102,7 +125,10 @@ export default function BusbtClient() {
     try {
       const res = await fetch('/api/videos', { cache: 'no-store' });
       const data = await res.json();
-      setVideos(Array.isArray(data.videos) ? data.videos : []);
+      /* Dedupe por id: nunca renderizar o mesmo vídeo 2× na grelha. */
+      setVideos(
+        dedupeVideosById(Array.isArray(data.videos) ? data.videos : [])
+      );
       setListError(null);
     } catch {
       setListError('Não foi possível carregar a grelha de vídeos.');
@@ -121,12 +147,23 @@ export default function BusbtClient() {
         cache: 'no-store',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
-      if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        /* Sessão realmente inválida — limpa. */
         setMyVideos([]);
         return;
       }
+      if (!res.ok) {
+        /* Erro transiente (5xx/rate limit): MANTÉM a lista atual —
+           limpar faria os cartões pendentes piscar/somecer durante
+           o polling e depois ressurgir (parecia duplicação). */
+        return;
+      }
       const data = await res.json();
-      setMyVideos(Array.isArray(data.videos) ? data.videos : []);
+      if (!Array.isArray(data.videos)) return;
+      /* Funde por id (Map): o polling ATUALIZA o cartão existente
+         (mesmo key={id} → React reutiliza o DOM) em vez de criar
+         cartões novos; ids repetidos nunca geram cartões duplicados. */
+      setMyVideos((prev) => mergeVideosById(prev, data.videos));
     } catch {
       /* silencioso — a grelha pública continua */
     }
@@ -185,47 +222,93 @@ export default function BusbtClient() {
   };
 
   const publish = async () => {
+    /* Guarda SÍNCRONA contra duplo clique: o 2.º clique entra aqui
+       ANTES de o re-render desativar o botão (o estado `step` é
+       assíncrono) — o ref bloqueia na hora e devolve, sem criar
+       um segundo upload/cartão. */
+    if (publishingRef.current) return;
     if (!file) {
       setPublishError('Escolhe primeiro um ficheiro de vídeo.');
       return;
     }
+    publishingRef.current = true;
     setPublishError(null);
     const token = getToken();
     if (!token) {
+      publishingRef.current = false;
       setPublishError('Sessão expirada — entra novamente para publicar.');
       return;
     }
     try {
-      /* 1. Pedir URL de Direct Upload ao servidor. */
-      setStep('creating');
-      const res = await fetch('/api/upload/video', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          /* MIME resolvido pela extensão quando o browser não o informa. */
-          contentType: resolveVideoMime(file),
-          size: file.size,
-          title,
-          description,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao iniciar o upload.');
-      lastVideoIdRef.current = data.videoId ?? null;
-      console.info('[Busbt] Direct Upload criado', {
-        videoId: data.videoId,
-        corsOrigin: data.corsOrigin,
-        urlOrigin: safeOrigin(data.uploadUrl),
-      });
+      /* 1. Reutiliza o Direct Upload já criado para ESTE ficheiro
+            (retry: mesma linha na BD, mesmo cartão — sem duplicar)
+            ou cria um novo na primeira tentativa. */
+      const saved = savedAttemptRef.current;
+      const reuse =
+        !!saved && saved.fileName === file.name && saved.fileSize === file.size;
+      let uploadUrl: string;
+      let videoId: string;
+      if (saved && reuse) {
+        uploadUrl = saved.uploadUrl;
+        videoId = saved.videoId;
+        lastVideoIdRef.current = videoId;
+        console.info('[Busbt] A reutilizar o Direct Upload (retry)', {
+          videoId,
+        });
+      } else {
+        setStep('creating');
+        const res = await fetch('/api/upload/video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            /* MIME resolvido pela extensão quando o browser não o informa. */
+            contentType: resolveVideoMime(file),
+            size: file.size,
+            title,
+            description,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Falha ao iniciar o upload.');
+        uploadUrl = data.uploadUrl;
+        videoId = data.videoId;
+        savedAttemptRef.current = {
+          videoId,
+          uploadUrl,
+          fileName: file.name,
+          fileSize: file.size,
+        };
+        lastVideoIdRef.current = videoId;
+        console.info('[Busbt] Direct Upload criado', {
+          videoId: data.videoId,
+          corsOrigin: data.corsOrigin,
+          urlOrigin: safeOrigin(data.uploadUrl),
+        });
+      }
 
       /* 2. PUT direto browser → Mux (o vídeo não passa pelo servidor). */
       setStep('sending');
       setProgress(0);
-      await putFileToMux(data.uploadUrl, file, setProgress);
+      try {
+        await putFileToMux(uploadUrl, file, setProgress);
+      } catch (putError) {
+        /* URL definitivamente rejeitado (400/403/410 — expirado ou já
+           usado): descarta a tentativa guardada para o próximo retry
+           criar um upload novo. Falhas de rede/timeout MANTÊM o URL —
+           o retry reutiliza-o em vez de criar outra linha na BD. */
+        if (reuse && putError instanceof MuxUploadError && putError.kind === 'http') {
+          savedAttemptRef.current = null;
+          console.warn(
+            '[Busbt] Direct Upload reutilizado foi rejeitado — o próximo retry cria um novo',
+            { status: putError.status }
+          );
+        }
+        throw putError;
+      }
 
       /* 3. Confirmar: o Mux cria o asset e passa a processar. */
       setStep('confirming');
@@ -235,7 +318,7 @@ export default function BusbtClient() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ videoId: data.videoId }),
+        body: JSON.stringify({ videoId }),
       });
       const confirmData = await confirmRes.json();
       if (!confirmRes.ok) {
@@ -244,6 +327,7 @@ export default function BusbtClient() {
 
       /* 4. Sucesso — fecha o diálogo e mostra o estado "a processar". */
       setStep('done');
+      savedAttemptRef.current = null;
       setDialogOpen(false);
       resetDialog();
       loadMine();
@@ -272,6 +356,7 @@ export default function BusbtClient() {
             '[Busbt] O vídeo chegou ao Mux apesar do erro de rede — a processar normalmente.'
           );
           setStep('done');
+          savedAttemptRef.current = null;
           setDialogOpen(false);
           resetDialog();
           loadMine();
@@ -286,6 +371,8 @@ export default function BusbtClient() {
           : 'Erro inesperado ao publicar.'
       );
       setStep('idle');
+    } finally {
+      publishingRef.current = false;
     }
   };
 
@@ -433,7 +520,8 @@ export default function BusbtClient() {
                   resetDialog();
                   setDialogOpen(true);
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                disabled={isPublishing}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus className="h-5 w-5" /> Publicar Vídeo
               </button>
@@ -533,7 +621,17 @@ export default function BusbtClient() {
       </section>
 
       {/* Diálogo: publicar vídeo */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open && step !== 'sending') { setDialogOpen(false); } }}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          /* Impede fechar durante QUALQUER passo ativo (creating/
+             sending/confirming) — fechar e reabrir permitia submeter
+             o mesmo ficheiro de novo enquanto o 1.º upload decorria. */
+          if (!open && !isPublishing) {
+            setDialogOpen(false);
+          }
+        }}
+      >
         <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-3xl sm:max-w-lg">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <UploadCloud className="h-5 w-5 text-blue-600" /> Publicar vídeo na Busbt
@@ -550,7 +648,7 @@ export default function BusbtClient() {
                 type="file"
                 accept={ACCEPTED}
                 onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-                disabled={step === 'sending' || step === 'confirming'}
+                disabled={isPublishing}
                 className="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700"
               />
               {file && (
@@ -571,7 +669,7 @@ export default function BusbtClient() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ex.: Pão caseiro fresco todos os dias"
-                disabled={step === 'sending' || step === 'confirming'}
+                disabled={isPublishing}
                 className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -587,7 +685,7 @@ export default function BusbtClient() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Conta o que o vídeo mostra e como encomendar…"
-                disabled={step === 'sending' || step === 'confirming'}
+                disabled={isPublishing}
                 className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -636,7 +734,7 @@ export default function BusbtClient() {
               <button
                 type="button"
                 onClick={() => setDialogOpen(false)}
-                disabled={step === 'sending' || step === 'confirming'}
+                disabled={isPublishing}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
                 <X className="mr-1 inline h-4 w-4" /> Cancelar
@@ -644,10 +742,10 @@ export default function BusbtClient() {
               <button
                 type="button"
                 onClick={publish}
-                disabled={!file || step === 'creating' || step === 'sending' || step === 'confirming'}
+                disabled={!file || isPublishing}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {step === 'sending' || step === 'confirming' ? (
+                {isPublishing ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" /> A enviar…
                   </>
