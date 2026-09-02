@@ -151,10 +151,20 @@ function classifyError(error: unknown): UploadFailure {
         kind: 'server',
       };
     }
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       return {
         ok: false,
         error: 'A tua sessão expirou. Entra novamente na conta e tenta de novo.',
+        kind: 'invalid',
+      };
+    }
+    if (status === 403) {
+      // Sessão válida, mas sem permissão (ex.: tipo de conta errado para
+      // este namespace) — não confundir o utilizador com «sessão expirada».
+      return {
+        ok: false,
+        error:
+          'A tua conta não tem permissão para enviar este tipo de ficheiro.',
         kind: 'invalid',
       };
     }

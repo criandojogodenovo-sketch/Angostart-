@@ -35,6 +35,7 @@ import {
   kycDaysLeft,
   type KycDocumentType,
 } from '@/lib/kyc';
+import { isSellerRole } from '@/lib/roles';
 
 interface KycState {
   tem_bi: boolean;
@@ -190,6 +191,13 @@ export default function KycVerificationCard({
   const pending = !verified && !rejected && !overdue && status === 'pending';
   /* not_submitted (ou estado desconhecido) → pode submeter documento */
   const podeSubmeter = !verified && !pending;
+
+  /* 🔒 Auditoria de uploads: o KYC é exclusivo de vendedores (criador/
+     prestadores) — POST /api/kyc/upload e /api/kyc/submit são
+     requireSeller. Para clientes, o cartão era um beco sem saída:
+     o upload devolvia 403 com mensagem de «sessão expirada». Não
+     renderiza para quem não pode usar. */
+  if (!isSellerRole(user.role)) return null;
 
   /* Fase 13: countdown da carência (mostrado enquanto houver prazo ativo) */
   const diasRestantes = kycDaysLeft(kyc.kyc_deadline ?? null);

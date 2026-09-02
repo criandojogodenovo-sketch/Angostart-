@@ -52,17 +52,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) {
-    return NextResponse.json(
-      {
-        error:
-          'Armazenamento de documentos ainda não configurado. O administrador deve definir BLOB_READ_WRITE_TOKEN na Vercel.',
-      },
-      { status: 503 }
-    );
-  }
-
   /* ── Parse + pré-validação do evento JSON do SDK ──
 
      ⚠️ O ficheiro NUNCA passa por esta rota: o browser faz PUT direto
@@ -71,7 +60,11 @@ export async function POST(request: NextRequest) {
      (ou o webhook assinado 'blob.upload-completed' da Vercel).
      O SDK (handleUpload) espera o evento JÁ PARSED — passar
      request.body (ReadableStream) fazia body.type = undefined →
-     "Invalid event type" → 400 em TODOS os uploads. */
+     "Invalid event type" → 400 em TODOS os uploads.
+
+     A pré-validação corre ANTES do check do BLOB token — corpo inválido
+     falha rápido com 400 mesmo sem armazenamento configurado (paridade
+     com /api/upload/image). */
   const peek: unknown = await request
     .clone()
     .json()
@@ -89,15 +82,63 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  // Namespace/extensão são enforceados em onBeforeGenerateToken (abaixo)
-  // e o tamanho/tipo de conteúdo pelo Blob Store (maximumSizeInBytes /
-  // allowedContentTypes fixados server-side no token).
+  // Namespace/extensão pré-validados no peek (fail-fast 400 sem Blob;
+  // enforce definitivo em onBeforeGenerateToken + Blob Store).
+  if (peekType !== 'blob.upload-completed') {
+    const peekPathname =
+      typeof (peek as { payload?: unknown }).payload === 'object' &&
+      (peek as { payload?: unknown }).payload !== null
+        ? (peek as { payload: { pathname?: unknown } }).payload.pathname
+        : undefined;
+    if (typeof peekPathname !== 'string' || peekPathname.length === 0) {
+      return NextResponse.json(
+        { error: 'Pedido de upload inválido — pathname em falta.' },
+        { status: 400 }
+      );
+    }
+    const ownedPrefix = `kyc/${auth.user.id}/`;
+    if (!peekPathname.startsWith(ownedPrefix)) {
+      return NextResponse.json(
+        { error: 'Namespace de upload inválido para a tua conta.' },
+        { status: 400 }
+      );
+    }
+    const fileName = peekPathname.slice(ownedPrefix.length);
+    if (fileName.length === 0 || fileName.includes('/') || fileName.includes('..')) {
+      return NextResponse.json(
+        { error: 'Pathname de upload inválido.' },
+        { status: 400 }
+      );
+    }
+    const peekExt = (fileName.split('.').pop() || '').toLowerCase();
+    if (!DOC_EXTENSIONS.has(peekExt)) {
+      return NextResponse.json(
+        { error: 'Formato inválido — usa JPG, PNG ou WebP.' },
+        { status: 400 }
+      );
+    }
+  }
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!blobToken) {
+    return NextResponse.json(
+      {
+        error:
+          'Armazenamento de documentos ainda não configurado. O administrador deve definir BLOB_READ_WRITE_TOKEN na Vercel.',
+      },
+      { status: 503 }
+    );
+  }
 
   try {
     const jsonResponse = await handleUpload({
       body: peek as HandleUploadBody,
       request,
       onBeforeGenerateToken: async (pathname) => {
+        console.debug('[API kyc/upload] Pedido de token:', {
+          userId: auth.user.id,
+          pathname,
+        });
         // Namespace obrigatório do próprio vendedor
         const ownedPrefix = `kyc/${auth.user.id}/`;
         if (!pathname.startsWith(ownedPrefix)) {

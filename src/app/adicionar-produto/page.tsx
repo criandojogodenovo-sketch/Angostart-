@@ -456,6 +456,28 @@ function AdicionarProdutoContent() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (submitting) return;
+    /* 🔒 Auditoria de uploads: não deixar publicar com upload em curso —
+       o URL terminaria de chegar DEPOIS do POST e o produto nasceria sem
+       foto (ou infoproduto sem PDF). Mensagem clara e sem perda de dados. */
+    if (imageUploading || pdfUploading) {
+      toast({
+        title: 'Aguarda o envio do ficheiro',
+        description:
+          'O upload ainda está em curso — espera um instante antes de publicar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    /* Infoproduto sem PDF: o servidor aceita, mas o produto ficaria
+       inutilizável (nada para descarregar). Bloqueia cedo com mensagem. */
+    if (form.type === 'infoproduto' && !form.file_url.trim()) {
+      toast({
+        title: 'Falta o PDF do infoproduto',
+        description: 'Envia o ficheiro PDF antes de publicar — é o que os clientes descarregam.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSubmitting(true);
 
     const parsedKeywords = parseKeywords(form.keywords);
@@ -1051,7 +1073,7 @@ function AdicionarProdutoContent() {
 
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || imageUploading || pdfUploading}
               className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-lg shadow-blue-600/25 hover:brightness-110"
             >
               {submitting ? 'A guardar…' : editId ? 'Guardar alterações' : 'Publicar produto/serviço'}
