@@ -47,17 +47,24 @@ interface Body {
   description?: unknown;
 }
 
-/** Origin autorizada para o CORS do PUT (browser → Mux). */
+/**
+ * Origin autorizada para o CORS do PUT (browser → Mux).
+ *
+ * ⚠️ Causa raiz do "Erro de rede": quando o header `Origin` não chega
+ * (alguns WebViews móveis omitem-no em pedidos same-origin), o fallback
+ * antigo usava NEXT_PUBLIC_APP_URL/VERCEL_URL — se esse domínio não for
+ * EXATAMENTE a origem da página, o Mux devolve `Access-Control-Allow-Origin`
+ * errado e o browser bloqueia a RESPOSTA do PUT (o ficheiro até chega ao
+ * Mux — webhook dispara — mas o cliente vê `onerror` como "erro de rede").
+ *
+ * Correção: com Origin presente → match exato; sem Origin → `*`
+ * (o Mux aceita wildcard; o URL de upload já é o segredo de acesso,
+ * o CORS não adiciona proteção aqui).
+ */
 function resolveCorsOrigin(request: NextRequest): string {
   const origin = request.headers.get('origin');
   if (origin && isSafeHttpUrl(origin)) return origin;
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
-  if (configured && isSafeHttpUrl(configured)) return configured;
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercelUrl && isSafeHttpUrl(`https://${vercelUrl}`)) {
-    return `https://${vercelUrl}`;
-  }
-  return 'https://angostart.vercel.app';
+  return '*';
 }
 
 export async function POST(request: NextRequest) {
@@ -137,9 +144,13 @@ export async function POST(request: NextRequest) {
     const videoId = inserted[0].id;
 
     /* 2. Direct Upload no Mux (URL assinado, CORS para o browser). */
+    const corsOrigin = resolveCorsOrigin(request);
+    console.log(
+      `[API /api/upload/video] user=${user.id} video=${videoId} cors_origin=${corsOrigin} tipo=${contentType} tamanho=${size}`
+    );
     const { uploadId, uploadUrl } = await createDirectUpload(
       videoId,
-      resolveCorsOrigin(request)
+      corsOrigin
     );
 
     await sql`
@@ -148,7 +159,15 @@ export async function POST(request: NextRequest) {
     `;
 
     return NextResponse.json(
-      { uploadUrl, uploadId, videoId, maxBytes: MAX_VIDEO_BYTES },
+      {
+        uploadUrl,
+        uploadId,
+        videoId,
+        maxBytes: MAX_VIDEO_BYTES,
+        /* Diagnóstico: o cliente regista no console para detectar
+           desfasamentos de origem (CORS) entre página e Mux. */
+        corsOrigin,
+      },
       { status: 201 }
     );
   } catch (error) {

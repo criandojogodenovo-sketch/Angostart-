@@ -30,6 +30,14 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth, getToken } from '@/context/AuthContext';
+import {
+  ACCEPTED,
+  MAX_BYTES,
+  isAcceptableVideoFile,
+  putFileToMux,
+  resolveVideoMime,
+  safeOrigin,
+} from '@/lib/mux-upload-client';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /* O Mux Player é um Web Component (Lit) — só pode carregar no browser. */
@@ -41,9 +49,6 @@ const MuxPlayer = dynamic(() => import('@mux/mux-player-react'), {
     </div>
   ),
 });
-
-const MAX_BYTES = 100 * 1024 * 1024; // 100 MB
-const ACCEPTED = 'video/mp4,video/webm,video/quicktime';
 
 interface VideoItem {
   id: string;
@@ -61,29 +66,6 @@ interface VideoItem {
 }
 
 type PublishStep = 'idle' | 'creating' | 'sending' | 'confirming' | 'done';
-
-/** PUT do ficheiro diretamente para o Mux, com progresso real. */
-function putFileToMux(
-  uploadUrl: string,
-  file: File,
-  onProgress: (pct: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', uploadUrl);
-    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`O envio do vídeo falhou (HTTP ${xhr.status}).`));
-    };
-    xhr.onerror = () =>
-      reject(new Error('Erro de rede durante o envio do vídeo para o Mux.'));
-    xhr.send(file);
-  });
-}
 
 function formatDuration(seconds: number | null): string {
   if (!seconds || seconds <= 0) return '';
@@ -108,6 +90,8 @@ export default function BusbtClient() {
   const [progress, setProgress] = useState(0);
   const [publishError, setPublishError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /* Guarda o videoId da tentativa atual — usado pelo resgate pós-erro. */
+  const lastVideoIdRef = useRef<string | null>(null);
 
   /* Modal de reprodução */
   const [playing, setPlaying] = useState<VideoItem | null>(null);
@@ -177,7 +161,9 @@ export default function BusbtClient() {
       setFile(null);
       return;
     }
-    if (!ACCEPTED.split(',').includes(f.type)) {
+    /* Alguns WebViews móveis devolvem File.type vazio — aceita pela
+       extensão (resolveVideoMime trata do MIME no envio). */
+    if (!isAcceptableVideoFile(f)) {
       setPublishError('Formato não suportado — usa MP4, WebM ou MOV.');
       return;
     }
@@ -220,7 +206,8 @@ export default function BusbtClient() {
         },
         body: JSON.stringify({
           filename: file.name,
-          contentType: file.type,
+          /* MIME resolvido pela extensão quando o browser não o informa. */
+          contentType: resolveVideoMime(file),
           size: file.size,
           title,
           description,
@@ -228,6 +215,12 @@ export default function BusbtClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao iniciar o upload.');
+      lastVideoIdRef.current = data.videoId ?? null;
+      console.info('[Busbt] Direct Upload criado', {
+        videoId: data.videoId,
+        corsOrigin: data.corsOrigin,
+        urlOrigin: safeOrigin(data.uploadUrl),
+      });
 
       /* 2. PUT direto browser → Mux (o vídeo não passa pelo servidor). */
       setStep('sending');
@@ -255,11 +248,50 @@ export default function BusbtClient() {
       resetDialog();
       loadMine();
     } catch (error) {
+      /* ⚠️ Caso especial (CORS na resposta): o ficheiro PODE ter chegado
+         ao Mux mesmo com "erro de rede" — o browser bloqueou a resposta,
+         mas o Mux processou o PUT. Confirma antes de declarar falha. */
+      try {
+        const token2 = getToken();
+        const rescueRes = token2
+          ? await fetch('/api/videos/confirm', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token2}`,
+              },
+              body: JSON.stringify({ videoId: lastVideoIdRef.current }),
+            })
+          : null;
+        const rescueData = rescueRes ? await rescueRes.json() : null;
+        if (
+          rescueRes?.ok &&
+          (rescueData?.status === 'processing' || rescueData?.status === 'ready')
+        ) {
+          console.info(
+            '[Busbt] O vídeo chegou ao Mux apesar do erro de rede — a processar normalmente.'
+          );
+          setStep('done');
+          setDialogOpen(false);
+          resetDialog();
+          loadMine();
+          return;
+        }
+      } catch {
+        /* sem resgate — mostra o erro real abaixo */
+      }
       setPublishError(
-        error instanceof Error ? error.message : 'Erro inesperado ao publicar.'
+        error instanceof Error
+          ? error.message
+          : 'Erro inesperado ao publicar.'
       );
       setStep('idle');
     }
+  };
+
+  /* Reutiliza o ficheiro escolhido numa nova tentativa (sem re-selecionar). */
+  const retryPublish = () => {
+    if (file) void publish();
   };
 
   const removeVideo = async (videoId: string) => {
@@ -582,9 +614,22 @@ export default function BusbtClient() {
             )}
 
             {publishError && (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {publishError}
-              </p>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-sm font-medium text-red-700">{publishError}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  Detalhes técnicos em F12 → Console (procura «[Busbt] Upload
+                  Mux falhou») — inclui origens, estado HTTP e resposta do Mux.
+                </p>
+                {file && (
+                  <button
+                    type="button"
+                    onClick={retryPublish}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Tentar novamente
+                  </button>
+                )}
+              </div>
             )}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
