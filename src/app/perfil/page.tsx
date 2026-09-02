@@ -57,6 +57,7 @@ import { MustChangePasswordCard } from '@/components/ProfileSecurityCards';
 import KycVerificationCard from '@/components/KycVerificationCard';
 import ProfilePhotoCard from '@/components/ProfilePhotoCard';
 import StoreSetupCard from '@/components/StoreSetupCard';
+import MySpaceCard from '@/components/MySpaceCard';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import { validatePassword, passwordStrength } from '@/lib/password';
@@ -1394,6 +1395,11 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
       {/* Fase 16 — foto de perfil (vendedor) */}
       <div className="mt-6">
         <ProfilePhotoCard user={user} onUpdated={updateUser} />
+      </div>
+      {/* Fase 18 — «O meu Espaço»: criar/editar estabelecimento (prestadores)
+          ou loja virtual (criadores) a partir do perfil, mobile e desktop */}
+      <div className="mt-6">
+        <MySpaceCard user={user} />
       </div>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Vendedor'} />
