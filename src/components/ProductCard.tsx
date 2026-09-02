@@ -16,6 +16,7 @@ import { useCart } from '@/context/StoreContext';
 import { useToast } from '@/hooks/use-toast';
 import ProductIcon from '@/components/ProductIcon';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import ShareButton from '@/components/ShareButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -158,6 +159,12 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-lg font-extrabold tracking-tight text-slate-900">
             {formatKz(product.price_kz)}
           </p>
+          {/* Partilha pública — link limpo sem ?ref= (para qualquer utilizador) */}
+          <ShareButton
+            productUrl={`/produtos/${product.id}`}
+            compact
+            className="h-10 w-10"
+          />
           <Button
             onClick={handleBuy}
             disabled={outOfStock}

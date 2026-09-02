@@ -32,6 +32,7 @@ import ServiceMap from '@/components/ServiceMap';
 import { formatKz } from '@/lib/format';
 import { businessCategoryLabel, type BusinessProfile } from '@/lib/business';
 import type { Product } from '@/lib/products-data';
+import ShareButton from '@/components/ShareButton';
 
 interface BusinessPayload {
   business: BusinessProfile;
@@ -217,6 +218,11 @@ export default function EstabelecimentoDetalhePage() {
                 )}
                 {contactSent ? 'Pedido enviado ✓' : 'Entrar em Contato'}
               </Button>
+              {/* Partilha pública — URL limpo do espaço, para qualquer utilizador */}
+              <ShareButton
+                productUrl={`/estabelecimentos/${b.id}`}
+                label="Copiar link"
+              />
             </div>
           </div>
 

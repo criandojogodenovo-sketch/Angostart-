@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { CIDADES_ANGOLA } from '@/lib/cidades-angola';
 import { BUSINESS_CATEGORIES, businessCategoryLabel, type BusinessProfile } from '@/lib/business';
+import ShareButton from '@/components/ShareButton';
 
 const CIDADES = Object.keys(CIDADES_ANGOLA).sort();
 
@@ -150,53 +151,60 @@ export default function EstabelecimentosPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((b) => (
-            <Link
+            <div
               key={b.id}
-              href={`/estabelecimentos/${b.id}`}
-              className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <div className="relative h-36 overflow-hidden bg-gradient-to-br from-blue-600/10 via-slate-100 to-teal-600/10">
-                {b.fotos && b.fotos.length > 0 ? (
-                  <img
-                    src={b.fotos[0]}
-                    alt={b.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : b.logo_url ? (
-                  <img
-                    src={b.logo_url}
-                    alt={b.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center">
-                    <Building2 className="h-10 w-10 text-slate-300" />
+              {/* Partilha pública — URL limpo do estabelecimento, para qualquer visitante */}
+              <ShareButton
+                productUrl={`/estabelecimentos/${b.id}`}
+                compact
+                className="absolute right-2 top-2 z-10"
+              />
+              <Link href={`/estabelecimentos/${b.id}`} className="block">
+                <div className="relative h-36 overflow-hidden bg-gradient-to-br from-blue-600/10 via-slate-100 to-teal-600/10">
+                  {b.fotos && b.fotos.length > 0 ? (
+                    <img
+                      src={b.fotos[0]}
+                      alt={b.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : b.logo_url ? (
+                    <img
+                      src={b.logo_url}
+                      alt={b.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center">
+                      <Building2 className="h-10 w-10 text-slate-300" />
+                    </span>
+                  )}
+                  <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm">
+                    {businessCategoryLabel(b.category)}
                   </span>
-                )}
-                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm">
-                  {businessCategoryLabel(b.category)}
-                </span>
-              </div>
-              <div className="p-4">
-                <h2 className="truncate text-base font-bold text-slate-900">{b.name}</h2>
-                {b.description && (
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{b.description}</p>
-                )}
-                <div className="mt-2 space-y-1 text-xs text-slate-500">
-                  {(b.address || b.cidade) && (
-                    <p className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 text-teal-600" />
-                      {b.address ?? cityLabel(b.cidade as string)}
-                    </p>
-                  )}
-                  {b.horario && (
-                    <p className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-blue-500" /> {b.horario}
-                    </p>
-                  )}
                 </div>
-              </div>
-            </Link>
+                <div className="p-4">
+                  <h2 className="truncate text-base font-bold text-slate-900">{b.name}</h2>
+                  {b.description && (
+                    <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{b.description}</p>
+                  )}
+                  <div className="mt-2 space-y-1 text-xs text-slate-500">
+                    {(b.address || b.cidade) && (
+                      <p className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-teal-600" />
+                        {b.address ?? cityLabel(b.cidade as string)}
+                      </p>
+                    )}
+                    {b.horario && (
+                      <p className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-blue-500" /> {b.horario}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            </div>
           ))}
         </div>
       )}

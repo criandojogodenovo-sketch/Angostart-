@@ -34,6 +34,7 @@ import { useAuth, authHeaders } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import CommentsSection from '@/components/CommentsSection';
+import ShareButton from '@/components/ShareButton';
 import { getProductGradient, PRODUCT_TYPES, type Product, type ProductType } from '@/lib/products-data';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
@@ -402,6 +403,12 @@ export default function ProdutoDetalhePage() {
                   )}
                   Falar no chat da AngoStart
                 </Button>
+                {/* Partilha pública — URL limpo sem ?ref=, disponível para todos */}
+                <ShareButton
+                  productUrl={`/produtos/${productId}`}
+                  label="Copiar link"
+                  className="h-12 px-6"
+                />
               </div>
               <p className="mt-3 text-xs text-slate-400">
                 🔒 Toda a negociação acontece dentro da plataforma, com histórico
@@ -561,6 +568,12 @@ export default function ProdutoDetalhePage() {
                   </Link>
                 </Button>
               )}
+              {/* Partilha pública no painel lateral — link limpo, para qualquer utilizador */}
+              <ShareButton
+                productUrl={`/produtos/${productId}`}
+                label="Copiar link"
+                className="mt-2 w-full"
+              />
               {affiliateCode && (
                 <Button
                   variant="outline"

@@ -11,6 +11,7 @@ import StoreFollowButton from '@/components/StoreFollowButton';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import AffiliateCopyButton from '@/components/AffiliateCopyButton';
 import CommentsSection from '@/components/CommentsSection';
+import ShareButton from '@/components/ShareButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,9 @@ export default async function LojaPage({
           </div>
           <div className="flex flex-col gap-2 pb-1 sm:flex-row sm:items-center">
             <StoreFollowButton storeId={store.id} />
-            {/* Fase 11 — divulgar a loja inteira com o código do afiliado */}
+            {/* Partilha pública da loja — URL limpo, para qualquer visitante */}
+            <ShareButton productUrl={`/loja/${store.slug}`} label="Copiar link" className="w-full" />
+            {/* Fase 11 — divulgar a loja inteira com o código do afiliado (só afiliados veem) */}
             <AffiliateCopyButton path={`/loja/${store.slug}`} className="w-full" />
           </div>
         </div>
@@ -96,31 +99,38 @@ export default async function LojaPage({
         ) : (
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {produtos.map((p) => (
-              <Link
+              <div
                 key={p.id}
-                href={`/produtos/${p.id}`}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
               >
-                <div className="aspect-square w-full overflow-hidden bg-slate-100">
-                  {p.image_url ? (
-                     
-                    <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition group-hover:scale-105" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-3xl">
-                      {p.type === 'infoproduto' ? '📚' : p.type === 'produto_fisico' ? '📦' : '🛠️'}
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="line-clamp-2 min-h-10 text-sm font-semibold text-slate-800">{p.name}</p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="text-sm font-black text-blue-700">{formatKz(p.price_kz)}</span>
-                    {!p.available && (
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">ESGOTADO</span>
+                {/* Partilha pública — sobre o canto da imagem; não navega */}
+                <ShareButton
+                  productUrl={`/produtos/${p.id}`}
+                  compact
+                  className="absolute right-2 top-2 z-10"
+                />
+                <Link href={`/produtos/${p.id}`} className="block">
+                  <div className="aspect-square w-full overflow-hidden bg-slate-100">
+                    {p.image_url ? (
+                       
+                      <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition group-hover:scale-105" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-3xl">
+                        {p.type === 'infoproduto' ? '📚' : p.type === 'produto_fisico' ? '📦' : '🛠️'}
+                      </div>
                     )}
                   </div>
-                </div>
-              </Link>
+                  <div className="p-3">
+                    <p className="line-clamp-2 min-h-10 text-sm font-semibold text-slate-800">{p.name}</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-sm font-black text-blue-700">{formatKz(p.price_kz)}</span>
+                      {!p.available && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">ESGOTADO</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         )}
