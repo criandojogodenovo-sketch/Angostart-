@@ -1,58 +1,68 @@
 'use client';
 
 /**
- * AngoStart — Botão "Copiar link de afiliado" (Fase 11).
+ * AngoStart — Botão "Copiar link de afiliado" (Fase 11, refinado na Fase 17).
  *
  * Componente reutilizável: gera `<origem><path>?ref=AFG-XXXXXX` com o
- * código do afiliado autenticado (cache partilhada — só 1 pedido
- * /api/affiliate por página) e copia para a área de transferência.
+ * código do afiliado autenticado e copia para a área de transferência.
  *
- * Usado na página da loja (/loja/[slug]) e reutilizável noutros alvos
- * (produto já tem o seu; o painel do afiliado tem o gerador em massa).
+ * Fase 17 (visibilidade): o botão só é RENDERIZADO para utilizadores
+ * autenticados que são afiliados com código ativo (GET /api/affiliate
+ * → 200 com codigo_afiliado). Visitantes e não-afiliados NÃO veem o
+ * botão nas páginas de produto, loja, carrinho e painel — antes ele
+ * aparecia para todos e só mostrava um aviso ao clicar.
  *
- * Estados:
- *  - visitante → aviso "Entra na tua conta"
- *  - autenticado sem adesão → aviso com como aderir (404 da API)
- *  - afiliado → copia o link com o seu código
+ * Cache: por ID de utilizador (antes era global — ao sair e entrar com
+ * outra conta, o código antigo podia "fugir" para o utilizador novo).
+ * A cache limpa-se também no logout (user.id → undefined).
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, authHeaders } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 /* Cache partilhada do código de afiliado entre todas as instâncias do
-   botão na mesma página — evita N pedidos a /api/affiliate. */
-let cachedCode: string | null | undefined; // undefined = ainda não pedido
-let inflight: Promise<string | null> | null = null;
+   botão na mesma página — evita N pedidos a /api/affiliate.
+   Chave = id do utilizador (null = visitante / cache invalidada). */
+const codeCache = new Map<number | null, string | null>();
+let inflight: { key: number | null; promise: Promise<string | null> } | null = null;
 
-async function fetchAffiliateCode(): Promise<string | null> {
-  if (cachedCode !== undefined) return cachedCode;
-  if (inflight) return inflight;
+function invalidateAffiliateCache() {
+  codeCache.clear();
+  inflight = null;
+}
 
-  inflight = (async () => {
+async function fetchAffiliateCode(userId: number | null): Promise<string | null> {
+  if (codeCache.has(userId)) return codeCache.get(userId) ?? null;
+  if (inflight && inflight.key === userId) return inflight.promise;
+
+  const promise = (async () => {
     try {
+      if (userId === null) return null;
       const res = await fetch('/api/affiliate', {
         headers: authHeaders(),
         cache: 'no-store',
       });
       if (!res.ok) {
-        cachedCode = null;
+        codeCache.set(userId, null);
         return null;
       }
       const data = (await res.json()) as { codigo_afiliado?: string };
-      cachedCode = data.codigo_afiliado ?? null;
-      return cachedCode;
+      const code = data.codigo_afiliado ?? null;
+      codeCache.set(userId, code);
+      return code;
     } catch {
-      cachedCode = null;
+      codeCache.set(userId, null);
       return null;
     } finally {
       inflight = null;
     }
   })();
 
-  return inflight;
+  inflight = { key: userId, promise };
+  return promise;
 }
 
 export default function AffiliateCopyButton({
@@ -69,30 +79,35 @@ export default function AffiliateCopyButton({
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
 
-  async function handleClick() {
-    if (busy) return;
-
+  /* Fase 17: resolve a elegibilidade assim que há utilizador.
+     Sem utilizador → nem pergunta (visitante não vê o botão). */
+  useEffect(() => {
+    let cancelled = false;
     if (!user) {
-      toast({
-        title: 'Entra na tua conta',
-        description: 'Precisas de sessão num programa de afiliados para copiar o link.',
-      });
+      invalidateAffiliateCache();
+      setCode(null);
+      setChecked(true);
       return;
     }
+    setChecked(false);
+    fetchAffiliateCode(user.id).then((c) => {
+      if (!cancelled) {
+        setCode(c);
+        setChecked(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, user?.id]);
 
+  async function handleClick() {
+    if (busy || !code) return;
     setBusy(true);
     try {
-      const code = await fetchAffiliateCode();
-      if (!code) {
-        toast({
-          title: 'Ainda não és afiliado',
-          description:
-            'Adere ao programa de afiliados no teu painel para ganhares comissões com os teus links.',
-        });
-        return;
-      }
-
       const link = `${window.location.origin}${path}?ref=${code}`;
       await navigator.clipboard?.writeText(link);
       setCopied(true);
@@ -108,6 +123,11 @@ export default function AffiliateCopyButton({
       setBusy(false);
     }
   }
+
+  /* Fase 17: ENQUANTO verifica, não mostra nada (evita «flash» do botão
+     para não-afiliados). Só afiliados com código ativo veem o botão. */
+  if (!user || !checked) return null;
+  if (!code) return null;
 
   return (
     <Button

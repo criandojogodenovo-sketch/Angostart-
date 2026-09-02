@@ -169,6 +169,9 @@ export function publicUser(row: UserRow): AuthUser {
     must_change_password: Boolean(row.must_change_password),
     kyc_status: row.kyc_status ?? null,
     is_verified_bi: Boolean(row.is_verified_bi),
+    /* Fase 17: a foto de perfil acompanha login/registo — a Navbar mostra
+       o avatar certo desde o primeiro render, sem pedido extra. */
+    profile_image: row.profile_image ?? null,
   };
 }
 

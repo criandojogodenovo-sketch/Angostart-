@@ -49,13 +49,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, type AuthUser } from '@/context/AuthContext';
-import { authHeaders, getToken } from '@/context/AuthContext';
+import { authHeaders } from '@/context/AuthContext';
 import { uploadFileSmart, safeFileName } from '@/lib/upload-client';
 import ProfileGamificationCard from '@/components/ProfileGamificationCard';
 import MyProposals from '@/components/MyProposals';
 import { MustChangePasswordCard } from '@/components/ProfileSecurityCards';
 import KycVerificationCard from '@/components/KycVerificationCard';
 import ProfilePhotoCard from '@/components/ProfilePhotoCard';
+import StoreSetupCard from '@/components/StoreSetupCard';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import { validatePassword, passwordStrength } from '@/lib/password';
@@ -265,6 +266,10 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
   const [kycFile, setKycFile] = useState<File | null>(null);
   const [kycPreview, setKycPreview] = useState<string | null>(null);
   const [kycRegType, setKycRegType] = useState<KycDocumentType>('bi');
+  /* Fase 17: aceitação obrigatória dos Termos de Serviço + Privacidade.
+     O botão «Criar conta» fica desativado sem o checkbox — e a API
+     devolve 400 se o campo chegar falso (validação dupla). */
+  const [aceitarTermos, setAceitarTermos] = useState(false);
 
   const isClient = kind === 'cliente';
   const selectedRole = SELLER_ROLES.find((r) => r.value === form.role);
@@ -307,6 +312,8 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
         camposEmFalta.push('especialidade');
       }
     }
+    /* Fase 17: sem aceitação dos Termos, o registo não avança. */
+    if (!aceitarTermos) camposEmFalta.push('aceitação dos Termos');
   }
   /* Evita «gritar» com o formulário ainda virgem — só orienta após o
      utilizador começar a preencher. */
@@ -335,6 +342,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           password: form.password,
           telefone: form.telefone,
           ref_code: form.ref_code.trim() || undefined,
+          aceitarTermos,
         });
         toast({
           title: 'Conta criada!',
@@ -355,6 +363,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
           bi_number: form.bi_number.trim() || undefined,
           birth_date: form.birth_date || undefined,
           ref_code: form.ref_code.trim() || undefined,
+          aceitarTermos,
         });
         /* Fase 12: se o vendedor escolheu foto do documento, enviamos já
            (upload + submit) com o token da nova sessão. Não bloqueia a
@@ -395,9 +404,15 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
         toast({
           title: 'Conta de vendedor criada!',
           description: kycFile
-            ? 'A tua loja já existe e o documento está em análise — podes vender desde já!'
-            : 'A tua loja já existe! Podes vender desde já — envia a foto do teu documento para ganhares o selo azul.',
+            ? 'O documento está em análise — podes vender desde já! Personaliza a tua loja no próximo passo.'
+            : 'Podes vender desde já — personaliza a tua loja no próximo passo em 30 segundos.',
         });
+        /* Fase 17: passo opcional de personalizar a loja APÓS o registo.
+           O setUser do contexto já trocou a vista para o SellerProfile —
+           a flag em sessionStorage faz o cartão aparecer lá em cima. */
+        try {
+          sessionStorage.setItem('angostart.loja-setup', String(user.id));
+        } catch { /* armazenamento indisponível — passo simplesmente omitido */ }
       }
       router.push('/perfil');
     } catch (error) {
@@ -807,6 +822,42 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
             </>
           )}
 
+          {/* Fase 17: aceitação OBRIGATÓRIA dos Termos de Serviço e da
+              Política de Privacidade — o registo não avança sem ela. */}
+          {mode === 'registo' && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+              <label htmlFor="auth-termos" className="flex cursor-pointer items-start gap-3">
+                <input
+                  id="auth-termos"
+                  type="checkbox"
+                  checked={aceitarTermos}
+                  onChange={(e) => setAceitarTermos(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600"
+                  required
+                />
+                <span className="text-xs leading-relaxed text-slate-700">
+                  Li e aceito os{' '}
+                  <Link
+                    href="/termos"
+                    target="_blank"
+                    className="font-semibold text-blue-700 underline decoration-blue-300 hover:text-blue-800"
+                  >
+                    Termos de Serviço
+                  </Link>{' '}
+                  e a{' '}
+                  <Link
+                    href="/privacidade"
+                    target="_blank"
+                    className="font-semibold text-blue-700 underline decoration-blue-300 hover:text-blue-800"
+                  >
+                    Política de Privacidade
+                  </Link>{' '}
+                  da AngoStart.
+                </span>
+              </label>
+            </div>
+          )}
+
           {/* Ativo = MESMA cor vibrante do «Entrar» (gradiente azul→roxo).
               Inativo = cinzento INTENCIONAL (não o antigo branco pálido de
               opacity-50 sobre laranja, que parecia botão partido). */}
@@ -901,11 +952,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: strin
 
 function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const { toast } = useToast();
-  const { applySession } = useAuth();
-  const updateUser = (patch: Partial<AuthUser>) => {
-    const t = getToken();
-    if (t) applySession(t, { ...user, ...patch });
-  };
+  /* Fase 17: updateUser do contexto — propaga a Navbar/menus na hora. */
+  const { updateUser } = useAuth();
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -1249,12 +1297,26 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
 function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const { toast } = useToast();
-  const { applySession } = useAuth();
-  const updateUser = (patch: Partial<AuthUser>) => {
-    const t = getToken();
-    if (t) applySession(t, { ...user, ...patch });
-  };
+  /* Fase 17: updateUser do contexto — propaga a Navbar/menus na hora. */
+  const { updateUser } = useAuth();
   const router = useRouter();
+  /* Fase 17: passo opcional «criar a minha loja» logo após o registo.
+     O AuthForms grava a flag em sessionStorage (o setUser do contexto
+     troca para esta vista antes do cartão poder aparecer aqui dentro). */
+  const [lojaSetup, setLojaSetup] = useState(() => {
+    try {
+      return sessionStorage.getItem('angostart.loja-setup') === String(user.id);
+    } catch {
+      return false;
+    }
+  });
+
+  function finishLojaSetup() {
+    try {
+      sessionStorage.removeItem('angostart.loja-setup');
+    } catch { /* ignore */ }
+    setLojaSetup(false);
+  }
   const [products, setProducts] = useState<Product[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -1320,6 +1382,12 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Fase 17 — passo opcional de personalizar a loja após o registo */}
+      {lojaSetup && (
+        <div className="mb-6">
+          <StoreSetupCard user={user} onDone={finishLojaSetup} />
+        </div>
+      )}
       {/* Fase 12 — KYC flexível: foto do documento, estado e reenvio */}
       {user.must_change_password && <MustChangePasswordCard />}
       <KycVerificationCard user={user} onUpdated={updateUser} />

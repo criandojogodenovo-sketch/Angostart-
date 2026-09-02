@@ -133,6 +133,19 @@ export default function StoreEditorCard() {
           </Link>
         )}
       </div>
+      {/* Fase 17: loja «virgem» (nome por defeito = nome da conta, sem
+          descrição nem logo) → convite de configuração em destaque. É o
+          equivalente ao «Criar a minha loja» para contas antigas que
+          nunca personalizaram. */}
+      {store && store.name === user?.name && !description && !logoUrl && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
+          <Store className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <p className="text-xs font-medium text-blue-900">
+            Falta pouco para a tua loja ficar pronta: dá-lhe um nome próprio,
+            uma descrição e um logo aqui em baixo — depois clica «Guardar».
+          </p>
+        </div>
+      )}
       <p className="mt-1 text-sm text-slate-500">
         A tua loja virtual foi criada automaticamente — personaliza-a para atrair mais clientes.
       </p>

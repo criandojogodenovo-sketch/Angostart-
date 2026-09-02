@@ -102,6 +102,34 @@ export default function Navbar() {
         {/* Sino de notificações (Fase 5) */}
         <NotificationBell />
 
+        {/* Avatar do utilizador (Fase 17) — reflete a foto de perfil
+            INSTANTANEAMENTE via AuthContext.updateUser (sem refresh). */}
+        {user && (
+          <Link
+            href="/perfil"
+            aria-label="O teu perfil"
+            title={`${user.name} — ver perfil`}
+            className="ml-1 shrink-0"
+          >
+            {user.profile_image ? (
+              <img
+                src={user.profile_image}
+                alt={`Foto de ${user.name}`}
+                className="h-9 w-9 rounded-full border-2 border-blue-500/60 object-cover shadow-sm"
+              />
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-bold text-white shadow-sm">
+                {(user.name || 'U')
+                  .split(' ')
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </span>
+            )}
+          </Link>
+        )}
+
         {/* Carrinho */}
         <Link
           href="/carrinho"

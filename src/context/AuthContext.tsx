@@ -38,6 +38,8 @@ export interface AuthUser {
   must_change_password?: boolean;
   kyc_status?: string | null;
   is_verified_bi?: boolean;
+  /** Fase 16/17: foto de perfil (URL /api/media/…) — Navbar, menu e perfil. */
+  profile_image?: string | null;
 }
 
 const SELLER_ROLES: Role[] = ['criador', 'prestador_domicilio', 'prestador_remoto'];
@@ -56,6 +58,8 @@ export interface RegisterClienteData {
   telefone: string;
   /** Fase 9: código de afiliado que indicou a conta (opcional). */
   ref_code?: string;
+  /** Fase 17: aceitação dos Termos de Serviço (obrigatória — API devolve 400 sem ela). */
+  aceitarTermos: boolean;
 }
 
 export interface RegisterVendedorData {
@@ -79,6 +83,8 @@ export interface RegisterVendedorData {
   kyc_document_type?: string;
   /** Fase 9: código de afiliado que indicou a conta (opcional). */
   ref_code?: string;
+  /** Fase 17: aceitação dos Termos de Serviço (obrigatória — API devolve 400 sem ela). */
+  aceitarTermos: boolean;
 }
 
 interface AuthContextValue {
@@ -90,6 +96,9 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthUser>;
   /** Sessão já obtida (login por código diário/convite) — persiste token+user. */
   applySession: (token: string, user: AuthUser) => AuthUser;
+  /** Fase 17: atualiza campos do utilizador autenticado (ex.: profile_image
+      após upload) — propaga a Navbar/menus INSTANTANEAMENTE, sem refresh. */
+  updateUser: (patch: Partial<AuthUser>) => void;
   logout: () => void;
 }
 
@@ -227,6 +236,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextUser;
   }, []);
 
+  /** Fase 17: merge de campos no utilizador atual (sem novo pedido).
+      Reflete mudanças como a foto de perfil em TODOS os consumidores do
+      contexto (Navbar, HamburgerMenu, página de perfil) na hora. */
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      try {
+        const token = window.localStorage.getItem(TOKEN_KEY);
+        if (token) persistSession(token, next);
+      } catch {
+        /* armazenamento indisponível — o estado em memória já atualizou */
+      }
+      return next;
+    });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -236,9 +262,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       registerVendedor,
       login,
       applySession,
+      updateUser,
       logout,
     }),
-    [user, loading, registerCliente, registerVendedor, login, applySession, logout]
+    [user, loading, registerCliente, registerVendedor, login, applySession, updateUser, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

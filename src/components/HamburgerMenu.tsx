@@ -84,6 +84,39 @@ export default function HamburgerMenu({
           </button>
         </div>
 
+        {/* Cartão do utilizador (Fase 17) — reflete a foto de perfil na
+            hora via AuthContext (sem refresh), igual à Navbar. */}
+        {user && (
+          <div className="mx-4 mt-4 flex items-center gap-3 rounded-2xl bg-white/5 px-4 py-3">
+            {user.profile_image ? (
+              <img
+                src={user.profile_image}
+                alt={`Foto de ${user.name}`}
+                className="h-11 w-11 rounded-full border-2 border-blue-400/60 object-cover"
+              />
+            ) : (
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
+                {(user.name || 'U')
+                  .split(' ')
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+              <Link
+                href="/perfil"
+                onClick={onClose}
+                className="text-xs font-medium text-blue-300 hover:underline"
+              >
+                Ver o meu perfil
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="px-6 py-4">
           <SearchBar onSearched={onClose} />
         </div>

@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/auth/register/cliente
- * Corpo: { name, email, password, telefone, ref_code? }
+ * Corpo: { name, email, password, telefone, ref_code?, aceitarTermos }
  * Cria um utilizador com role='cliente' e devolve { token, user }.
  * Fase 9: senha forte obrigatória + ref_code de afiliado (opcional)
  * + signup_ip para deteção de fraude de afiliados.
+ * Fase 17: aceitação dos Termos de Serviço OBRIGATÓRIA (aceitarTermos=true).
  */
 export async function POST(request: NextRequest) {
   let body: {
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     password?: string;
     telefone?: string;
     ref_code?: string;
+    aceitarTermos?: boolean;
   };
 
   try {
@@ -66,6 +68,15 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  /* Fase 17: aceitação dos Termos de Serviço e Política de Privacidade é
+     obrigatória antes de criar a conta — o cliente envia o checkbox.
+     (Validação server-side real; o frontend também bloqueia o botão.) */
+  if (body.aceitarTermos !== true) {
+    return NextResponse.json(
+      { error: 'É obrigatório aceitar os Termos de Serviço e a Política de Privacidade.' },
+      { status: 400 }
+    );
+  }
 
   if (!rateLimit(clientKey(request, 'register'), 10, 60_000)) {
     return NextResponse.json(
@@ -106,8 +117,8 @@ export async function POST(request: NextRequest) {
     const username = await generateUniqueUsername(name);
 
     const inserted = (await sql`
-      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, signup_ip, referred_by)
-      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente', ${username}, ${getRequestIp(request)}, ${referredBy})
+      INSERT INTO users (name, email, password_hash, phone, telefone, role, username, signup_ip, referred_by, aceitou_termos)
+      VALUES (${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone}, 'cliente', ${username}, ${getRequestIp(request)}, ${referredBy}, TRUE)
       RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean
     `) as unknown as UserRow[];
 

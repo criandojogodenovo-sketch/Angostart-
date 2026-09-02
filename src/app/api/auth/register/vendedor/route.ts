@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     especialidade?: string;
     portfolio_url?: string;
     ref_code?: string;
+    aceitarTermos?: boolean;
   };
 
   try {
@@ -167,6 +168,16 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  /* Fase 17: aceitação dos Termos de Serviço e Política de Privacidade é
+     obrigatória antes de criar a conta — o frontend envia o checkbox.
+     (Validação server-side real; o botão «Criar conta» também fica
+     desativado até marcar.) */
+  if (body.aceitarTermos !== true) {
+    return NextResponse.json(
+      { error: 'É obrigatório aceitar os Termos de Serviço e a Política de Privacidade.' },
+      { status: 400 }
+    );
+  }
 
   const bio = sanitizeMultiline(body.bio, 500) || null;
   const areaAtuacao = sanitizeText(body.area_atuacao, 80) || null;
@@ -247,7 +258,7 @@ export async function POST(request: NextRequest) {
     const inserted = (await sql`
       INSERT INTO users (name, email, password_hash, phone, telefone, role, username, bio, area_atuacao, cidade, especialidade, portfolio_url,
                          bi_number, birth_date, kyc_status, kyc_document_url, kyc_document_type, kyc_submitted_at, is_verified_bi, signup_ip, referred_by,
-                         kyc_deadline)
+                         kyc_deadline, aceitou_termos)
       VALUES (
         ${name}, ${email}, ${passwordHash}, ${telefone}, ${telefone},
         ${role as SellerRole}, ${username}, ${bio}, ${areaAtuacao}, ${cidade}, ${especialidade}, ${portfolioUrl},
@@ -255,7 +266,7 @@ export async function POST(request: NextRequest) {
         /* Fase 13: carência de 30 dias para verificar a identidade
            (conta a partir da criação; 'pending' por submissão posterior via
            /api/kyc/submit limpa o prazo — carência cumprida). */
-        NOW() + INTERVAL '30 days'
+        NOW() + INTERVAL '30 days', TRUE
       )
       RETURNING id, name, email, role, username, telefone, bio, area_atuacao, cidade, especialidade, portfolio_url, blocked::boolean, kyc_status, is_verified_bi::boolean
     `) as unknown as UserRow[];

@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
     const rows = (await sql`
       SELECT id, name, email, role, username, telefone, bio, area_atuacao, cidade,
              especialidade, portfolio_url, blocked::boolean, password_hash,
-             must_change_password::boolean, kyc_status, is_verified_bi::boolean
+             must_change_password::boolean, kyc_status, is_verified_bi::boolean,
+             profile_image
       FROM users
       WHERE email = ${email}
       LIMIT 1
