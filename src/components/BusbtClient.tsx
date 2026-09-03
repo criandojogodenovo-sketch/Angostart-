@@ -83,6 +83,101 @@ function formatDuration(seconds: number | null): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/* ── Causa raiz do «modal não fecha após 100%»: o POST /api/videos/confirm
+   não tinha timeout — se o pedido pendurasse (rede móvel instável, cold
+   start da serverless, API do Mux lenta), o fluxo ficava preso em
+   step='confirming' para sempre e isPublishing=true bloqueava o fecho do
+   diálogo. Agora: 15 s no confirm, 20 s na criação do Direct Upload. */
+const CONFIRM_TIMEOUT_MS = 15_000;
+const CREATE_TIMEOUT_MS = 20_000;
+
+/** Mensagem exigida para falha no passo de confirmação (o ficheiro JÁ
+    chegou ao Mux — o problema é só o registo/estado no servidor). */
+const CONFIRM_FAIL_MESSAGE =
+  'O vídeo foi enviado, mas não conseguiu ser registado. Tenta atualizar a página.';
+
+/** Erro do passo de confirmação — o PUT já concluiu; o «Tentar
+    novamente» refaz APENAS o confirm, sem re-enviar o vídeo. */
+class ConfirmError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfirmError';
+  }
+}
+
+interface ConfirmResult {
+  ok: boolean;
+  status?: string;
+  error?: string;
+}
+
+/**
+ * POST /api/videos/confirm com timeout (AbortController) e leitura de
+ * JSON tolerante a corpos não-JSON (ex.: página HTML de 502 da Vercel,
+ * que fazia confirmRes.json() rebentar com um erro críptico).
+ *
+ * - Lança em falha de rede/timeout (o chamador decide a mensagem).
+ * - Caso contrário devolve { ok, status?, error? }.
+ * - Log exato para diagnóstico no F12: [Busbt] Confirm response.
+ */
+async function confirmUpload(
+  videoId: string | null,
+  token: string
+): Promise<ConfirmResult> {
+  if (!videoId) return { ok: false, error: 'sem videoId' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CONFIRM_TIMEOUT_MS);
+  try {
+    const res = await fetch('/api/videos/confirm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ videoId }),
+      signal: controller.signal,
+    });
+    let data: { status?: string; error?: string } = {};
+    try {
+      data = await res.json();
+    } catch {
+      /* corpo não-JSON (erro de plataforma) — tratado como !ok abaixo */
+    }
+    console.log('[Busbt] Confirm response', {
+      videoId,
+      httpStatus: res.status,
+      ok: res.ok,
+      body: data,
+    });
+    return { ok: res.ok, status: data?.status, error: data?.error };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** fetch + JSON com timeout — evita modal congelado em rede lenta.
+    Corpo não-JSON é tolerado (data = null) em vez de lançar críptico. */
+async function fetchJsonWithTimeout<T>(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<{ ok: boolean; status: number; data: T | null }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    let data: T | null = null;
+    try {
+      data = await res.json();
+    } catch {
+      /* corpo não-JSON — ok=false/route trata */
+    }
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export default function BusbtClient() {
   const { user, loading: authLoading } = useAuth();
   const [videos, setVideos] = useState<VideoItem[]>([]);
@@ -104,6 +199,14 @@ export default function BusbtClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /* Guarda o videoId da tentativa atual — usado pelo resgate pós-erro. */
   const lastVideoIdRef = useRef<string | null>(null);
+  /* PUT já concluído com sucesso para ESTE ficheiro — o «Tentar
+     novamente» após falha do confirm refaz APENAS o confirm, sem
+     re-enviar o vídeo (até 100 MB) para o Mux. */
+  const putSucceededRef = useRef<{
+    videoId: string;
+    fileName: string;
+    fileSize: number;
+  } | null>(null);
   /* Guarda SÍNCRONA contra duplo clique: refs atualizam sem re-render,
      ao contrário do estado `step` (assíncrono) — dois cliques rápidos
      liam ambos step === 'idle' e criavam 2 uploads (cartões duplicados). */
@@ -180,8 +283,10 @@ export default function BusbtClient() {
          (mesmo key={id} → React reutiliza o DOM) em vez de criar
          cartões novos; ids repetidos nunca geram cartões duplicados. */
       setMyVideos((prev) => mergeVideosById(prev, data.videos));
-    } catch {
-      /* silencioso — a grelha pública continua */
+    } catch (loadError) {
+      /* Não derruba a UI — mas deixa de ser silencioso: registava no
+         console a razão pela qual um cartão novo não aparecia. */
+      console.warn('[Busbt] loadMine falhou (rede?)', loadError);
     }
   }, []);
 
@@ -263,6 +368,16 @@ export default function BusbtClient() {
       const saved = savedAttemptRef.current;
       const reuse =
         !!saved && saved.fileName === file.name && saved.fileSize === file.size;
+      /* O PUT já foi concluído com sucesso para ESTE ficheiro? (falha
+         só no confirm) — «Tentar novamente» NÃO reenvia o vídeo ao
+         Mux: refaz apenas o POST /api/videos/confirm. */
+      const putAlreadyDone =
+        !!saved &&
+        reuse &&
+        !!putSucceededRef.current &&
+        putSucceededRef.current.videoId === saved.videoId &&
+        putSucceededRef.current.fileName === file.name &&
+        putSucceededRef.current.fileSize === file.size;
       let uploadUrl: string;
       let videoId: string;
       if (saved && reuse) {
@@ -274,25 +389,38 @@ export default function BusbtClient() {
         });
       } else {
         setStep('creating');
-        const res = await fetch('/api/upload/video', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+        /* Timeout na criação: sem ele, um pedido preso deixava o modal
+           congelado em «A preparar…» (mesma classe do bug do confirm). */
+        const created = await fetchJsonWithTimeout<{
+          uploadUrl: string;
+          videoId: string;
+          corsOrigin?: string;
+          error?: string;
+        }>(
+          '/api/upload/video',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              filename: file.name,
+              /* MIME resolvido pela extensão quando o browser não o informa. */
+              contentType: resolveVideoMime(file),
+              size: file.size,
+              title,
+              description,
+            }),
           },
-          body: JSON.stringify({
-            filename: file.name,
-            /* MIME resolvido pela extensão quando o browser não o informa. */
-            contentType: resolveVideoMime(file),
-            size: file.size,
-            title,
-            description,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Falha ao iniciar o upload.');
-        uploadUrl = data.uploadUrl;
-        videoId = data.videoId;
+          CREATE_TIMEOUT_MS
+        );
+        if (!created.ok || !created.data) {
+          throw new Error(created.data?.error || 'Falha ao iniciar o upload.');
+        }
+        const createdData = created.data;
+        uploadUrl = createdData.uploadUrl;
+        videoId = createdData.videoId;
         savedAttemptRef.current = {
           videoId,
           uploadUrl,
@@ -301,60 +429,114 @@ export default function BusbtClient() {
         };
         lastVideoIdRef.current = videoId;
         console.info('[Busbt] Direct Upload criado', {
-          videoId: data.videoId,
-          corsOrigin: data.corsOrigin,
-          urlOrigin: safeOrigin(data.uploadUrl),
+          videoId: createdData.videoId,
+          corsOrigin: createdData.corsOrigin,
+          urlOrigin: safeOrigin(createdData.uploadUrl),
         });
       }
 
-      /* 2. PUT direto browser → Mux (o vídeo não passa pelo servidor). */
-      setStep('sending');
-      setProgress(0);
-      setRetryNote(null);
-      try {
-        await putFileToMux(uploadUrl, file, setProgress, (attempt, maxAttempts, reason) => {
-          const causa =
-            reason === 'timeout'
-              ? 'envio lento'
-              : reason === 'http'
-                ? 'erro do servidor'
-                : 'ligação instável';
-          setRetryNote(`Ligação instável (${causa}) — tentativa ${attempt} de ${maxAttempts}…`);
-        });
+      /* 2. PUT direto browser → Mux (o vídeo não passa pelo servidor).
+            Skip se o PUT já foi concluído — o retry refaz só o confirm
+            (evita re-enviar 100 MB por uma falha de confirmação). */
+      if (putAlreadyDone) {
+        console.log(
+          '[Busbt] Upload já concluído — a refazer apenas o confirm…',
+          { videoId }
+        );
+      } else {
+        setStep('sending');
+        setProgress(0);
         setRetryNote(null);
-      } catch (putError) {
-        /* URL definitivamente rejeitado (400/403/410 — expirado ou já
-           usado): descarta a tentativa guardada para o próximo retry
-           criar um upload novo. Falhas de rede/timeout MANTÊM o URL —
-           o retry reutiliza-o em vez de criar outra linha na BD. */
-        if (reuse && putError instanceof MuxUploadError && putError.kind === 'http') {
-          savedAttemptRef.current = null;
-          console.warn(
-            '[Busbt] Direct Upload reutilizado foi rejeitado — o próximo retry cria um novo',
-            { status: putError.status }
-          );
+        try {
+          await putFileToMux(uploadUrl, file, setProgress, (attempt, maxAttempts, reason) => {
+            const causa =
+              reason === 'timeout'
+                ? 'envio lento'
+                : reason === 'http'
+                  ? 'erro do servidor'
+                  : 'ligação instável';
+            setRetryNote(`Ligação instável (${causa}) — tentativa ${attempt} de ${maxAttempts}…`);
+          });
+          /* PUT 200 — os 100% são reais: o Mux confirmou a receção. */
+          putSucceededRef.current = {
+            videoId,
+            fileName: file.name,
+            fileSize: file.size,
+          };
+          setRetryNote(null);
+        } catch (putError) {
+          /* URL definitivamente rejeitado (400/403/410 — expirado ou já
+             usado): descarta a tentativa guardada para o próximo retry
+             criar um upload novo. Falhas de rede/timeout MANTÊM o URL —
+             o retry reutiliza-o em vez de criar outra linha na BD. */
+          if (reuse && putError instanceof MuxUploadError && putError.kind === 'http') {
+            savedAttemptRef.current = null;
+            console.warn(
+              '[Busbt] Direct Upload reutilizado foi rejeitado — o próximo retry cria um novo',
+              { status: putError.status }
+            );
+          }
+          throw putError;
         }
-        throw putError;
       }
 
-      /* 3. Confirmar: o Mux cria o asset e passa a processar. */
-      setStep('confirming');
-      const confirmRes = await fetch('/api/videos/confirm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ videoId }),
+      /* 3. Cartão «A processar» IMEDIATO — requisito do CTO: assim que
+            o upload chega a 100% e ANTES do confirm, o cartão já existe
+            na lista «Os Meus Vídeos». Se o confirm falhar, o utilizador
+            continua a ver o estado e o polling (hasPending → 10 s, com
+            self-healing no servidor) atualiza-o sozinho. */
+      setMyVideos((prev) =>
+        prev.some((v) => v.id === videoId)
+          ? prev /* já existe (retry) — nunca regredir o estado atual */
+          : mergeVideosById(prev, [
+              {
+                id: videoId,
+                user_id: user?.id ?? 0,
+                title: title || file.name,
+                description: description || null,
+                status: 'uploading',
+                playback_id: null,
+                duration_seconds: null,
+                error_message: null,
+                created_at: new Date().toISOString(),
+                author_name: user?.name ?? null,
+                author_username: user?.username ?? null,
+                author_verified: null,
+              },
+            ])
+      );
+      setActiveTab('meus'); /* o cartão fica visível ao fechar o diálogo */
+
+      /* 4. Confirmar: o Mux cria o asset e passa a processar.
+            Timeout de 15 s (AbortController) — a causa raiz do «modal
+            não fecha após 100%» era este pedido poder pendurar para
+            sempre, com isPublishing=true a bloquear o fecho. */
+      console.log('[Busbt] Upload complete, calling confirm...', {
+        videoId,
       });
-      const confirmData = await confirmRes.json();
-      if (!confirmRes.ok) {
-        throw new Error(confirmData.error || 'Falha ao confirmar o upload.');
+      setStep('confirming');
+      let confirmResult: ConfirmResult;
+      try {
+        confirmResult = await confirmUpload(videoId, token);
+      } catch (confirmNetError) {
+        console.error('[Busbt] Confirm não respondeu (rede/timeout)', {
+          videoId,
+          error: confirmNetError,
+        });
+        throw new ConfirmError(CONFIRM_FAIL_MESSAGE);
+      }
+      if (!confirmResult.ok) {
+        throw new ConfirmError(
+          confirmResult.error
+            ? `${CONFIRM_FAIL_MESSAGE} (${confirmResult.error})`
+            : CONFIRM_FAIL_MESSAGE
+        );
       }
 
-      /* 4. Sucesso — fecha o diálogo e mostra o estado "a processar". */
+      /* 5. Sucesso — fecha o diálogo e mostra o estado "a processar". */
       setStep('done');
       savedAttemptRef.current = null;
+      putSucceededRef.current = null;
       setDialogOpen(false);
       setActiveTab('meus'); /* o novo cartão aparece já na aba certa */
       resetDialog();
@@ -365,26 +547,20 @@ export default function BusbtClient() {
          mas o Mux processou o PUT. Confirma antes de declarar falha. */
       try {
         const token2 = getToken();
-        const rescueRes = token2
-          ? await fetch('/api/videos/confirm', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token2}`,
-              },
-              body: JSON.stringify({ videoId: lastVideoIdRef.current }),
-            })
+        /* Reutiliza o confirmUpload (timeout + log) no resgate. */
+        const rescue = token2
+          ? await confirmUpload(lastVideoIdRef.current, token2)
           : null;
-        const rescueData = rescueRes ? await rescueRes.json() : null;
         if (
-          rescueRes?.ok &&
-          (rescueData?.status === 'processing' || rescueData?.status === 'ready')
+          rescue?.ok &&
+          (rescue.status === 'processing' || rescue.status === 'ready')
         ) {
           console.info(
             '[Busbt] O vídeo chegou ao Mux apesar do erro de rede — a processar normalmente.'
           );
           setStep('done');
           savedAttemptRef.current = null;
+          putSucceededRef.current = null;
           setDialogOpen(false);
           setActiveTab('meus');
           resetDialog();
