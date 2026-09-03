@@ -6,7 +6,10 @@
  * env vars (os valores vivem só na Vercel).
  *
  * Distribuição de tarefas (decisão CTO):
- *   chat    → B_AI_API_KEY          → MiMo-V2.5      (chatbot de utilizadores)
+ *   chat    → B_AI_API_KEY          → Hy3 (Tencent)  (chatbot de utilizadores)
+ *             — trocado de MiMo-V2.5 para `hy3` a set/2026 (chave nova B.AI);
+ *               o ID oficial no catálogo do gateway é `hy3` e o default continua
+ *               overridável por B_AI_MODEL_CHAT na Vercel, sem novo deploy.
  *   vision  → B_AI_API_KEY_VISION   → GLM-5.3-Flash  (comprovativos — admin)
  *   monitor → B_AI_API_KEY_MONITOR  → Qwen3.8-Flash  (monitorização — admin)
  *
@@ -38,7 +41,10 @@ export const AI_TASK_ROUTES: Record<AiTask, AiTaskRoute> = {
   chat: {
     apiKeyEnv: 'B_AI_API_KEY',
     fallbackKeyEnvs: ['B_AI_API_KEY_VISION', 'B_AI_API_KEY_MONITOR'],
-    defaultModel: 'MiMo-V2.5',
+    /* Set/2026 (decisão CTO): chatbot passa a Tencent Hy3 — ID oficial
+       `hy3` no catálogo B.AI. Em produção, B_AI_MODEL_CHAT=hy3 (Vercel)
+       tem prioridade sobre este default. */
+    defaultModel: 'hy3',
     modelEnv: 'B_AI_MODEL_CHAT',
     label: 'Chatbot',
     audience: 'utilizadores',

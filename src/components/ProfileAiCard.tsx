@@ -4,7 +4,7 @@
  * AngoStart — Fase 21: «Analisar o meu perfil com IA» (self-service).
  *
  * Cartão no /perfil do vendedor: um clique envia bio + produtos/keywords +
- * avaliações para /api/ai/profile-analysis (tarefa 'chat' → MiMo-V2.5 no
+ * avaliações para /api/ai/profile-analysis (tarefa 'chat' → Hy3/Tencent no
  * servidor; chaves nunca expostas) e mostra o parecer:
  *   - nota 0-10 com anel de progresso;
  *   - resumo curto;

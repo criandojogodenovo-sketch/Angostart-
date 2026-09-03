@@ -74,7 +74,7 @@ check('3 tarefas: chat, vision, monitor', AI_TASKS.join(',') === 'chat,vision,mo
 check('chat → chave B_AI_API_KEY', AI_TASK_ROUTES.chat.apiKeyEnv === 'B_AI_API_KEY');
 check('vision → chave B_AI_API_KEY_VISION', AI_TASK_ROUTES.vision.apiKeyEnv === 'B_AI_API_KEY_VISION');
 check('monitor → chave B_AI_API_KEY_MONITOR', AI_TASK_ROUTES.monitor.apiKeyEnv === 'B_AI_API_KEY_MONITOR');
-check('chat → modelo default MiMo-V2.5', AI_TASK_ROUTES.chat.defaultModel === 'MiMo-V2.5');
+check('chat → modelo default hy3 (Tencent)', AI_TASK_ROUTES.chat.defaultModel === 'hy3');
 check('vision → modelo default GLM-5.3-Flash', AI_TASK_ROUTES.vision.defaultModel === 'GLM-5.3-Flash');
 check('monitor → modelo default Qwen3.8-Flash', AI_TASK_ROUTES.monitor.defaultModel === 'Qwen3.8-Flash');
 check('chat é tarefa de utilizadores (audience)', AI_TASK_ROUTES.chat.audience === 'utilizadores');
@@ -102,7 +102,7 @@ check('monitor (dedicada ausente + chat ausente) = null', resolveTaskKeyEnv('mon
 
 /* taskModel: default + override por env */
 delete process.env.B_AI_MODEL_CHAT;
-check('taskModel(chat) default = MiMo-V2.5', taskModel('chat') === 'MiMo-V2.5');
+check('taskModel(chat) default = hy3', taskModel('chat') === 'hy3');
 process.env.B_AI_MODEL_CHAT = 'outro-modelo';
 check('taskModel(chat) respeita override de env', taskModel('chat') === 'outro-modelo');
 delete process.env.B_AI_MODEL_CHAT;

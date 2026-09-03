@@ -22,8 +22,8 @@ export const preferredRegion = 'iad1';
 /**
  * POST /api/ai/chat — Fase 14/21: chatbot de suporte AngoStart (multimodal).
  *
- * - Roteamento (Fase 21): tarefa 'chat' → B.AI MiMo-V2.5 (multimodal),
- *   com fallback OpenRouter free. Chaves nunca expostas ao cliente.
+ * - Roteamento (Fase 21): tarefa 'chat' → B.AI Hy3 (Tencent, ID `hy3`;
+ *   antes MiMo-V2.5), com fallback OpenRouter free. Chaves nunca expostas.
  * - TEXTO: histórico multi-turn (últimas 10 mensagens) — como antes.
  * - IMAGEM: o utilizador anexa 1 imagem/mensagem (JPG/PNG/WebP ≤ 5 MB);
  *   o modelo multimodal analisa e responde. Quota 10 imagens/dia.

@@ -5,7 +5,7 @@ import 'server-only';
  * (self-service) — «Analisar o meu perfil com IA».
  *
  * Diferenças para lib/ai-seller.ts (que é o batch ADMIN/cron):
- *   - Tarefa 'chat' (MiMo-V2.5) — é uma feature de utilizador, não de
+ *   - Tarefa 'chat' (Hy3/Tencent) — é uma feature de utilizador, não de
  *     monitorização interna.
  *   - Inclui as AVALIAÇÕES (reviews) no contexto e devolve pontos fortes +
  *     pontos a melhorar, escritos para o próprio vendedor agir.

@@ -8,7 +8,7 @@ import 'server-only';
  * indisponível de um único fornecedor. Custo zero (planos gratuitos).
  *
  * ROTEAMENTO POR TAREFA (Fase 21 — ver lib/ai/task-routing.ts):
- *   chat    → B.AI B_AI_API_KEY          → MiMo-V2.5      (chatbot)
+ *   chat    → B.AI B_AI_API_KEY          → Hy3 (Tencent)  (chatbot)
  *   vision  → B.AI B_AI_API_KEY_VISION   → GLM-5.3-Flash  (comprovativos)
  *   monitor → B.AI B_AI_API_KEY_MONITOR  → Qwen3.8-Flash  (monitorização)
  *   Cada modelo fica na SUA área; se a chave dedicada falhar/ausente,
@@ -56,7 +56,7 @@ import 'server-only';
  * os modelos são overridáveis via env sem novo deploy de código:
  *   OPENROUTER_MODEL_TEXT / OPENROUTER_MODEL_VISION / GEMINI_MODEL /
  *   GROQ_MODEL_CHAT / GROQ_MODEL_VISION / CEREBRAS_MODEL / SAMBANOVA_MODEL /
- *   B_AI_MODEL_CHAT (default MiMo-V2.5) / B_AI_MODEL_VISION (default
+ *   B_AI_MODEL_CHAT (default hy3) / B_AI_MODEL_VISION (default
  *   GLM-5.3-Flash) / B_AI_MODEL_MONITOR (default Qwen3.8-Flash)
  *
  * Licenças (uso comercial): modelos open-weight — verificar os termos no
@@ -144,8 +144,9 @@ export const PROVIDERS: ProviderConfig[] = [
        encaminha /v1/* → https://api.b.ai/v1/*) SEM novo deploy de código. */
     baseURL: envOr('B_AI_BASE_URL', 'https://api.b.ai/v1'),
     apiKeyEnv: 'B_AI_API_KEY',
-    // Defaults = roteamento por tarefa definido pelo CTO (Fase 21):
-    //  - chat    (B_AI_API_KEY)         → MiMo-V2.5
+    // Defaults = roteamento por tarefa definido pelo CTO (Fase 21; chat
+    //  passado a Hy3/Tencent em set/2026 — ver lib/ai/task-routing.ts):
+    //  - chat    (B_AI_API_KEY)         → hy3
     //  - vision  (B_AI_API_KEY_VISION)  → GLM-5.3-Flash
     //  - monitor (B_AI_API_KEY_MONITOR) → Qwen3.8-Flash
     // IDs overridáveis por env; se um ID estiver errado, a cadeia salta

@@ -15,7 +15,7 @@ export const preferredRegion = 'iad1';
  *
  * - 🔒 Utilizador autenticado — cada vendedor analisa o SEU perfil
  *   (bio + produtos/keywords + avaliações); nunca o de outro.
- * - Tarefa 'chat' (MiMo-V2.5) — feature de utilizador.
+ * - Tarefa 'chat' (Hy3/Tencent) — feature de utilizador.
  * - Quota: 3 análises/dia por utilizador (anti-abuso da API gratuita).
  * - GET devolve o saldo de análises de hoje (para a UI desativar o botão).
  *
