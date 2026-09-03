@@ -535,6 +535,43 @@
 .dark .text-blue-700 {
   color: #93c5fd;
 }
+/* Tintos claros para textos coloridos hardcoded (evita azul-escuro sobre
+   fundo-escuro, ex.: strip informativo do /perfil) */
+.dark .text-blue-800 {
+  color: #bfdbfe;
+}
+.dark .text-blue-900 {
+  color: #dbeafe;
+}
+.dark .text-sky-800,
+.dark .text-sky-900 {
+  color: #bae6fd;
+}
+.dark .text-teal-700,
+.dark .text-teal-800,
+.dark .text-teal-900 {
+  color: #5eead4;
+}
+.dark .text-green-800,
+.dark .text-green-900 {
+  color: #86efac;
+}
+.dark .text-amber-800,
+.dark .text-amber-900 {
+  color: #fcd34d;
+}
+.dark .text-purple-800,
+.dark .text-purple-900 {
+  color: #d8b4fe;
+}
+.dark .text-indigo-800,
+.dark .text-indigo-900 {
+  color: #a5b4fc;
+}
+.dark .text-red-800,
+.dark .text-red-900 {
+  color: #fca5a5;
+}
 
 /* Transição suave ao trocar de tema */
 body,
