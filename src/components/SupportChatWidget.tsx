@@ -62,6 +62,55 @@ const ABERTURA: Turn = {
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_RECORD_SECONDS = 120; // 2 minutos
+/* Hotfix "IA demora em rede móvel": a cadeia server-side tem orçamento de
+   55 s (maxDuration 60 s − margem). O cliente espera 70 s — cobre o pior
+   caso + latência de rede, sem abortar respostas que ainda vão chegar. */
+const CHAT_TIMEOUT_MS = 70_000;
+
+/**
+ * Mensagem ESPECÍFICA por tipo de falha do getUserMedia — o erro genérico
+ * antigo confundia "permissão negada" com "sem microfone"/"micro ocupado".
+ */
+function micErrorMessage(error: unknown): string {
+  const name =
+    error && typeof error === 'object' && 'name' in error
+      ? String((error as { name?: unknown }).name)
+      : '';
+  switch (name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+      return (
+        'Permissão do microfone NEGADA. Para ativar: toca no ícone de cadeado ' +
+        '(ou ℹ️) na barra de endereço do navegador → Permissões → Microfone → ' +
+        'Permitir, e tenta de novo. Em iPhone: Definições → Safari → Microfone.'
+      );
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return (
+        'Nenhum microfone foi detetado neste dispositivo. Verifica se o ' +
+        'dispositivo tem microfone ativo e tenta de novo — ou escreve a tua dúvida.'
+      );
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return (
+        'O microfone está a ser usado por outra aplicação (chamada, gravação ' +
+        'ou outra aba). Fecha essa aplicação e tenta de novo.'
+      );
+    case 'OverconstrainedError':
+      return 'Este navegador não suporta a gravação pedida — atualiza o navegador ou escreve a tua dúvida.';
+    case 'SecurityError':
+      return (
+        'A gravação de áudio só funciona em ligação segura (HTTPS). Abre o ' +
+        'site em https://angostart.vercel.app e tenta de novo.'
+      );
+    default:
+      return (
+        'Não consegui aceder ao microfone — verifica as permissões do navegador ' +
+        '(ícone de cadeado na barra de endereço → Microfone → Permitir) e tenta de novo. ' +
+        'Se persistir, escreve a tua dúvida.'
+      );
+  }
+}
 
 /** Evento global usado pela BottomNav ("IA") para abrir o widget. */
 export const AI_CHAT_OPEN_EVENT = 'angostart:ai-open';
@@ -168,6 +217,15 @@ export default function SupportChatWidget() {
 
   async function iniciarGravacao() {
     setErro(null);
+    /* Sem mediaDevices = contexto inseguro (HTTP) ou navegador antigo —
+       chamar getUserMedia lançaria TypeError com a mensagem genérica errada. */
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setErro(
+        'Este navegador não suporta gravação de áudio (ou a ligação não é segura). ' +
+          'Abre o site em https://angostart.vercel.app com Chrome/Safari atualizado, ou escreve a tua dúvida.'
+      );
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -210,10 +268,11 @@ export default function SupportChatWidget() {
           return s + 1;
         });
       }, 1000);
-    } catch {
-      setErro(
-        'Não consegui aceder ao microfone — verifica as permissões do navegador.'
-      );
+    } catch (error) {
+      /* Hotfix: mensagem ESPECÍFICA por causa (permissão negada ≠ sem
+         microfone ≠ micro ocupado) — antes era uma só para tudo. */
+      console.warn('[SuporteIA] getUserMedia falhou:', error);
+      setErro(micErrorMessage(error));
     }
   }
 
@@ -272,8 +331,9 @@ export default function SupportChatWidget() {
     setErro(null);
 
     try {
-      // Fase 21: timeout 45 s — áudio são 2 chamadas (transcrição + resposta)
-      // em cascata; 30 s ficava curto em redes 4G lentas.
+      // Hotfix: 70 s — a cadeia server-side tem orçamento de 55 s (3 providers
+      // em cascata: B.AI 45 s → OpenRouter 30 s → Gemini 30 s, limitados pelo
+      // deadline); 45 s abortava respostas que ainda vinham a caminho.
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -285,7 +345,7 @@ export default function SupportChatWidget() {
           ...(imagemEnviada ? { image: imagemEnviada.dataUrl } : {}),
           ...(audioEnviado ? { audio: audioEnviado.dataUrl } : {}),
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
       if (res.ok && data.reply) {
@@ -391,7 +451,9 @@ export default function SupportChatWidget() {
             {aEnviar && (
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {enviandoAudio ? 'A transcrever o áudio…' : 'A escrever…'}
+                {enviandoAudio
+                  ? 'A transcrever o áudio…'
+                  : 'A escrever… (pode levar até 1 minuto em rede lenta)'}
               </div>
             )}
             {erro && (

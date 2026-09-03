@@ -138,11 +138,15 @@ function putFileOnce(
 /**
  * PUT para o Mux com retry (3 tentativas extras: 1 s, 2 s, 4 s),
  * timeout de 120 s por tentativa e logs de diagnóstico no console.
+ *
+ * `onRetryAttempt` (opcional) avisa a UI a cada nova tentativa — mostra
+ * "Tentativa 2 de 4…" no diálogo em vez de deixar o utilizador às cegas.
  */
 export async function putFileToMux(
   uploadUrl: string,
   file: File,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  onRetryAttempt?: (attempt: number, maxAttempts: number, reason: string) => void
 ): Promise<void> {
   const mime = resolveVideoMime(file);
   const diagnostics = {
@@ -188,6 +192,7 @@ export async function putFileToMux(
       console.warn(
         `[Busbt] Nova tentativa em ${delay / 1000} s (falhou ${err.kind})…`
       );
+      onRetryAttempt?.(attempt + 2, RETRY_DELAYS_MS.length + 1, err.kind);
       onProgress(0);
       await new Promise((r) => setTimeout(r, delay));
     }

@@ -15,19 +15,28 @@ import 'server-only';
  *   as outras chaves B.AI servem de emergência e, depois, o resto da
  *   cadeia (OpenRouter free) entra como último recurso.
  *
- * CADEIA DE FALLBACK (ordem de prioridade, definida pelo CTO — Fase 19b):
+ * CADEIA DE FALLBACK (ordem de prioridade; hotfix "IA não responde em
+ * rede móvel" — timeouts subidos para 45s/30s a pedido do CTO, porque os
+ * 15s/8s antigos CORTAVAM respostas que só demoravam a chegar em 4G):
  *   0. bai          — B.AI (gateway unificado estilo Z.ai): UMA chave, OpenAI-
  *                     compat, modelos flagship gratuitos (glm-5.3-flash,
  *                     deepseek-v4-flash; visão: deepseek-v4-flash-vision-exp).
- *                     PRINCIPAL — timeout curto 15s (redes móveis 4G).
+ *                     PRINCIPAL — timeout 45s (redes móveis lentas de Angola).
  *   1. openrouter  — 18 modelos :free (50 req/dia; 1000/dia com ≥10 créditos
  *                    na conta; 20 req/min). Texto E visão (:free com imagem).
- *                    ÚNICO fallback — timeout agressivo 8s.
- *   Se AMBOS falharem, a rota devolve mensagem amigável ao utilizador
- *   (tempo máximo de espera ≈ 23s — cabe nos limites da Vercel e do 4G).
+ *                    Fallback — timeout 30s.
+ *   2. gemini      — Google AI Studio (OpenAI-compat). RESERVA ATIVADA
+ *                    (hotfix): entra na cadeia quando B.AI E OpenRouter
+ *                    atingem limites/rate — multimodal (texto+imagem).
+ *   Se TODOS falharem, a rota devolve mensagem amigável ao utilizador.
+ *
+ * ORÇAMENTO DE TEMPO (deadline): a rota de chat passa um deadline (~55 s)
+ * e cada tentativa usa min(timeout do provider, tempo restante) — o total
+ * NUNCA excede o maxDuration=60 s da Vercel, mesmo com timeouts generosos.
+ * Falhas rápidas (429/401) libertam o resto do orçamento para o próximo.
  *
  * RESERVA (fora da cadeia — `inChain: false`, reativáveis por env/commit se
- * o CTO decidir): gemini, groq, cerebras, sambanova. Continuam no status de
+ * o CTO decidir): groq, cerebras, sambanova. Continuam no status de
  * diagnóstico mas NUNCA são chamados em produção — evitam esperas de 30s+
  * em cascata em redes lentas.
  *
@@ -110,7 +119,7 @@ export interface ProviderConfig {
   inChain?: boolean;
 }
 
-/** Lê env var numérico no momento da chamada (tuning de timeout sem deploy). */
+/** Lê env var numérica no momento da chamada (tuning de timeout sem deploy). */
 function envNum(key: string, fallback: number): number {
   const v = Number(process.env[key]);
   return Number.isFinite(v) && v > 0 ? v : fallback;
@@ -143,8 +152,10 @@ export const PROVIDERS: ProviderConfig[] = [
     taskKeyEnv: (task) => resolveTaskKeyEnv(task),
     jsonMode: true,
     extraHeaders: () => ({}),
-    // Fase 19b: timeout curto — 4G não deve esperar 30s pelo principal.
-    timeoutMs: envNum('AI_TIMEOUT_BAI_MS', 15_000),
+    // Hotfix "IA não responde": 15s cortava respostas válidas em redes
+    // móveis lentas (o modelo levava 20-40s). 45s cobre o pior 4G;
+    // overridável por env AI_TIMEOUT_BAI_MS sem novo deploy.
+    timeoutMs: envNum('AI_TIMEOUT_BAI_MS', 45_000),
     inChain: true,
   },
   {
@@ -167,8 +178,9 @@ export const PROVIDERS: ProviderConfig[] = [
         process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://angostart.ao',
       'X-Title': 'AngoStart',
     }),
-    // Fase 19b: único fallback — agressivo 8s (pior caso total ≈ 23s).
-    timeoutMs: envNum('AI_TIMEOUT_OPENROUTER_MS', 8_000),
+    // Hotfix: 8s era demasiado agressivo para o free tier em hora de pico
+    // (fila do modelo) — 30s dá margem; overridável AI_TIMEOUT_OPENROUTER_MS.
+    timeoutMs: envNum('AI_TIMEOUT_OPENROUTER_MS', 30_000),
     inChain: true,
   },
   {
@@ -181,8 +193,11 @@ export const PROVIDERS: ProviderConfig[] = [
     visionModel: () => envOr('GEMINI_MODEL', 'gemini-2.5-flash'),
     jsonMode: true,
     extraHeaders: () => ({}),
-    timeoutMs: 30_000,
-    inChain: false, // reserva — fora da cadeia (Fase 19b)
+    timeoutMs: envNum('AI_TIMEOUT_GEMINI_MS', 30_000),
+    // Hotfix (CTO): reserva ATIVADA — 3.º fallback quando B.AI e OpenRouter
+    // atingem limites/rate. Só é chamada se os dois primeiros falharem E
+    // ainda haver orçamento de tempo no deadline da rota.
+    inChain: true,
   },
   {
     name: 'groq',
@@ -199,7 +214,7 @@ export const PROVIDERS: ProviderConfig[] = [
     inChain: false, // reserva — fora da cadeia (Fase 19b)
   },
   {
-    name: 'cerebras',
+    name: 'cerebras', // (mantido como reserva)
     label: 'Cerebras',
     baseURL: 'https://api.cerebras.ai/v1',
     apiKeyEnv: 'CEREBRAS_API_KEY',
@@ -314,11 +329,24 @@ export async function callProvider(
   model: string,
   messages: AiMessage[],
   opts: CallOptions = {},
-  keyEnv?: string | null
+  keyEnv?: string | null,
+  /** Hotfix deadline: limita esta chamada ao tempo restante do orçamento. */
+  timeoutOverrideMs?: number
 ): Promise<string> {
   const envName = keyEnv || provider.taskKeyEnv?.('chat') || provider.apiKeyEnv;
   const apiKey = process.env[envName]?.trim();
   if (!apiKey) throw new Error(`${envName} não configurada.`);
+
+  /* Timeout resolvido NO MOMENTO da chamada (tuning por env sem novo
+     deploy — ex.: AI_TIMEOUT_BAI_MS / AI_TIMEOUT_OPENROUTER_MS) e
+     limitado ao orçamento restante da rota (deadline). */
+  const configuredMs = envNum(
+    `AI_TIMEOUT_${provider.name.toUpperCase()}_MS`,
+    provider.timeoutMs
+  );
+  const effectiveMs = timeoutOverrideMs
+    ? Math.max(1_000, Math.min(configuredMs, timeoutOverrideMs))
+    : configuredMs;
 
   const url = `${provider.baseURL.replace(/\/+$/, '')}/chat/completions`;
   const body: Record<string, unknown> = {
@@ -339,7 +367,7 @@ export async function callProvider(
       ...provider.extraHeaders(),
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(provider.timeoutMs),
+    signal: AbortSignal.timeout(effectiveMs),
   });
 
   if (!response.ok) {
@@ -394,7 +422,9 @@ export async function runFallbackChain(
   messages: AiMessage[],
   type: ModelType,
   opts: CallOptions = {},
-  task: AiTask = type === 'vision' ? 'vision' : 'chat'
+  task: AiTask = type === 'vision' ? 'vision' : 'chat',
+  /** Epoch ms — nenhuma tentativa ultrapassa este limite (rota Vercel). */
+  deadline?: number
 ): Promise<ChainResult | null> {
   const chain = configuredProviders(type, task);
   if (chain.length === 0) {
@@ -409,8 +439,29 @@ export async function runFallbackChain(
   const attempts: ChainAttempt[] = [];
   const startedAt = Date.now();
   for (const { provider, model, keyEnv } of chain) {
+    /* Orçamento de tempo: sem deadline usa o timeout nativo do provider;
+       com deadline, cada tentativa fica limitada ao tempo restante — e
+       paramos ANTES de iniciar uma chamada que já não teria 3 s úteis. */
+    const remainingMs = deadline ? deadline - Date.now() : Infinity;
+    if (remainingMs < 3_000) {
+      console.error(
+        `[lib/ai] orçamento de tempo esgotado (${Math.round(remainingMs)} ms) ` +
+          `— interrompo a cadeia antes de ${provider.name}.`
+      );
+      break;
+    }
+    const timeoutOverride = Number.isFinite(remainingMs)
+      ? Math.min(provider.timeoutMs, remainingMs)
+      : undefined;
     try {
-      const content = await callProvider(provider, model, messages, opts, keyEnv);
+      const content = await callProvider(
+        provider,
+        model,
+        messages,
+        opts,
+        keyEnv,
+        timeoutOverride
+      );
       if (content) {
         if (attempts.length > 0) {
           console.warn(

@@ -31,6 +31,12 @@ export interface ChatOptions {
    * (default 'chat'; 'monitor' para lote admin — Qwen3.8-Flash).
    */
   task?: AiTask;
+  /**
+   * Hotfix "IA não responde": epoch ms limite para a cadeia inteira —
+   * cada provider usa min(seu timeout, tempo restante). Rotas Vercel
+   * passam maxDuration − margem para a resposta nunca ser cortada.
+   */
+  deadline?: number;
 }
 
 export interface AiTurn {
@@ -62,7 +68,8 @@ export async function aiChatTurns(
       temperature: options.temperature ?? 0.4,
       maxTokens: options.maxTokens ?? 500,
     },
-    options.task ?? 'chat'
+    options.task ?? 'chat',
+    options.deadline
   );
   return result?.content ?? null;
 }

@@ -36,11 +36,21 @@ interface MuxWebhookEvent {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   const rawBody = await request.text();
 
   /* 1. Assinatura — antes de qualquer processamento. */
   const valid = await verifyWebhookSignature(rawBody, request.headers);
   if (!valid) {
+    /* 🔍 Diagnóstico do "vídeo preso em uploading": 401 aqui significa
+       MUX_WEBHOOK_SECRET ausente/diferente na Vercel OU webhook mal
+       configurado no painel do Mux — TODOS os eventos ficam bloqueados. */
+    console.error(
+      '[API /api/mux/webhook] 401 assinatura INVÁLIDA (bytes=' + rawBody.length + '). ' +
+        'Causas: MUX_WEBHOOK_SECRET não definido na Vercel, valor diferente do ' +
+        'painel Mux (Settings → Webhooks) ou proxy a alterar o corpo. ' +
+        'Sem correção, os vídeos FICAM PRESOS em uploading/processing.'
+    );
     return NextResponse.json(
       { error: 'Assinatura do webhook inválida.' },
       { status: 401 }
@@ -57,6 +67,11 @@ export async function POST(request: NextRequest) {
   const assetId = event.data?.id ?? null;
   const passthrough = event.data?.passthrough ?? null;
   const type = event.type ?? '';
+
+  console.info(
+    `[API /api/mux/webhook] evento ${type || '(sem tipo)'} asset=${assetId ?? '—'} ` +
+      `passthrough=${passthrough ?? '—'}`
+  );
 
   /* Só tratamos eventos de asset. */
   if (!type.startsWith('video.asset.')) {
@@ -81,6 +96,10 @@ export async function POST(request: NextRequest) {
     if (!row) {
       /* Vídeo eliminado localmente antes do evento — resposta 200 para
          o Mux não insistir (retries). */
+      console.warn(
+        `[API /api/mux/webhook] ${type}: nenhum vídeo local para asset=${assetId} ` +
+          'passthrough=' + (passthrough ?? '—') + ' (eliminado antes do evento?)'
+      );
       return NextResponse.json({ received: true, matched: false });
     }
 
@@ -100,11 +119,18 @@ export async function POST(request: NextRequest) {
             updated_at = now()
         WHERE id = ${row.id}
       `;
+      console.info(
+        `[API /api/mux/webhook] vídeo ${row.id} → READY (playback=${playbackId ?? '—'}, ` +
+          `${duration ?? '?'}s, ${Date.now() - startedAt} ms)`
+      );
       return NextResponse.json({ received: true, status: 'ready' });
     }
 
     if (type === 'video.asset.errored') {
       const message = (event.data?.errors?.messages?.[0] ?? 'Processamento falhou no Mux.').slice(0, 500);
+      console.error(
+        `[API /api/mux/webhook] vídeo ${row.id} → ERRORED: ${message}`
+      );
       const updated = (await sql`
         UPDATE videos
         SET status = 'errored',

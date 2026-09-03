@@ -34,6 +34,13 @@ const MAX_CONTENT_LEN = 800;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // ~2 min de Opus/HE-AAC cabem folgados
 
+/* Hotfix "IA não responde": orçamento total da cadeia de IA (todos os
+   providers em cascata) — fica 5 s abaixo do maxDuration=60 s da Vercel
+   para o JSON/resposta chegar ao cliente. Cada provider usa
+   min(seu timeout, tempo restante); falhas rápidas (429/401) libertam
+   orçamento para o fallback seguinte. */
+const AI_BUDGET_MS = 55_000;
+
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 const AUDIO_FORMATS: Record<string, string> = {
   'audio/webm': 'webm',
@@ -72,9 +79,18 @@ function base64Bytes(base64: string): number {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+  /* Hotfix: orçamento partilhado por TODAS as chamadas de IA deste pedido
+     (transcrição + resposta em cascata no caso de áudio). */
+  const deadline = startedAt + AI_BUDGET_MS;
+
   /* 🔒 30 req/min: por utilizador autenticado, senão por IP. */
   const user = await getAuthUser(request).catch(() => null);
   if (!rateLimit(clientKey(request, user ? `ai-chat-u${user.id}` : 'ai-chat-anon'), 30, 60_000)) {
+    console.warn(
+      `[API /api/ai/chat] 429 rate limit — user=${user?.id ?? 'anónimo'} ` +
+        `em ${Date.now() - startedAt} ms`
+    );
     return NextResponse.json(
       { error: 'Aguarda um minuto antes de enviares mais mensagens.' },
       { status: 429 }
@@ -188,7 +204,8 @@ export async function POST(request: NextRequest) {
       ],
       'text',
       { temperature: 0, maxTokens: 500 },
-      'chat'
+      'chat',
+      deadline
     );
     const transcript = result?.content?.trim();
     if (!transcript || /^\[áudio ininteligível\]$/i.test(transcript)) {
@@ -216,6 +233,9 @@ export async function POST(request: NextRequest) {
 
   /* 🛡️ Anti-injeção: tentativa de jailbreak nem chega ao modelo. */
   if (userText && containsPromptInjection(userText)) {
+    console.warn(
+      `[API /api/ai/chat] injeção bloqueada — user=${user?.id ?? 'anónimo'}`
+    );
     return NextResponse.json({
       reply:
         'Não posso alterar as minhas regras de funcionamento — sou o suporte da AngoStart. ' +
@@ -225,6 +245,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (!aiAvailable()) {
+    console.error(
+      '[API /api/ai/chat] 503 — nenhum provider de IA configurado (sem chaves no ambiente).'
+    );
     return NextResponse.json(
       {
         error:
@@ -237,6 +260,11 @@ export async function POST(request: NextRequest) {
 
   /* Histórico para o modelo: se há imagem, o último turno vira partes
      multimodais (texto + imagem); caso contrário, texto simples. */
+  console.info(
+    `[API /api/ai/chat] pedido user=${user?.id ?? 'anónimo'} ` +
+      `turns=${turns.length} imagem=${imagePart ? 'sim' : 'não'} ` +
+      `áudio=${audioTranscript ? 'sim' : 'não'}`
+  );
   const modelTurns: { role: 'user' | 'assistant'; content: string }[] = turns;
   if (imagePart) {
     /* Substitui o último turno do utilizador por versão com anotação. */
@@ -260,7 +288,7 @@ export async function POST(request: NextRequest) {
         ],
       },
     ];
-    const reply = await aiChatTurnsFromMessages(messages);
+    const reply = await aiChatTurnsFromMessages(messages, deadline);
     return finish(reply);
   }
 
@@ -270,13 +298,18 @@ export async function POST(request: NextRequest) {
       ...modelTurns.slice(0, -1),
       { role: 'user', content: userText || 'Olá!' },
     ],
-    { maxTokens: 400 }
+    { maxTokens: 400, deadline }
   );
   return finish(reply);
 
   /* Resposta final (o cliente nunca vê provider/modelo). */
   function finish(r: string | null) {
+    const latency = Date.now() - startedAt;
     if (!r) {
+      console.error(
+        `[API /api/ai/chat] 502 sem resposta após ${latency} ms — ` +
+          'todos os providers falharam (ver [lib/ai] acima para os erros exatos).'
+      );
       return NextResponse.json(
         {
           error:
@@ -285,17 +318,22 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
+    console.info(`[API /api/ai/chat] 200 OK em ${latency} ms`);
     return NextResponse.json({ reply: r });
   }
 }
 
 /** Chamada direta com mensagens já multimodais (imagem na última). */
-async function aiChatTurnsFromMessages(messages: AiMessage[]): Promise<string | null> {
+async function aiChatTurnsFromMessages(
+  messages: AiMessage[],
+  deadline: number
+): Promise<string | null> {
   const result = await runFallbackChain(
     messages,
     'text',
     { temperature: 0.4, maxTokens: 500 },
-    'chat'
+    'chat',
+    deadline
   );
   return result?.content ?? null;
 }

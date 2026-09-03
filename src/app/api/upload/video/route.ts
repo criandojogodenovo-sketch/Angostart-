@@ -68,6 +68,7 @@ function resolveCorsOrigin(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   if (!isMuxConfigured()) {
     return NextResponse.json(
       {
@@ -158,6 +159,11 @@ export async function POST(request: NextRequest) {
       WHERE id = ${videoId}
     `;
 
+    console.info(
+      `[API /api/upload/video] 201 Direct Upload criado video=${videoId} ` +
+        `upload=${uploadId} em ${Date.now() - startedAt} ms`
+    );
+
     return NextResponse.json(
       {
         uploadUrl,
@@ -181,7 +187,10 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('[API /api/upload/video] Erro:', error);
+    console.error(
+      `[API /api/upload/video] 503 após ${Date.now() - startedAt} ms:`,
+      error instanceof Error ? error.message : error
+    );
     return NextResponse.json(
       { error: 'Não foi possível iniciar o upload agora. Tenta novamente em instantes.' },
       { status: 503 }

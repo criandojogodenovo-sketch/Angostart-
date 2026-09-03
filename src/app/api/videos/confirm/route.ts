@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
 
     /* Pergunta ao Mux: o PUT do browser já criou o asset? */
     const upload = await getUploadStatus(video.mux_upload_id);
+    console.info(
+      `[API /api/videos/confirm] video=${videoId} status_bd=${video.status} ` +
+        `mux_upload=${upload.status ?? '—'} assetId=${upload.assetId ?? '—'}`
+    );
 
     if (upload.assetId) {
       const asset = await getAssetStatus(upload.assetId);
@@ -82,11 +86,17 @@ export async function POST(request: NextRequest) {
             updated_at = now()
         WHERE id = ${videoId}
       `;
+      console.info(
+        `[API /api/videos/confirm] video=${videoId} → ${status} (asset=${upload.assetId})`
+      );
       return NextResponse.json({ status });
     }
 
     /* Ainda 'waiting' — o PUT não terminou (ou falhou silenciosamente). */
     if (upload.status === 'errored' || upload.status === 'cancelled' || upload.status === 'timed_out') {
+      console.error(
+        `[API /api/videos/confirm] video=${videoId} → ERRORED (upload Mux: ${upload.status})`
+      );
       await sql`
         UPDATE videos
         SET status = 'errored', error_message = ${`Upload no Mux: ${upload.status}`},
@@ -96,6 +106,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'errored' });
     }
 
+    console.info(
+      `[API /api/videos/confirm] video=${videoId} ainda a aguardar PUT do browser (asset não criado)`
+    );
     return NextResponse.json({ status: 'uploading' });
   } catch (error) {
     if (isUndefinedTableError(error)) {

@@ -98,6 +98,9 @@ export default function BusbtClient() {
   const [step, setStep] = useState<PublishStep>('idle');
   const [progress, setProgress] = useState(0);
   const [publishError, setPublishError] = useState<string | null>(null);
+  /* Hotfix UX: aviso "Tentativa 2 de 4…" durante retries de rede —
+     o utilizador deixa de pensar que o envio morreu a meio. */
+  const [retryNote, setRetryNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /* Guarda o videoId da tentativa atual — usado pelo resgate pós-erro. */
   const lastVideoIdRef = useRef<string | null>(null);
@@ -231,6 +234,7 @@ export default function BusbtClient() {
     setProgress(0);
     setStep('idle');
     setPublishError(null);
+    setRetryNote(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -306,8 +310,18 @@ export default function BusbtClient() {
       /* 2. PUT direto browser → Mux (o vídeo não passa pelo servidor). */
       setStep('sending');
       setProgress(0);
+      setRetryNote(null);
       try {
-        await putFileToMux(uploadUrl, file, setProgress);
+        await putFileToMux(uploadUrl, file, setProgress, (attempt, maxAttempts, reason) => {
+          const causa =
+            reason === 'timeout'
+              ? 'envio lento'
+              : reason === 'http'
+                ? 'erro do servidor'
+                : 'ligação instável';
+          setRetryNote(`Ligação instável (${causa}) — tentativa ${attempt} de ${maxAttempts}…`);
+        });
+        setRetryNote(null);
       } catch (putError) {
         /* URL definitivamente rejeitado (400/403/410 — expirado ou já
            usado): descarta a tentativa guardada para o próximo retry
@@ -544,7 +558,12 @@ export default function BusbtClient() {
                 disabled={isPublishing}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Plus className="h-5 w-5" /> Publicar Vídeo
+                {isPublishing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Plus className="h-5 w-5" />
+                )}
+                Publicar Vídeo
               </button>
             ) : (
               <Link
@@ -841,6 +860,11 @@ export default function BusbtClient() {
                     style={{ width: `${progress}%` }}
                   />
                 </div>
+                {retryNote && (
+                  <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" /> {retryNote}
+                  </p>
+                )}
               </div>
             )}
 
@@ -886,7 +910,12 @@ export default function BusbtClient() {
               >
                 {isPublishing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> A enviar…
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {step === 'sending'
+                      ? `A enviar… ${progress}%`
+                      : step === 'creating'
+                        ? 'A preparar…'
+                        : 'A confirmar…'}
                   </>
                 ) : (
                   <>
