@@ -18,6 +18,17 @@
  * - Mantém as últimas 8 mensagens como contexto (o servidor corta a 10).
  * - Rate limit no servidor: 30 msg/min. Erros mostram fallback humano.
  * - Nunca envia dados sensíveis: aviso fixo "não partilhes a tua senha".
+ *
+ * Hotfix set/2026 (CTO — «funcionar em qualquer rede e dispositivo»):
+ * - P1 MIC: permissions.query ANTES de pedir; getUserMedia com teto 12 s
+ *   (Androids deixavam o botão morto); MediaRecorder com fallback sem
+ *   mimeType; permissão do site ativa + NotAllowedError = bloqueio do
+ *   SISTEMA → mensagem alternativa dedicada (dados móveis/definições).
+ * - P2: respostas completas — max_tokens 2048 no servidor (era 400/500).
+ * - P3 AUTH: token do AuthContext em TODOS os envios (imagens/áudio eram
+ *   401 mesmo autenticado); 401 → «A tua sessão expirou…».
+ * - P4 LATÊNCIA: 70 s por tentativa + 1 retry com backoff só em falha de
+ *   rede rápida (timeout não repete); JSON corrompido tem mensagem própria.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -33,6 +44,10 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+/* P3 (set/2026): token do AuthContext em TODOS os envios — sem o header
+   Authorization o servidor tratava utilizador autenticado como anónimo e
+   imagens/áudio eram rejeitados com «Entra na tua conta» (401). */
+import { authHeaders } from '@/context/AuthContext';
 
 interface Turn {
   role: 'user' | 'assistant';
@@ -66,6 +81,11 @@ const MAX_RECORD_SECONDS = 120; // 2 minutos
    55 s (maxDuration 60 s − margem). O cliente espera 70 s — cobre o pior
    caso + latência de rede, sem abortar respostas que ainda vão chegar. */
 const CHAT_TIMEOUT_MS = 70_000;
+/* P1: teto para o getUserMedia — em alguns Androids o pedido fica preso
+   (hardware ocupado/driver lento) e o botão de gravar morria sem feedback. */
+const MIC_GUM_TIMEOUT_MS = 12_000;
+/* P4: backoff antes do retry de rede (só falha rápida; timeout não repete). */
+const RETRY_BACKOFF_MS = 1_500;
 
 /**
  * Mensagem ESPECÍFICA por tipo de falha do getUserMedia — o erro genérico
@@ -80,9 +100,12 @@ function micErrorMessage(error: unknown): string {
     case 'NotAllowedError':
     case 'PermissionDeniedError':
       return (
-        'Permissão do microfone NEGADA. Para ativar: toca no ícone de cadeado ' +
-        '(ou ℹ️) na barra de endereço do navegador → Permissões → Microfone → ' +
-        'Permitir, e tenta de novo. Em iPhone: Definições → Safari → Microfone.'
+        'Permissão do microfone NEGADA. Para ativar: ① toca no ícone de ' +
+        'cadeado (ou ℹ️) na barra de endereço → Permissões → Microfone → ' +
+        'Permitir; ② se já está permitido no navegador, o bloqueio é do ' +
+        'TELEMÓVEL: Definições → Aplicações → Chrome → Permissões → ' +
+        'Microfone → Permitir (iPhone: Definições → Safari → Microfone). ' +
+        'Depois reabre o site e tenta de novo.'
       );
     case 'NotFoundError':
     case 'DevicesNotFoundError':
@@ -103,6 +126,12 @@ function micErrorMessage(error: unknown): string {
         'A gravação de áudio só funciona em ligação segura (HTTPS). Abre o ' +
         'site em https://angostart.vercel.app e tenta de novo.'
       );
+    case 'MicTimeoutError':
+      return (
+        'O microfone não respondeu a tempo (o dispositivo demorou a ' +
+        'libertá-lo ou está instável). Fecha outras apps que usem o micro, ' +
+        'espera alguns segundos e tenta de novo — ou escreve a tua dúvida.'
+      );
     default:
       return (
         'Não consegui aceder ao microfone — verifica as permissões do navegador ' +
@@ -114,6 +143,84 @@ function micErrorMessage(error: unknown): string {
 
 /** Evento global usado pela BottomNav ("IA") para abrir o widget. */
 export const AI_CHAT_OPEN_EVENT = 'angostart:ai-open';
+
+/* ─────────────── P1: diagnóstico de permissão/microfone ─────────────── */
+
+/**
+ * Estado da permissão do microfone ANTES de pedir (P1.2). `unknown` se o
+ * browser não suporta permissions.query (Safari antigo/Firefox) — nunca
+ * lança nem bloqueia o fluxo normal.
+ */
+async function micPermissionState(): Promise<PermissionState | 'unknown'> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      const status = await navigator.permissions.query({
+        name: 'microphone' as PermissionName,
+      });
+      return status.state;
+    }
+  } catch {
+    /* alguns browsers lançam para 'microphone' — tratamos como desconhecido */
+  }
+  return 'unknown';
+}
+
+/**
+ * getUserMedia com teto de tempo (P1.3): a API é local, mas em alguns
+ * Androids fica presa sem responder (hardware/driver) — sem isto o botão
+ * de gravar morria sem qualquer feedback. Lança erro sintético
+ * `MicTimeoutError` quando excede o prazo.
+ */
+function getUserMediaComTimeout(
+  constraints: MediaStreamConstraints,
+  timeoutMs: number
+): Promise<MediaStream> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const err = new Error('getUserMedia excedeu o tempo limite');
+      err.name = 'MicTimeoutError';
+      reject(err);
+    }, timeoutMs);
+    navigator.mediaDevices!
+      .getUserMedia(constraints)
+      .then((stream) => {
+        clearTimeout(timer);
+        resolve(stream);
+      })
+      .catch((e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+  });
+}
+
+/**
+ * Mensagem final do microfone (P1.5): distingue «site bloqueou» de «Sistema
+ * operativo bloqueou» — permissão do site ATIVA + NotAllowedError significa
+ * que o bloqueio vem do Android/Sistema, não do navegador.
+ */
+function micFinalMessage(
+  error: unknown,
+  permState: PermissionState | 'unknown'
+): string {
+  const name =
+    error && typeof error === 'object' && 'name' in error
+      ? String((error as { name?: unknown }).name)
+      : '';
+  if (
+    (name === 'NotAllowedError' || name === 'PermissionDeniedError') &&
+    permState === 'granted'
+  ) {
+    return (
+      'Não foi possível aceder ao microfone. Tenta usar dados móveis ou ' +
+      'verifica as definições do browser — a permissão do site está ativa, ' +
+      'mas o acesso foi bloqueado pelo sistema: Definições do Android → ' +
+      'Aplicações → Chrome → Permissões → Microfone → Permitir. Reabre o ' +
+      'site e tenta de novo — ou escreve a tua dúvida.'
+    );
+  }
+  return micErrorMessage(error);
+}
 
 /** File → data-URL (promise). */
 function fileToDataUrl(file: Blob): Promise<string> {
@@ -226,14 +333,33 @@ export default function SupportChatWidget() {
       );
       return;
     }
+    /* P1.2: verifica a permissão ANTES de pedir — se já está negada no
+       navegador, nem chamamos getUserMedia (pedido condenado) e mostramos
+       logo o caminho exato de desbloqueio. */
+    const perm = await micPermissionState();
+    if (perm === 'denied') {
+      setErro(micErrorMessage({ name: 'NotAllowedError' }));
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      /* P1.3: getUserMedia com teto de 12 s — Androids com o micro preso
+         deixavam o botão morto para sempre. */
+      const stream = await getUserMediaComTimeout({ audio: true }, MIC_GUM_TIMEOUT_MS);
+      /* P1.4: mimeType compatível — webm/opus (Android), mp4 (iPhone); se o
+         construtor falhar com o mime anunciado (quirk conhecido em alguns
+         Androids), repete SEM opções e deixa o browser escolher. */
       const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/mp4')
           ? 'audio/mp4'
           : '';
-      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      } catch {
+        console.warn('[SuporteIA] MediaRecorder falhou com mimeType=' + mime + ' — retry sem opções.');
+        recorder = new MediaRecorder(stream);
+      }
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current?.push(e.data);
@@ -270,9 +396,11 @@ export default function SupportChatWidget() {
       }, 1000);
     } catch (error) {
       /* Hotfix: mensagem ESPECÍFICA por causa (permissão negada ≠ sem
-         microfone ≠ micro ocupado) — antes era uma só para tudo. */
-      console.warn('[SuporteIA] getUserMedia falhou:', error);
-      setErro(micErrorMessage(error));
+         microfone ≠ micro ocupado ≠ preso/timeout) e, quando a permissão
+         do site está ATIVA mas o acesso falha, o bloqueio é do SISTEMA —
+         mensagem alternativa dedicada (P1.5). */
+      console.warn('[SuporteIA] getUserMedia falhou:', error, '— perm:', perm);
+      setErro(micFinalMessage(error, perm));
     }
   }
 
@@ -330,36 +458,93 @@ export default function SupportChatWidget() {
     setAEnviar(true);
     setErro(null);
 
+    /* P3: token do AuthContext SEMPRE anexado — sem ele o servidor tratava
+       o utilizador autenticado como anónimo e imagens/áudio eram rejeitados
+       com «Entra na tua conta» mesmo com sessão ativa (causa raiz do bug). */
+    const headers = { 'Content-Type': 'application/json', ...authHeaders() };
+    const body = JSON.stringify({
+      messages: seguintes
+        .filter((t) => t !== ABERTURA)
+        .slice(-8)
+        .map((t) => ({ role: t.role, content: t.content })),
+      ...(imagemEnviada ? { image: imagemEnviada.dataUrl } : {}),
+      ...(audioEnviado ? { audio: audioEnviado.dataUrl } : {}),
+    });
+
     try {
-      // Hotfix: 70 s — a cadeia server-side tem orçamento de 55 s (3 providers
-      // em cascata: B.AI 45 s → OpenRouter 30 s → Gemini 30 s, limitados pelo
-      // deadline); 45 s abortava respostas que ainda vinham a caminho.
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: seguintes
-            .filter((t) => t !== ABERTURA)
-            .slice(-8)
-            .map((t) => ({ role: t.role, content: t.content })),
-          ...(imagemEnviada ? { image: imagemEnviada.dataUrl } : {}),
-          ...(audioEnviado ? { audio: audioEnviado.dataUrl } : {}),
-        }),
-        signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
-      });
-      const data = (await res.json()) as { reply?: string; error?: string };
+      /* P4: 70 s por tentativa (cadeia server-side tem 55 s). 1 retry com
+         backoff de 1,5 s APENAS para falha de rede rápida (o pedido nem
+         chegou a responder). Timeout NÃO repete — consumiu o orçamento
+         todo e repetir duplicaria a espera (2×70 s). */
+      let res: Response | null = null;
+      let falha: unknown = null;
+      for (let tentativa = 1; tentativa <= 2; tentativa++) {
+        try {
+          res = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers,
+            body,
+            signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+          });
+          break;
+        } catch (e) {
+          falha = e;
+          const nome = e instanceof Error ? e.name : '';
+          const isTimeout = nome === 'TimeoutError' || nome === 'AbortError';
+          console.warn(
+            `[SuporteIA] envio falhou (tentativa ${tentativa}/2, ` +
+              `${isTimeout ? 'timeout' : 'rede'}):`,
+            e
+          );
+          if (isTimeout || tentativa === 2) break;
+          await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
+        }
+      }
+
+      if (!res) {
+        const nome = falha instanceof Error ? falha.name : '';
+        const isTimeout = nome === 'TimeoutError' || nome === 'AbortError';
+        setErro(
+          isTimeout
+            ? 'A resposta demorou demasiado (rede lenta ou instável). Verifica ' +
+              'a ligação e tenta de novo — ou contacta o suporte no WhatsApp ' +
+              '+244 958 176 915.'
+            : 'Sem ligação ao servidor (falha de rede). Verifica o Wi-Fi ou os ' +
+              'dados móveis e tenta de novo.'
+        );
+        return;
+      }
+
+      /* Resposta pode vir corrompida em ligações instáveis (JSON cortado) —
+         nunca deixar o .json() rebentar sem mensagem amigável. */
+      let data: { reply?: string; error?: string } = {};
+      try {
+        data = (await res.json()) as { reply?: string; error?: string };
+      } catch {
+        setErro(
+          'A resposta chegou corrompida (ligação instável). Tenta de novo — ' +
+            'se persistir, contacta o suporte no WhatsApp +244 958 176 915.'
+        );
+        return;
+      }
+
       if (res.ok && data.reply) {
         setTurns((old) => [...old, { role: 'assistant', content: data.reply as string }]);
+      } else if (res.status === 401) {
+        /* P3: token ausente/expirado — mensagem CLARA de sessão em vez da
+           genérica «Entra na tua conta para enviar imagens…». */
+        setErro(
+          'A tua sessão expirou. Faz login novamente para enviar imagens ou áudio ao suporte.'
+        );
       } else {
         setErro(
           data.error ??
             'Não consegui responder agora — fala connosco no WhatsApp +244 958 176 915.'
         );
       }
-    } catch {
-      setErro(
-        'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.'
-      );
+    } catch (error) {
+      console.warn('[SuporteIA] erro inesperado no envio:', error);
+      setErro('Ocorreu um erro inesperado. Tenta de novo ou contacta o suporte.');
     } finally {
       setAEnviar(false);
       setEnviandoAudio(false);

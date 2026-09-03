@@ -30,6 +30,9 @@ export const preferredRegion = 'iad1';
  * - ÁUDIO: o utilizador envia áudio ≤ 2 min; o sistema transcreve
  *   (1 chamada) e responde ao texto (1 chamada). Quota 3 transcrições/dia.
  * - Rate limit: máx. 30 req/min por utilizador (ou IP se anónimo).
+ * - Hotfix "respostas cortadas" (set/2026): max_tokens 2048 na resposta do
+ *   chat (era 400/500 — frases eram truncadas a meio, finish_reason=length)
+ *   e 1024 na transcrição (áudio de 2 min excedia 500 tokens).
  * - O utilizador NUNCA vê qual modelo/provider respondeu — detalhe interno.
  * - Sem chave configurada → 503 com mensagem amigável (a plataforma
  *   funciona na mesma).
@@ -196,7 +199,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /* Transcrição: tarefa 'chat' (mesma chave/modelo multimodal). 1 chamada. */
+    /* Transcrição: tarefa 'chat' (mesma chave/modelo multimodal). 1 chamada.
+       Hotfix truncagem: 500 tokens cortava transcrições de áudio perto de
+       2 min (pt falado ≈ 1,3 token/palavra) — 1024 cobre o pior caso. */
     const result = await runFallbackChain(
       [
         { role: 'system', content: TRANSCRIBE_SYSTEM },
@@ -209,7 +214,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       'text',
-      { temperature: 0, maxTokens: 500 },
+      { temperature: 0, maxTokens: 1024 },
       'chat',
       deadline
     );
@@ -305,7 +310,7 @@ export async function POST(request: NextRequest) {
       ...modelTurns.slice(0, -1),
       { role: 'user', content: userText || 'Olá!' },
     ],
-    { maxTokens: 400, deadline }
+    { maxTokens: 2048, deadline }
   );
   return finish(reply);
 
@@ -339,7 +344,9 @@ async function aiChatTurnsFromMessages(
   const result = await runFallbackChain(
     messages,
     'text',
-    { temperature: 0.4, maxTokens: 500 },
+    /* Hotfix truncagem (set/2026): 500 cortava respostas com imagem a meio
+       (finish_reason=length); 2048 alinha com o caminho de texto puro. */
+    { temperature: 0.4, maxTokens: 2048 },
     'chat',
     deadline
   );

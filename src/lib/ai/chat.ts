@@ -66,7 +66,10 @@ export async function aiChatTurns(
     'text',
     {
       temperature: options.temperature ?? 0.4,
-      maxTokens: options.maxTokens ?? 500,
+      /* Hotfix "respostas cortadas" (set/2026): 500 truncava o chatbot a meio
+         (finish_reason=length). 2048 dá folga — quem precisa de menos passa
+         maxTokens explícito (JSON/transcrição fazem-no nas rotas). */
+      maxTokens: options.maxTokens ?? 2048,
     },
     options.task ?? 'chat',
     options.deadline
