@@ -76,7 +76,7 @@ export default function GreetingAvatar({ variant = 'hero', showTiles }: Props) {
   const avatarSize = variant === 'hero' ? 'h-18 w-18' : 'h-14 w-14';
 
   return (
-    <div className="group flex items-center gap-4">
+    <div className={`group flex items-center ${variant === 'hero' ? 'gap-8' : 'gap-4'}`}>
       {/* Avatar circular com anel pulsante + tiles flutuantes (ref. dashboards) */}
       <div className="relative shrink-0">
         {/* Halo circular suave atrás (motivo das referências 9/10) */}
