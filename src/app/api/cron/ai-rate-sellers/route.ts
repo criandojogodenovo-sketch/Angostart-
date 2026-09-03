@@ -33,6 +33,8 @@ export const dynamic = 'force-dynamic';
  */
 
 export const maxDuration = 300; // Vercel limita ao máximo do plano (Hobby: 60 s)
+/* Hotfix 502: mesma região das rotas de IA (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 const CONCURRENCY = 3;
 const RE_EVALUATE_DAYS = 7;

@@ -12,6 +12,12 @@ import { consumeDailyQuota } from '@/lib/ai/usage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+/* Hotfix 502 (set. 2026): fixa a região da função em `iad1` (US East),
+   INDEPENDENTE da definição do painel Vercel — se o gateway B.AI bloquear
+   alguma região/egress, todas as rotas de IA correm na mesma região
+   conhecida (e, se necessário, via proxy B_AI_BASE_URL). O log do pedido
+   imprime VERCEL_REGION para confirmar a região efetiva em produção. */
+export const preferredRegion = 'iad1';
 
 /**
  * POST /api/ai/chat — Fase 14/21: chatbot de suporte AngoStart (multimodal).
@@ -262,6 +268,7 @@ export async function POST(request: NextRequest) {
      multimodais (texto + imagem); caso contrário, texto simples. */
   console.info(
     `[API /api/ai/chat] pedido user=${user?.id ?? 'anónimo'} ` +
+      `região=${process.env.VERCEL_REGION ?? 'local'} ` +
       `turns=${turns.length} imagem=${imagePart ? 'sim' : 'não'} ` +
       `áudio=${audioTranscript ? 'sim' : 'não'}`
   );
@@ -308,12 +315,13 @@ export async function POST(request: NextRequest) {
     if (!r) {
       console.error(
         `[API /api/ai/chat] 502 sem resposta após ${latency} ms — ` +
-          'todos os providers falharam (ver [lib/ai] acima para os erros exatos).'
+          'todos os providers falharam (ver [AI:REQ]/[AI:ERR] acima para o status e corpo exatos).'
       );
       return NextResponse.json(
         {
           error:
             'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.',
+          code: 'AI_CHAIN_FAILED',
         },
         { status: 502 }
       );

@@ -7,6 +7,8 @@ import { analyzeMyProfile } from '@/lib/ai-profile';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+/* Hotfix 502: mesma região da rota de chat (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 /**
  * POST /api/ai/profile-analysis — Fase 21: «Analisar o meu perfil com IA».

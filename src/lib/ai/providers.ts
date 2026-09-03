@@ -138,7 +138,11 @@ export const PROVIDERS: ProviderConfig[] = [
   {
     name: 'bai',
     label: 'B.AI (principal)',
-    baseURL: 'https://api.b.ai/v1',
+    /* Hotfix 502 (set. 2026): override por env — se o gateway bloquear o
+       IP/região das functions da Vercel (403 no log [AI:ERR]), o CTO aponta
+       B_AI_BASE_URL para um proxy próprio (ex.: Cloudflare Worker que
+       encaminha /v1/* → https://api.b.ai/v1/*) SEM novo deploy de código. */
+    baseURL: envOr('B_AI_BASE_URL', 'https://api.b.ai/v1'),
     apiKeyEnv: 'B_AI_API_KEY',
     // Defaults = roteamento por tarefa definido pelo CTO (Fase 21):
     //  - chat    (B_AI_API_KEY)         → MiMo-V2.5
@@ -310,6 +314,34 @@ export function configuredProviders(
     );
 }
 
+/* ─────────────── diagnóstico fact-based (502 set. 2026) ──────────────── */
+
+/**
+ * Impressão digital MASCARADA da chave + FORMATO. Nunca loga a chave
+ * completa — só 6 primeiros + 4 últimos caracteres, o comprimento e a
+ * estrutura (presença de `.` = estilo antigo `id.secret`; chaves novas do
+ * gateway não têm ponto). Permite confirmar NO LOG se a chave em produção
+ * é da geração pós-migração sem a expor.
+ */
+function keyFingerprint(key: string): string {
+  const masked =
+    key.length <= 12
+      ? `${key.slice(0, 2)}***(len=${key.length})`
+      : `${key.slice(0, 6)}***${key.slice(-4)}(len=${key.length})`;
+  return `${masked} formato=${key.includes('.') ? 'antigo(id.secret)' : 'novo(sem-ponto)'}`;
+}
+
+/** Classe o erro HTTP do provider para leitura rápida nos logs da Vercel. */
+function classifyHttpError(status: number): string {
+  if (status === 401) return 'AUTH — chave inválida/deprecada ou formato errado';
+  if (status === 403) return 'BLOQUEIO — IP/região do gateway (usar B_AI_BASE_URL/proxy)';
+  if (status === 404) return 'MODELO/ENDPOINT inexistente — modelo saiu do catálogo?';
+  if (status === 400) return 'REQUEST inválida — modelo desconhecido ou parâmetro';
+  if (status === 429) return 'RATE_LIMIT — quota/limite do provider atingido';
+  if (status >= 500) return 'PROVIDER em dificuldade (upstream/down)';
+  return 'ERRO_HTTP';
+}
+
 /* ───────────────────────── chamada HTTP (fetch) ──────────────────────── */
 
 export interface CallOptions {
@@ -359,20 +391,56 @@ export async function callProvider(
     body.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      ...provider.extraHeaders(),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(effectiveMs),
-  });
+  /* 🩺 LOG DETALHADO (pedido): provider, modelo, URL efetiva, chave
+     MASCARADA com formato e timeout efetivo — a primeira pista quando a
+     IA falha (ex.: confirma no log se a chave em produção é da geração
+     nova pós-migração). */
+  const requestStartedAt = Date.now();
+  console.info(
+    `[AI:REQ] ${provider.name} model=${model} url=${url} key=${envName} ` +
+      `chave=${keyFingerprint(apiKey)} timeout=${effectiveMs}ms`
+  );
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...provider.extraHeaders(),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(effectiveMs),
+    });
+  } catch (error) {
+    /* Falha ANTES de haver resposta HTTP (timeout, DNS, TLS) — classifica
+       para não confundir "rede lenta" com "chave rejeitada". */
+    const name = error instanceof Error ? error.name : '';
+    const msg = error instanceof Error ? error.message : String(error);
+    const kind =
+      name === 'TimeoutError' || name === 'AbortError'
+        ? 'TIMEOUT — gateway não respondeu no prazo (rede/upstream lento)'
+        : 'REDE/DNS — sem ligação ao gateway (DNS, TLS ou IP bloqueado?)';
+    console.error(
+      `[AI:ERR] ${provider.name} [${kind}] ${name}: ${msg.slice(0, 200)} ` +
+        `após ${Date.now() - requestStartedAt} ms`
+    );
+    throw error;
+  }
 
   if (!response.ok) {
-    const detail = (await response.text().catch(() => '')).slice(0, 180);
-    throw new Error(`HTTP ${response.status}${detail ? ` — ${detail}` : ''}`);
+    /* 🩺 LOG DETALHADO (erro): status + CORPO EXATO do provider (inclui o
+       request id do gateway) — é a pista que distingue 401 de chave
+       deprecada, 403 de geo-block e 429 de rate limit. */
+    const detail = (await response.text().catch(() => '')).slice(0, 400);
+    console.error(
+      `[AI:ERR] ${provider.name} HTTP ${response.status} ` +
+        `[${classifyHttpError(response.status)}] body=${detail || '(corpo vazio)'}`
+    );
+    throw new Error(
+      `HTTP ${response.status}${detail ? ` — ${detail.slice(0, 300)}` : ''}`
+    );
   }
 
   const data = (await response.json().catch(() => null)) as {
@@ -380,10 +448,16 @@ export async function callProvider(
   } | null;
 
   const content = data?.choices?.[0]?.message?.content;
-  if (typeof content === 'string') return content.trim();
+  if (typeof content === 'string') {
+    console.info(
+      `[AI:OK] ${provider.name} model=${model} ` +
+        `${Date.now() - requestStartedAt} ms, ${content.length} chars`
+    );
+    return content.trim();
+  }
   /* Alguns providers OpenAI-compat devolvem partes; concatena os de texto. */
   if (Array.isArray(content)) {
-    return content
+    const joined = content
       .map((part) =>
         part && typeof part === 'object' && 'text' in part
           ? String((part as { text: unknown }).text)
@@ -391,7 +465,18 @@ export async function callProvider(
       )
       .join('')
       .trim();
+    console.info(
+      `[AI:OK] ${provider.name} model=${model} ` +
+        `${Date.now() - requestStartedAt} ms (partes, ${joined.length} chars)`
+    );
+    return joined;
   }
+  /* 🩺 Shape inesperado (ex.: gateway migrou o formato de resposta) — loga
+     o JSON cru em vez de falhar em silêncio como "resposta vazia". */
+  console.error(
+    `[AI:ERR] ${provider.name} resposta com shape inesperado — ` +
+      `JSON=${data ? JSON.stringify(data).slice(0, 400) : '(corpo não-JSON)'}`
+  );
   return '';
 }
 

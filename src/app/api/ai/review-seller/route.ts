@@ -7,6 +7,8 @@ import { analyzeSellerBio, saveSellerRating, type SellerProductInfo, type Seller
 import { keywordsReady } from '@/lib/keywords-db';
 
 export const dynamic = 'force-dynamic';
+/* Hotfix 502: mesma região da rota de chat (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 /**
  * POST /api/ai/review-seller — Fase 14: nota de qualidade do perfil (0-10)

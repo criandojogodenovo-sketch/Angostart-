@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, clientKey, rateLimit } from '@/lib/security';
-import { aiTasksStatus } from '@/lib/ai/providers';
+import {
+  aiTasksStatus,
+  callProvider,
+  configuredProviders,
+  modelFor,
+  PROVIDERS,
+} from '@/lib/ai/providers';
 import { aiStats24h, recentAiLogs } from '@/lib/ai/logs';
 import { runAiMonitorBatch } from '@/lib/ai-monitor';
 import { verifyOrderProof } from '@/lib/ai-proof';
@@ -24,9 +30,19 @@ export const maxDuration = 60;
  *   { action: 'reanalyze-proofs' }           → re-analisa até 5 comprovativos
  *                                              pendentes (aguardando_validacao)
  *   { action: 'triage', id, estado }         → ignora/resolve um alerta
+ *   { action: 'ping-providers' }             → diagnóstico ao vivo: 1 chamada
+ *                                              mínima (max_tokens 10) a cada
+ *                                              provider da cadeia, com status
+ *                                              HTTP e corpo EXATO do erro —
+ *                                              mostra a causa raiz de um 502
+ *                                              (401 chave deprecada, 403
+ *                                              geo-block, 429 rate limit…)
+ *                                              a partir do IP real da Vercel.
  *
  * Eficiência: reanalyze-proofs é limitado a 5 encomendas por clique e o
  * run-monitor só corre 1×/dia via cron — os botões são para casos pontuais.
+ * ping-providers usa timeout de 12 s por provider (máx. 3 na cadeia = 36 s,
+ * dentro do maxDuration=60).
  */
 
 export async function GET(request: NextRequest) {
@@ -104,6 +120,88 @@ export async function POST(request: NextRequest) {
   }
 
   const action = sanitizeText(body.action, 30);
+
+  /* ── Diagnóstico ao vivo (hotfix 502 set. 2026): ping por provider ──
+     Faz UMA chamada mínima a cada provider da cadeia a partir do IP/região
+     REAL da Vercel e devolve o status HTTP + corpo exato do erro (com o
+     request id do gateway). Chaves nunca são devolvidas — só os NOMES das
+     envs. É o teste de curl que o CTO não consegue fazer fora da Vercel. */
+  if (action === 'ping-providers') {
+    const chain = configuredProviders('text', 'chat');
+    const region = process.env.VERCEL_REGION ?? 'local';
+    const resultados: {
+      provider: string;
+      model: string;
+      keyEnv: string | null;
+      estado: 'ok' | 'erro' | 'sem-chave' | 'reserva';
+      ms?: number;
+      preview?: string;
+      error?: string;
+    }[] = [];
+
+    for (const p of PROVIDERS) {
+      const entry = chain.find((e) => e.provider.name === p.name);
+      if (!entry) {
+        /* Fora da cadeia efetiva: sem chave configurada ou reserva. */
+        resultados.push({
+          provider: p.name,
+          model: modelFor(p, 'text') ?? '—',
+          keyEnv: p.apiKeyEnv,
+          estado: p.inChain === false ? 'reserva' : 'sem-chave',
+        });
+        continue;
+      }
+      const t0 = Date.now();
+      try {
+        const content = await callProvider(
+          entry.provider,
+          entry.model,
+          [
+            {
+              role: 'system',
+              content: 'És um ping de diagnóstico. Responde apenas: OK',
+            },
+            { role: 'user', content: 'ping' },
+          ],
+          { maxTokens: 10, temperature: 0 },
+          entry.keyEnv,
+          12_000
+        );
+        resultados.push({
+          provider: p.name,
+          model: entry.model,
+          keyEnv: entry.keyEnv,
+          estado: 'ok',
+          ms: Date.now() - t0,
+          preview: content.slice(0, 40),
+        });
+      } catch (error) {
+        resultados.push({
+          provider: p.name,
+          model: entry.model,
+          keyEnv: entry.keyEnv,
+          estado: 'erro',
+          ms: Date.now() - t0,
+          error: (
+            error instanceof Error ? error.message : String(error)
+          ).slice(0, 300),
+        });
+      }
+    }
+
+    console.warn(
+      `[admin/ai-interna] ping-providers região=${region} — ` +
+        resultados.map((r) => `${r.provider}:${r.estado}`).join(' ')
+    );
+    return NextResponse.json({
+      ok: true,
+      action,
+      region,
+      resultados,
+      nota:
+        'Erros incluem o corpo EXATO do provider (com request id do gateway). As chaves nunca são devolvidas.',
+    });
+  }
 
   /* ── Forçar lote de monitorização ── */
   if (action === 'run-monitor') {

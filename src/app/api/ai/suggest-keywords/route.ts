@@ -10,6 +10,8 @@ import {
 } from '@/lib/keywords';
 
 export const dynamic = 'force-dynamic';
+/* Hotfix 502: mesma região da rota de chat (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 /**
  * POST /api/ai/suggest-keywords — Fase 15b: sugestão automática de

@@ -5,6 +5,8 @@ import { aiAvailable } from '@/lib/ai/chat';
 import { verifyOrderProof } from '@/lib/ai-proof';
 
 export const dynamic = 'force-dynamic';
+/* Hotfix 502: mesma região da rota de chat (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 /**
  * POST /api/ai/verify-proof — Fase 14: (re)verificação por IA de visão do

@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Activity,
   BadgeCheck,
   Ban,
   BarChart3,
@@ -171,6 +172,17 @@ interface AiInternaData {
     alerts: AiMonitorAlert[];
     counts: Record<string, number>;
   };
+}
+
+/* Hotfix 502 (set. 2026): resultado do diagnóstico ao vivo por provider. */
+interface AiPingResult {
+  provider: string;
+  model: string;
+  keyEnv: string | null;
+  estado: 'ok' | 'erro' | 'sem-chave' | 'reserva';
+  ms?: number;
+  preview?: string;
+  error?: string;
 }
 
 type Tab =
@@ -455,6 +467,11 @@ function AdminPanel() {
   const [iaData, setIaData] = useState<AiInternaData | null>(null);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaBusy, setIaBusy] = useState<string | null>(null);
+  /* Hotfix 502: resultados do «Diagnóstico ao vivo» (ping por provider). */
+  const [iaPing, setIaPing] = useState<{
+    region: string;
+    resultados: AiPingResult[];
+  } | null>(null);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -793,8 +810,10 @@ function AdminPanel() {
     }
   }, [toast]);
 
-  /** Ação pontual: forçar monitorização / re-analisar comprovativos. */
-  async function runAiAction(action: 'run-monitor' | 'reanalyze-proofs') {
+  /** Ação pontual: monitorização / re-análise / diagnóstico ao vivo. */
+  async function runAiAction(
+    action: 'run-monitor' | 'reanalyze-proofs' | 'ping-providers'
+  ) {
     if (iaBusy) return;
     setIaBusy(action);
     try {
@@ -808,9 +827,25 @@ function AdminPanel() {
         error?: string;
         monitor?: { scanned?: number; alerts?: number };
         analisados?: { order_id: number; ok: boolean; verdict?: string; error?: string }[];
+        region?: string;
+        resultados?: AiPingResult[];
       };
       if (!res.ok || !data.ok) {
         toast({ title: 'Ação falhou', description: data.error });
+        return;
+      }
+      if (action === 'ping-providers') {
+        /* Hotfix 502: mostra o status EXATO de cada provider a partir da
+           região real da Vercel (401 deprecada? 403 geo-block? 429?). */
+        const resultados = data.resultados ?? [];
+        setIaPing({ region: data.region ?? '—', resultados });
+        toast({
+          title: 'Diagnóstico concluído',
+          description: `Região ${data.region ?? '—'} · ${
+            resultados.filter((r) => r.estado === 'ok').length
+          }/${resultados.length} provider(s) OK.`,
+        });
+        loadAiInterna();
         return;
       }
       if (action === 'run-monitor') {
@@ -2192,6 +2227,19 @@ function AdminPanel() {
                   )}
                   Re-analisar comprovativos (5)
                 </Button>
+                <Button
+                  size="sm"
+                  onClick={() => runAiAction('ping-providers')}
+                  disabled={iaBusy !== null || iaLoading}
+                  className="h-9 bg-violet-600 text-white hover:bg-violet-700"
+                >
+                  {iaBusy === 'ping-providers' ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Activity className="mr-1.5 h-4 w-4" />
+                  )}
+                  Diagnóstico ao vivo
+                </Button>
               </div>
             </div>
 
@@ -2243,6 +2291,64 @@ function AdminPanel() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Diagnóstico ao vivo (hotfix 502 set. 2026) */}
+            {iaPing && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-slate-900/60 p-4">
+                <p className="text-xs font-semibold text-slate-200">
+                  Diagnóstico ao vivo — região da função:{' '}
+                  <span className="font-mono text-blue-300">{iaPing.region}</span>
+                </p>
+                <div className="mt-3 space-y-2">
+                  {iaPing.resultados.map((r) => (
+                    <div
+                      key={r.provider}
+                      className="rounded-lg border border-white/10 bg-slate-800/60 p-3"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            r.estado === 'ok'
+                              ? 'bg-teal-500/15 text-teal-400'
+                              : r.estado === 'erro'
+                                ? 'bg-rose-500/15 text-rose-400'
+                                : 'bg-slate-500/15 text-slate-400'
+                          }`}
+                        >
+                          {r.estado}
+                        </span>
+                        <span className="font-mono text-xs text-slate-200">
+                          {r.provider}
+                        </span>
+                        <span className="font-mono text-[11px] text-blue-300">
+                          {r.model}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          env: {r.keyEnv ?? '—'}
+                          {r.ms !== undefined && ` · ${r.ms} ms`}
+                        </span>
+                      </div>
+                      {r.preview && (
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          resposta: {r.preview}
+                        </p>
+                      )}
+                      {r.error && (
+                        <p className="mt-1 break-all font-mono text-[11px] text-rose-300">
+                          {r.error}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                  Se o B.AI devolver 401, a chave está deprecada/mal formatada
+                  (gera uma nova no painel). Se devolver 403, é bloqueio de
+                  IP/região — define B_AI_BASE_URL com um proxy (Cloudflare
+                  Worker). O corpo do erro inclui o request id para suporte.
+                </p>
               </div>
             )}
           </section>

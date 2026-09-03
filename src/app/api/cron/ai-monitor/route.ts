@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+/* Hotfix 502: mesma região das rotas de IA (ver /api/ai/chat/route.ts). */
+export const preferredRegion = 'iad1';
 
 /**
  * GET/POST /api/cron/ai-monitor — Fase 21: lote diário de monitorização IA.
