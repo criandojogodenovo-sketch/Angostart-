@@ -249,7 +249,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15">
-              <ShieldCheck className="h-6 w-6 text-emerald-400" />
+              <ShieldCheck className="h-6 w-6 text-teal-400" />
             </span>
             <div>
               <h1 className="text-lg font-bold text-white">{title}</h1>

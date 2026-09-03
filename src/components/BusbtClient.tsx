@@ -3,12 +3,16 @@
 /**
  * AngoStart — Aba Busbt: publicidade em vídeo (Mux).
  *
- * - Grelha pública de vídeos 'ready' (thumbnail → modal com Mux Player).
+ * - Dois separadores com contadores (a aba «Comunidade» é a
+ *   predefinição): "Os Meus Vídeos" (histórico do utilizador logado,
+ *   com estado vazio e atalho para publicar) e "Vídeos da Comunidade"
+ *   (grelha pública — thumbnail → modal com Mux Player — sem os
+ *   vídeos do próprio).
  * - "Publicar Vídeo": seleção (MP4/WebM/MOV ≤ 100 MB) + título/descrição
  *   opcionais → POST /api/upload/video → PUT direto browser→Mux
  *   (com barra de progresso) → POST /api/videos/confirm.
- * - Os vídeos do utilizador aparecem em "Os meus vídeos": spinner
- *   enquanto processam (polling a cada 10 s) e player quando prontos.
+ * - Spinner enquanto processam (polling a cada 10 s), player quando
+ *   prontos e cartão «Falha no processamento» quando deram erro.
  * - O token MUX_* vive só no servidor; o browser recebe apenas o URL
  *   assinado de Direct Upload.
  */
@@ -118,6 +122,12 @@ export default function BusbtClient() {
 
   /* Modal de reprodução */
   const [playing, setPlaying] = useState<VideoItem | null>(null);
+
+  /* Separadores (TAREFA UX): «Comunidade» é a predefinição — o histórico
+     do utilizador deixa de empurrar a grelha pública para baixo. */
+  const [activeTab, setActiveTab] = useState<'comunidade' | 'meus'>(
+    'comunidade'
+  );
 
   /* ─────────────────── Carregamento / polling ─────────────────── */
 
@@ -332,6 +342,7 @@ export default function BusbtClient() {
       setStep('done');
       savedAttemptRef.current = null;
       setDialogOpen(false);
+      setActiveTab('meus'); /* o novo cartão aparece já na aba certa */
       resetDialog();
       loadMine();
     } catch (error) {
@@ -361,6 +372,7 @@ export default function BusbtClient() {
           setStep('done');
           savedAttemptRef.current = null;
           setDialogOpen(false);
+          setActiveTab('meus');
           resetDialog();
           loadMine();
           return;
@@ -399,6 +411,12 @@ export default function BusbtClient() {
     }
   };
 
+  /* Vídeos da comunidade = públicos que NÃO são do utilizador logado
+     (os dele vivem na aba «Os Meus Vídeos» — sem duplicar cartões). */
+  const communityVideos = user
+    ? videos.filter((v) => v.user_id !== user.id)
+    : videos;
+
   /* ─────────────────────────── Renders ────────────────────────── */
 
   const statusCard = (v: VideoItem) => {
@@ -417,16 +435,16 @@ export default function BusbtClient() {
     }
     if (v.status === 'errored') {
       return (
-        <div className="flex aspect-[9/16] flex-col items-center justify-center gap-3 rounded-2xl border border-red-200 bg-red-50/60 p-4 text-center">
-          <TriangleAlert className="h-8 w-8 text-red-500" />
-          <p className="text-sm font-semibold text-red-700">Falha no processamento</p>
-          <p className="text-xs text-red-500">
+        <div className="flex aspect-[9/16] flex-col items-center justify-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-center">
+          <TriangleAlert className="h-8 w-8 text-rose-500" />
+          <p className="text-sm font-semibold text-rose-700">Falha no processamento</p>
+          <p className="text-xs text-rose-500">
             {v.error_message || 'Tenta publicar novamente com outro ficheiro.'}
           </p>
           <button
             type="button"
             onClick={() => removeVideo(v.id)}
-            className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+            className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
           >
             <Trash2 className="h-3.5 w-3.5" /> Remover
           </button>
@@ -551,77 +569,195 @@ export default function BusbtClient() {
         </div>
       </section>
 
-      {/* Os meus vídeos (autenticado) */}
-      {user && myVideos.length > 0 && (
-        <section className="mt-10" aria-label="Os meus vídeos">
-          <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
-            <UploadCloud className="h-5 w-5 text-blue-600" /> Os meus vídeos
-          </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {myVideos.map((v) => (
-              <div key={v.id} className="space-y-2">
-                {statusCard(v)}
-                <div className="flex items-start justify-between gap-2">
-                  <p className="line-clamp-2 text-xs font-semibold text-slate-700">
-                    {v.title}
-                  </p>
-                  {v.status === 'ready' && (
-                    <button
-                      type="button"
-                      onClick={() => removeVideo(v.id)}
-                      aria-label={`Eliminar vídeo ${v.title}`}
-                      className="shrink-0 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+      {/* Separadores com contadores — «Comunidade» é a predefinição.
+          Em vez de scroll contínuo, cada secção vive na sua aba. */}
+      <div
+        role="tablist"
+        aria-label="Secções de vídeos"
+        className="glass-pill mx-auto mt-8 grid w-full max-w-xl grid-cols-2 gap-1.5 rounded-2xl p-1.5"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="busbt-tab-comunidade"
+          aria-selected={activeTab === 'comunidade'}
+          aria-controls="busbt-panel-comunidade"
+          onClick={() => setActiveTab('comunidade')}
+          className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            activeTab === 'comunidade'
+              ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-600/25'
+              : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+          }`}
+        >
+          <Film className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            <span className="hidden sm:inline">Vídeos da </span>Comunidade
+          </span>
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              activeTab === 'comunidade'
+                ? 'bg-white/25 text-white'
+                : 'bg-slate-200/80 text-slate-600'
+            }`}
+          >
+            {communityVideos.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="busbt-tab-meus"
+          aria-selected={activeTab === 'meus'}
+          aria-controls="busbt-panel-meus"
+          onClick={() => setActiveTab('meus')}
+          className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            activeTab === 'meus'
+              ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-600/25'
+              : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+          }`}
+        >
+          <UploadCloud className="h-4 w-4 shrink-0" />
+          <span className="truncate">Os Meus Vídeos</span>
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              activeTab === 'meus'
+                ? 'bg-white/25 text-white'
+                : 'bg-slate-200/80 text-slate-600'
+            }`}
+          >
+            {myVideos.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Painel: Os Meus Vídeos (apenas do utilizador logado) */}
+      {activeTab === 'meus' && (
+        <section
+          id="busbt-panel-meus"
+          role="tabpanel"
+          aria-labelledby="busbt-tab-meus"
+          className="mt-8"
+          aria-label="Os meus vídeos"
+        >
+          {!user ? (
+            <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-600/25">
+                <UploadCloud className="h-7 w-7" />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1">
+                <p className="text-base font-bold text-slate-800">
+                  Entra para ver os teus vídeos
+                </p>
+                <p className="mx-auto max-w-sm text-sm text-slate-500">
+                  O histórico das tuas publicações vive aqui — entra na tua
+                  conta para publicar e acompanhar o processamento.
+                </p>
+              </div>
+              <Link
+                href="/entrar"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors hover:bg-blue-700"
+              >
+                <UploadCloud className="h-4 w-4" /> Entra para publicar
+              </Link>
+            </div>
+          ) : myVideos.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-600/25">
+                <Clapperboard className="h-7 w-7" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-base font-bold text-slate-800">
+                  Ainda não publicaste nenhum vídeo
+                </p>
+                <p className="mx-auto max-w-sm text-sm text-slate-500">
+                  Mostra o teu produto ou serviço em vídeo e aparece para
+                  toda a comunidade — publica o teu primeiro vídeo na Busbt.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetDialog();
+                  setDialogOpen(true);
+                }}
+                disabled={isPublishing}
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" /> Publicar o meu primeiro vídeo
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {myVideos.map((v) => (
+                <div key={v.id} className="space-y-2">
+                  {statusCard(v)}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 text-xs font-semibold text-slate-700">
+                      {v.title}
+                    </p>
+                    {v.status === 'ready' && (
+                      <button
+                        type="button"
+                        onClick={() => removeVideo(v.id)}
+                        aria-label={`Eliminar vídeo ${v.title}`}
+                        className="shrink-0 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
-      {/* Grelha pública */}
-      <section className="mt-10" aria-label="Vídeos da comunidade">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
-          <Film className="h-5 w-5 text-violet-600" /> Vídeos da comunidade
-        </h2>
-
-        {listLoading ? (
-          <div className="flex items-center justify-center gap-3 py-16 text-slate-400">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-            <span className="text-sm">A carregar vídeos…</span>
-          </div>
-        ) : listError ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 py-12 text-center">
-            <TriangleAlert className="h-8 w-8 text-amber-500" />
-            <p className="text-sm font-medium text-amber-800">{listError}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setListLoading(true);
-                loadPublic();
-              }}
-              className="rounded-full bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : videos.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
-            <Clapperboard className="h-10 w-10 text-slate-300" />
-            <p className="max-w-sm text-sm text-slate-500">
-              Ainda não há vídeos publicados. Sê o primeiro a mostrar o teu
-              produto ou serviço em vídeo — {user ? 'toca no botão «Publicar Vídeo».' : 'entra na tua conta e publica o primeiro!'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {videos.map(publicCard)}
-          </div>
-        )}
-      </section>
+      {/* Painel: Vídeos da Comunidade (públicos, sem os vídeos do próprio) */}
+      {activeTab === 'comunidade' && (
+        <section
+          id="busbt-panel-comunidade"
+          role="tabpanel"
+          aria-labelledby="busbt-tab-comunidade"
+          className="mt-8"
+          aria-label="Vídeos da comunidade"
+        >
+          {listLoading ? (
+            <div className="flex items-center justify-center gap-3 py-16 text-slate-400">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <span className="text-sm">A carregar vídeos…</span>
+            </div>
+          ) : listError ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 py-12 text-center">
+              <TriangleAlert className="h-8 w-8 text-amber-500" />
+              <p className="text-sm font-medium text-amber-800">{listError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setListLoading(true);
+                  loadPublic();
+                }}
+                className="rounded-full bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : communityVideos.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
+              <Clapperboard className="h-10 w-10 text-slate-300" />
+              <p className="max-w-sm text-sm text-slate-500">
+                {user
+                  ? 'Ainda não há vídeos de outros membros. Publica o teu na aba «Os Meus Vídeos» — sê o primeiro!'
+                  : 'Ainda não há vídeos publicados. Entra na tua conta e publica o primeiro!'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {communityVideos.map(publicCard)}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Diálogo: publicar vídeo */}
       <Dialog
@@ -715,9 +851,9 @@ export default function BusbtClient() {
             )}
 
             {publishError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                <p className="text-sm font-medium text-red-700">{publishError}</p>
-                <p className="mt-1 text-xs text-red-500">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <p className="text-sm font-medium text-rose-700">{publishError}</p>
+                <p className="mt-1 text-xs text-rose-500">
                   Detalhes técnicos em F12 → Console (procura «[Busbt] Upload
                   Mux falhou») — inclui origens, estado HTTP e resposta do Mux.
                 </p>
@@ -725,7 +861,7 @@ export default function BusbtClient() {
                   <button
                     type="button"
                     onClick={retryPublish}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-rose-700"
                   >
                     <RefreshCw className="h-3.5 w-3.5" /> Tentar novamente
                   </button>

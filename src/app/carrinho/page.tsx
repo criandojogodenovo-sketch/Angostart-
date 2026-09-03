@@ -500,7 +500,7 @@ export default function CarrinhoPage() {
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
         <div className="rounded-3xl border border-blue-200 bg-white p-8 text-center shadow-sm">
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+            <CheckCircle2 className="h-9 w-9 text-teal-600" />
           </span>
           <h1 className="mt-5 text-2xl font-bold text-slate-900">
             Encomenda confirmada!

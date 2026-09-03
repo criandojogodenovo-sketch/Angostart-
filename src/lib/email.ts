@@ -106,7 +106,7 @@ function layout(title: string, bodyHtml: string): string {
   <div style="font-family:Segoe UI,Arial,sans-serif;background:#f1f5f9;padding:24px">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
       <div style="background:#0f172a;padding:20px 24px">
-        <span style="color:#ffffff;font-size:20px;font-weight:bold">Ango<span style="color:#10b981">Start</span></span>
+        <span style="color:#ffffff;font-size:20px;font-weight:bold">Ango<span style="color:#14b8a6">Start</span></span>
       </div>
       <div style="padding:24px;color:#0f172a">
         <h1 style="margin:0 0 12px;font-size:18px">${title}</h1>
@@ -162,8 +162,8 @@ export async function sendOrderNotifications(
   const referencia = order.reference ?? `AngoStart-ORD-${String(order.orderId).padStart(5, '0')}`;
 
   const instrucoesKwik = manualMethod && methodLabel
-    ? `<div style="margin:12px 0;padding:14px;border:1px solid #10b981;border-radius:12px;background:#ecfdf5">
-         <p style="margin:0 0 8px;font-weight:bold;color:#065f46">Pagamento ${methodLabel} — Transferência</p>
+    ? `<div style="margin:12px 0;padding:14px;border:1px solid #14b8a6;border-radius:12px;background:#f0fdfa">
+         <p style="margin:0 0 8px;font-weight:bold;color:#115e59">Pagamento ${methodLabel} — Transferência</p>
          <p style="margin:0;font-size:14px;line-height:1.6">
            1. Transfere <strong>${formatKz(order.totalKz)}</strong> para
            <strong>+244 958 176 915</strong> (${methodLabel}).<br/>
@@ -171,7 +171,7 @@ export async function sendOrderNotifications(
            <strong>${referencia}</strong>.<br/>
            3. Anexa o comprovativo no site (ou responde a este email).
          </p>
-         <p style="margin:8px 0 0;font-size:13px;color:#047857">
+         <p style="margin:8px 0 0;font-size:13px;color:#0f766e">
            ${order.proofAttached
              ? '✓ Comprovativo já recebido — a tua encomenda está a aguardar validação da equipa.'
              : 'Assim que anexares o comprovativo, a equipa valida e a entrega é preparada.'}
@@ -250,14 +250,14 @@ export async function sendOrderValidatedEmail(
           .map(
             (b) =>
               `<li style="margin:8px 0"><a href="${getAppUrl()}/api/products/${b.id}/download"
-                 style="color:#059669;font-weight:600">${b.name}</a></li>`
+                 style="color:#0d9488;font-weight:600">${b.name}</a></li>`
           )
           .join('');
         downloadSection = `
-          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px;margin:16px 0">
-            <p style="margin:0 0 8px;font-weight:700;color:#065f46">📚 Os teus downloads estão prontos:</p>
+          <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px;margin:16px 0">
+            <p style="margin:0 0 8px;font-weight:700;color:#115e59">📚 Os teus downloads estão prontos:</p>
             <ul style="margin:0;padding-left:20px">${links}</ul>
-            <p style="margin:10px 0 0;font-size:13px;color:#047857">
+            <p style="margin:10px 0 0;font-size:13px;color:#0f766e">
               O link abre a tua conta AngoStart para descarregar com segurança.
             </p>
           </div>`;
@@ -387,7 +387,7 @@ export async function sendDisputeDecisionEmail(
        Os valores retidos em escrow foram libertados para o vendedor.</p>`;
 
   const note = resolutionNote
-    ? `<div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+    ? `<div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#115e59">
          <strong>Nota da equipa:</strong> ${resolutionNote}
        </div>`
     : '';
@@ -414,10 +414,10 @@ export async function sendChatNotificationEmail(
     html: layout(
       'Tens uma nova mensagem',
       `<p><strong>${senderName}</strong> escreveu-te no chat da AngoStart:</p>
-       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#115e59">
          ${preview.slice(0, 300)}
        </div>
-       <p><a href="${link}" style="color:#059669;font-weight:bold">Responde no chat →</a></p>
+       <p><a href="${link}" style="color:#0d9488;font-weight:bold">Responde no chat →</a></p>
        <p style="font-size:13px;color:#64748b">Mantém toda a negociação dentro da plataforma
        — é o que garante a tua proteção na AngoStart.</p>`
     ),
@@ -437,7 +437,7 @@ export async function sendPasswordResetEmail(
     html: layout(
       'Recupera a tua senha',
       `<p>Recebemos um pedido para redefinir a senha da tua conta.</p>
-       <p><a href="${resetLink}" style="display:inline-block;background:#10b981;color:#fff;
+       <p><a href="${resetLink}" style="display:inline-block;background:#14b8a6;color:#fff;
           padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">
           Redefinir senha</a></p>
        <p style="font-size:13px;color:#64748b">O link expira em 2 horas e só funciona uma vez.
@@ -471,9 +471,9 @@ export async function sendAdminInviteEmail(
       `<p>Olá ${name || ''},</p>
        <p>Foste convidado(a) para <strong>Administrador Limitado</strong> da AngoStart
        — vais validar comprovativos de pagamento KWiK no painel de validação.</p>
-       <div style="margin:14px 0;padding:16px;border:2px dashed #10b981;border-radius:12px;background:#ecfdf5;text-align:center">
-         <p style="margin:0 0 6px;font-size:12px;color:#065f46;font-weight:bold">CÓDIGO DE CONVITE (expira em ${horas} h)</p>
-         <p style="margin:0;font-size:28px;letter-spacing:6px;font-weight:bold;color:#065f46">${code}</p>
+       <div style="margin:14px 0;padding:16px;border:2px dashed #14b8a6;border-radius:12px;background:#f0fdfa;text-align:center">
+         <p style="margin:0 0 6px;font-size:12px;color:#115e59;font-weight:bold">CÓDIGO DE CONVITE (expira em ${horas} h)</p>
+         <p style="margin:0;font-size:28px;letter-spacing:6px;font-weight:bold;color:#115e59">${code}</p>
        </div>
        <p><strong>Como ativar a conta (só a primeira vez):</strong></p>
        <p style="line-height:1.7">
@@ -509,9 +509,9 @@ export async function sendDailyCodeEmail(
        <p>Usa este código de 6 dígitos para entrar no painel de validação
        (<strong>${getAppUrl()}/admin-limitado</strong>) — a seguir, introduz o
        código TOTP da tua app autenticadora.</p>
-       <div style="margin:14px 0;padding:16px;border:2px dashed #10b981;border-radius:12px;background:#ecfdf5;text-align:center">
-         <p style="margin:0 0 6px;font-size:12px;color:#065f46;font-weight:bold">CÓDIGO DIÁRIO (expira em ${horas} h · uso único)</p>
-         <p style="margin:0;font-size:32px;letter-spacing:8px;font-weight:bold;color:#065f46">${code}</p>
+       <div style="margin:14px 0;padding:16px;border:2px dashed #14b8a6;border-radius:12px;background:#f0fdfa;text-align:center">
+         <p style="margin:0 0 6px;font-size:12px;color:#115e59;font-weight:bold">CÓDIGO DIÁRIO (expira em ${horas} h · uso único)</p>
+         <p style="margin:0;font-size:32px;letter-spacing:8px;font-weight:bold;color:#115e59">${code}</p>
        </div>
        <p style="font-size:13px;color:#64748b">Se não foste tu que pediste o acesso, ignora este email
        e avisa o administrador — o código só funciona uma vez e expira hoje.</p>`
@@ -539,11 +539,11 @@ export async function sendNewProposalEmail(
       'Recebeste uma nova proposta',
       `<p>O cliente <strong>${clientName}</strong> enviou-te uma proposta
        para <strong>${serviceName}</strong>:</p>
-       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#115e59">
          <p style="margin:0 0 6px"><strong>Preço proposto:</strong> ${kz(priceKz)}</p>
          ${deadlineDays ? `<p style="margin:0"><strong>Prazo:</strong> ${deadlineDays} dias</p>` : ''}
        </div>
-       <p><a href="${link}" style="color:#059669;font-weight:bold">Aceitar, recusar ou contrapropor →</a></p>
+       <p><a href="${link}" style="color:#0d9488;font-weight:bold">Aceitar, recusar ou contrapropor →</a></p>
        <p style="font-size:13px;color:#64748b">Responde rapidamente — propostas com resposta
        rápida aumentam a confiança dos clientes.</p>`,
     ),
@@ -567,16 +567,16 @@ export async function sendProposalAcceptedEmail(
       'Proposta aceite — negócio fechado!',
       `<p>Os termos acordados para <strong>${serviceName}</strong> foram aceites
        ${role === 'cliente' ? 'pelo vendedor e por ti' : 'pelo cliente e por ti'}:</p>
-       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#065f46">
+       <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#115e59">
          <p style="margin:0 0 6px"><strong>Valor acordado:</strong> ${kz(priceKz)}</p>
          ${deadlineDays ? `<p style="margin:0 0 6px"><strong>Prazo acordado:</strong> ${deadlineDays} dias</p>` : ''}
          <p style="margin:0"><strong>Pedido gerado:</strong> #${orderId}</p>
        </div>
        ${
          role === 'cliente'
-           ? `<p><a href="${link}" style="color:#059669;font-weight:bold">Pagar agora com KWiK e garantir o negócio →</a></p>
+           ? `<p><a href="${link}" style="color:#0d9488;font-weight:bold">Pagar agora com KWiK e garantir o negócio →</a></p>
               <p style="font-size:13px;color:#64748b">O valor fica protegido em escrow até confirmares a entrega.</p>`
-           : `<p><a href="${link}" style="color:#059669;font-weight:bold">Ver pedido no meu painel →</a></p>
+           : `<p><a href="${link}" style="color:#0d9488;font-weight:bold">Ver pedido no meu painel →</a></p>
               <p style="font-size:13px;color:#64748b">Aguarda o pagamento do cliente — recebe aviso assim que for validado.</p>`
        }`,
     ),

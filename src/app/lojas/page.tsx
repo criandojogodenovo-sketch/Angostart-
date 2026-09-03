@@ -123,7 +123,7 @@ export default async function LojasPage({
           <Store className="h-6 w-6" aria-hidden="true" />
         </span>
         <div>
-          <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Lojas virtuais</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">Lojas virtuais</h1>
           <p className="mt-1 text-sm text-slate-500">
             Cada vendedor AngoStart tem a sua própria loja — explora, segue e compra com confiança.
           </p>

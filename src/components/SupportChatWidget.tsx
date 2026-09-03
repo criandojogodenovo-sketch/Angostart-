@@ -28,7 +28,7 @@ interface Turn {
 const ABERTURA: Turn = {
   role: 'assistant',
   content:
-    'Olá! Sou o assistente virtual da AngoStart. Pergunta-me sobre compras, vendas, carteira, verificação de identidade ou a tua conta.',
+    'Olá! Sou o assistente virtual da AngoStart. Pergunta-me sobre compras, vendas, Busbt (vídeos), Pedidos no Ar, carteira, afiliados, verificação de identidade ou a tua conta.',
 };
 
 /** Evento global usado pela BottomNav ("IA") para abrir o widget. */
@@ -152,7 +152,7 @@ export default function SupportChatWidget() {
           aria-label="Assistente de suporte da AngoStart"
         >
           {/* Cabeçalho (safe-area no mobile para ecrãs com notch) */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-teal-500 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white">
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white">
             <div className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
                 <Sparkles className="h-5 w-5" />

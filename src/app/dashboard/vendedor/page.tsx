@@ -1174,7 +1174,7 @@ export default function DashboardVendedorPage() {
                 )}
               </div>
               {subCampanha.trim() && !subNormalizado() && (
-                <p className="mt-1.5 text-xs text-red-500">
+                <p className="mt-1.5 text-xs text-rose-500">
                   Usa só letras, números, hífen ou underscore (máx. 30).
                 </p>
               )}

@@ -163,7 +163,7 @@ const VIDEO_STATUS_LABELS: Record<string, string> = {
 const VIDEO_STATUS_STYLES: Record<string, string> = {
   uploading: 'bg-amber-500/15 text-amber-400',
   processing: 'bg-blue-600/15 text-blue-400',
-  ready: 'bg-emerald-500/15 text-emerald-400',
+  ready: 'bg-teal-500/15 text-teal-400',
   errored: 'bg-rose-500/15 text-rose-400',
 };
 
@@ -1031,7 +1031,7 @@ function AdminPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-100">
-            <ShieldCheck className="h-7 w-7 text-emerald-500" /> Administração Total
+            <ShieldCheck className="h-7 w-7 text-teal-500" /> Administração Total
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             Rota oculta <code className="rounded bg-slate-700/40 px-1.5 py-0.5">/admin</code> — não
@@ -2394,7 +2394,7 @@ function AdminPanel() {
                   alterou <span className="font-medium">{a.scope}</span>
                   {a.seller_name ? ` (vendedor ${a.seller_name})` : ''}:{' '}
                   {a.old_percent === null ? '—' : `${a.old_percent}%`} →{' '}
-                  <span className={a.new_percent < 0 ? 'text-red-600' : 'font-semibold text-blue-300'}>
+                  <span className={a.new_percent < 0 ? 'text-rose-600' : 'font-semibold text-blue-300'}>
                     {a.new_percent < 0 ? 'removido' : `${a.new_percent}%`}
                   </span>{' '}
                   <span className="text-xs text-slate-400">

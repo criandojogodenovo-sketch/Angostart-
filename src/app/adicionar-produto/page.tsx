@@ -993,7 +993,7 @@ function AdicionarProdutoContent() {
               className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
             >
               <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-                <BadgeCheck className="mr-1.5 inline h-4 w-4 text-emerald-600" />
+                <BadgeCheck className="mr-1.5 inline h-4 w-4 text-teal-600" />
                 Verificação de identidade (opcional) — ganha o selo azul
               </summary>
               <p className="mt-2 text-xs text-slate-500">

@@ -76,8 +76,8 @@ export default function HeroIllustration() {
 
       {/* Chip de venda concluída */}
       <div className="animate-float absolute -left-2 bottom-1/2 flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/70 px-3 py-1.5 shadow-xl backdrop-blur-xl [animation-delay:1.4s]">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
-          <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-emerald-400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-500/20">
+          <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-teal-400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 6.5 4.5 9 10 3.5" />
           </svg>
         </span>

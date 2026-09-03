@@ -90,7 +90,7 @@ export default function ServiceMapInner({
     return centerForCity(cidade);
   }, [providerLat, providerLng, pickedLat, pickedLng, cidade]);
 
-  const providerIcon = useMemo(() => makeMarkerIcon('#10b981', '#10b981', cidade ?? 'Prestador'), [cidade]);
+  const providerIcon = useMemo(() => makeMarkerIcon('#14b8a6', '#14b8a6', cidade ?? 'Prestador'), [cidade]);
   const pickIcon = useMemo(() => makeMarkerIcon('#f59e0b', '#f59e0b'), []);
   const userIcon = useMemo(() => makeMarkerIcon('#38bdf8', '#38bdf8'), []);
 

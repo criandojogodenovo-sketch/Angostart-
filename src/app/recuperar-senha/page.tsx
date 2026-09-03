@@ -45,7 +45,7 @@ export default function RecuperarSenhaPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         {sent ? (
           <div className="text-center">
-            <MailCheck className="mx-auto h-12 w-12 text-emerald-500" />
+            <MailCheck className="mx-auto h-12 w-12 text-teal-500" />
             <h1 className="mt-4 text-xl font-bold text-slate-900">Verifica o teu email</h1>
             <p className="mt-2 text-sm text-slate-500">
               Se <strong>{email}</strong> existir na AngoStart, enviámos um link para

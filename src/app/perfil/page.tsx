@@ -661,7 +661,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                       className="h-11"
                     />
                     {idadeInformada !== null && idadeInformada < 15 && (
-                      <p className="text-xs font-semibold text-red-600">
+                      <p className="text-xs font-semibold text-rose-600">
                         Idade mínima para aderir como vendedor é 15 anos.
                       </p>
                     )}

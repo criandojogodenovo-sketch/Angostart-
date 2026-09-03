@@ -486,7 +486,7 @@ export default function CarteiraPage() {
 
       {/* Nota de segurança */}
       <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
-        <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+        <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" />
         Todos os movimentos são validados no servidor com auditoria completa —
         <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" aria-hidden="true" />
         nunca partilhes a tua palavra-passe ou códigos com ninguém.

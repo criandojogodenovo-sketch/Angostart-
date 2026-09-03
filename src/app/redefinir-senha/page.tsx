@@ -137,7 +137,7 @@ function RedefinirForm() {
             required
           />
           {confirm.length > 0 && confirm !== password && (
-            <p className="text-xs text-red-500">As senhas não coincidem.</p>
+            <p className="text-xs text-rose-500">As senhas não coincidem.</p>
           )}
         </div>
         <Button

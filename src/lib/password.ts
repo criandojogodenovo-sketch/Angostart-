@@ -140,9 +140,9 @@ export function passwordStrength(password: string): PasswordStrength {
   if (!COMMON_PASSWORDS.has(p.toLowerCase()) && p.length >= PASSWORD_MIN_LENGTH) crit += 1;
 
   const score: 0 | 1 | 2 | 3 = crit <= 2 ? 1 : crit <= 4 ? 2 : 3;
-  if (score === 1) return { score, label: 'fraca', color: 'bg-red-500' };
+  if (score === 1) return { score, label: 'fraca', color: 'bg-rose-500' };
   if (score === 2) return { score, label: 'média', color: 'bg-amber-500' };
-  return { score, label: 'forte', color: 'bg-emerald-500' };
+  return { score, label: 'forte', color: 'bg-teal-500' };
 }
 
 /* ─────────────────────── BI angolano + idade mínima ─────────────────── */

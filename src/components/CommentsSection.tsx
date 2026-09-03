@@ -206,7 +206,7 @@ export default function CommentsSection({
                       onClick={() => handleDelete(c.id)}
                       disabled={deletingId === c.id}
                       aria-label="Apagar o meu comentário"
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
                     >
                       {deletingId === c.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

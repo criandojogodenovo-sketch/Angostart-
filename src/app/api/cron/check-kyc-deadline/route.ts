@@ -95,7 +95,7 @@ async function runDeadlineCheck() {
         html: `
           <div style="font-family:Segoe UI,Arial,sans-serif;background:#f1f5f9;padding:24px">
             <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:24px;border:1px solid #e2e8f0">
-              <h2 style="margin:0 0 8px;color:#0f172a">Ango<span style="color:#10b981">Start</span></h2>
+              <h2 style="margin:0 0 8px;color:#0f172a">Ango<span style="color:#14b8a6">Start</span></h2>
               <p style="color:#0f172a">Olá ${seller.name},</p>
               <p style="color:#0f172a">
                 O prazo de <strong>30 dias</strong> para enviares a foto do teu documento de
@@ -108,7 +108,7 @@ async function runDeadlineCheck() {
                   documento para voltar a publicar — a conta é desbloqueada automaticamente.
                 </p>
               </div>
-              <p><a href="${getAppUrl()}/dashboard/vendedor" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">
+              <p><a href="${getAppUrl()}/dashboard/vendedor" style="display:inline-block;background:#14b8a6;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">
                 Enviar documento agora →
               </a></p>
               <p style="font-size:13px;color:#64748b">

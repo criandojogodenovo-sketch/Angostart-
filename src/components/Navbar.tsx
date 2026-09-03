@@ -81,7 +81,7 @@ export default function Navbar() {
           {user && isSeller && (
             <Link
               href="/adicionar-produto"
-              className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-colors ${
+              className={`ml-1 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white transition-colors ${
                 pathname === '/adicionar-produto'
                   ? 'bg-blue-700'
                   : 'bg-blue-600 hover:bg-blue-700'

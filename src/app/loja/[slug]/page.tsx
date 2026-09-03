@@ -55,13 +55,13 @@ export default async function LojaPage({
                
               <img src={store.logo_url} alt={store.name} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-3xl font-black text-blue-700">
+              <div className="flex h-full w-full items-center justify-center text-3xl font-extrabold text-blue-700">
                 {store.name.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
           <div className="flex-1 pb-1">
-            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-black text-slate-900">
+            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold text-slate-900">
               {store.name}
               {store.verified && <VerifiedBadge />}
             </h1>
@@ -123,7 +123,7 @@ export default async function LojaPage({
                   <div className="p-3">
                     <p className="line-clamp-2 min-h-10 text-sm font-semibold text-slate-800">{p.name}</p>
                     <div className="mt-1 flex items-center justify-between">
-                      <span className="text-sm font-black text-blue-700">{formatKz(p.price_kz)}</span>
+                      <span className="text-sm font-extrabold text-blue-700">{formatKz(p.price_kz)}</span>
                       {!p.available && (
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">ESGOTADO</span>
                       )}
