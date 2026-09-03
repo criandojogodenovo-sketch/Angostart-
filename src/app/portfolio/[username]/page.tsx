@@ -23,11 +23,9 @@ import {
   CheckCircle2,
   Globe,
   Handshake,
-  Inbox,
   Loader2,
   MapPin,
   Medal,
-  MessageCircle,
   Package,
   SearchX,
   Star,
@@ -218,97 +216,102 @@ export default function PortfolioPublicoPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <Link
-        href="/produtos"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-700"
+        href="/prestadores"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-blue-700 dark:text-slate-400 dark:hover:text-blue-300"
       >
-        <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
+        <ArrowLeft className="h-4 w-4" /> Voltar aos prestadores
       </Link>
 
-      {/* Cabeçalho do vendedor — Mini-Loja */}
-      <header className="mt-6 overflow-hidden rounded-3xl bg-slate-900 shadow-lg">
-        <div className="relative h-28 overflow-hidden bg-gradient-to-r from-blue-700/40 via-slate-800 to-slate-900">
+      {/* ── HERO estilo «Aarav Singh»: foto GRANDE + nome + título + CTAs ── */}
+      <header className="relative mt-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white shadow-2xl">
+        <div className="pointer-events-none absolute inset-0 opacity-60">
           <PatternWaves />
         </div>
-        <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl"
+        />
+
+        <div className="relative flex flex-col items-center gap-6 px-6 pb-8 pt-10 text-center sm:flex-row sm:items-end sm:px-10 sm:pb-10 sm:pt-12 sm:text-left">
+          {/* Foto GRANDE (h-40 mobile / h-48 desktop) */}
           {seller.profile_image || seller.portfolio_image ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={(seller.profile_image ?? seller.portfolio_image) as string}
               alt={`Foto de ${seller.name}`}
-              className="-mt-12 h-24 w-24 rounded-2xl border-4 border-slate-900 object-cover shadow-xl ring-2 ring-blue-500/40 transition-transform duration-300 hover:scale-105"
+              className="h-40 w-40 shrink-0 rounded-[1.75rem] border-4 border-white/15 object-cover shadow-2xl ring-4 ring-blue-500/30 transition-transform duration-500 hover:scale-[1.03] sm:h-48 sm:w-48"
             />
           ) : (
-            <span className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-slate-900 bg-gradient-to-br from-blue-500 to-purple-600 text-3xl font-bold text-white shadow-xl ring-2 ring-blue-500/40">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-[1.75rem] border-4 border-white/15 bg-gradient-to-br from-blue-500 to-purple-600 text-6xl font-black text-white shadow-2xl ring-4 ring-blue-500/30 sm:h-48 sm:w-48">
               {seller.name.charAt(0).toUpperCase()}
             </span>
           )}
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white">{seller.name}</h1>
-            <p className="text-sm font-semibold text-blue-300">{seller.role_label}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+              {seller.name}
+            </h1>
+            <p className="mt-1.5 text-base font-bold text-blue-300 sm:text-lg">
+              {seller.role_label}
+              {seller.especialidade ? ` · ${seller.especialidade}` : ''}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-slate-400 sm:justify-start sm:text-sm">
               {seller.cidade && (
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" /> {seller.cidade}
                 </span>
               )}
-              {seller.especialidade && <span>{seller.especialidade}</span>}
               <span>@{seller.username}</span>
-            </div>
-            {/* Reputação — real ou estimada (claramente marcada, Fase 6 ponto 6) */}
-            {media > 0 && (
-              <p
-                className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                  estimada
-                    ? 'bg-slate-400/15 text-slate-300'
-                    : 'bg-amber-400/15 text-amber-300'
-                }`}
-              >
-                <Star className={`h-3.5 w-3.5 ${estimada ? 'text-slate-300' : 'fill-amber-400 text-amber-400'}`} />
-                {media.toFixed(1)} de 5
-                {estimada ? (
-                  <span className="font-normal text-slate-400">· avaliação estimada</span>
-                ) : (
-                  <span className="font-normal text-amber-200/70">
-                    · {totalAvaliacoes}{' '}
-                    {totalAvaliacoes === 1 ? 'avaliação' : 'avaliações'} reais
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
-          {/* 🔒 Fase 16: fluxo «Entrar em Contato» — sem dados expostos */}
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              onClick={pedirContato}
-              disabled={contactSending || contactSent || user?.id === seller.id}
-              className="h-12 bg-gradient-to-r from-blue-600 to-purple-600 px-6 font-semibold text-white hover:from-blue-700 hover:to-purple-700"
-            >
-              {contactSending ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : contactSent ? (
-                <CheckCircle2 className="mr-2 h-5 w-5" />
-              ) : (
-                <Handshake className="mr-2 h-5 w-5" />
+              {/* Reputação — real ou estimada (claramente marcada, Fase 6 ponto 6) */}
+              {media > 0 && (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                    estimada
+                      ? 'bg-slate-400/15 text-slate-300'
+                      : 'bg-amber-400/15 text-amber-300'
+                  }`}
+                >
+                  <Star className={`h-3.5 w-3.5 ${estimada ? 'text-slate-300' : 'fill-amber-400 text-amber-400'}`} />
+                  {media.toFixed(1)} de 5
+                  {estimada ? ' · estimada' : ` · ${totalAvaliacoes} ${totalAvaliacoes === 1 ? 'real' : 'reais'}`}
+                </span>
               )}
-              {contactSent ? 'Pedido enviado ✓' : 'Entrar em Contato'}
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-12 border-white/25 bg-white/5 px-6 font-semibold text-white hover:bg-white/10"
-            >
-              <Link href={user?.id === seller.id ? '/pedidos?tab=contactos' : '/pedidos?tab=contactos'}>
-                <Inbox className="mr-2 h-5 w-5" />
-                {user?.id === seller.id ? 'Ver os meus contactos' : 'Pedidos de serviços'}
-              </Link>
-            </Button>
+            </div>
+
+            {/* CTAs principais — «Ver Trabalhos» + «Contactar» */}
+            <div className="mt-6 flex max-w-full flex-col justify-center gap-3 sm:flex-row sm:justify-start">
+              <Button
+                asChild
+                className="btn-shine h-12 bg-gradient-to-r from-blue-600 to-purple-600 px-7 font-semibold text-white shadow-lg shadow-blue-600/30 hover:brightness-110"
+              >
+                <a href="#trabalhos">
+                  <Package className="mr-2 h-5 w-5" /> Ver Trabalhos
+                </a>
+              </Button>
+              <Button
+                onClick={pedirContato}
+                disabled={contactSending || contactSent || user?.id === seller.id}
+                variant="outline"
+                className="h-12 border-white/25 bg-white/5 px-7 font-semibold text-white backdrop-blur hover:bg-white/10"
+              >
+                {contactSending ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : contactSent ? (
+                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                ) : (
+                  <Handshake className="mr-2 h-5 w-5" />
+                )}
+                {contactSent ? 'Pedido enviado ✓' : 'Contactar'}
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Estatísticas da Mini-Loja */}
-        <dl className="grid grid-cols-3 gap-px border-t border-white/10 bg-white/10 text-center">
-          <div className="bg-slate-900 px-2 py-4">
+        {/* Estatísticas — faixa em vidro */}
+        <dl className="relative grid grid-cols-2 gap-px border-t border-white/10 bg-white/10 text-center sm:grid-cols-4">
+          <div className="min-w-0 bg-slate-900/80 px-2 py-4 backdrop-blur">
             <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
               <Star className="h-3.5 w-3.5 text-amber-400" /> Avaliação
             </dt>
@@ -317,34 +320,33 @@ export default function PortfolioPublicoPage() {
               {estimada && <span className="ml-1 text-[10px] font-normal text-slate-400">est.</span>}
             </dd>
           </div>
-          <div className="bg-slate-900 px-2 py-4">
+          <div className="min-w-0 bg-slate-900/80 px-2 py-4 backdrop-blur">
             <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
-              <Package className="h-3.5 w-3.5 text-blue-300" /> Produtos
+              <Package className="h-3.5 w-3.5 text-blue-300" /> Trabalhos
             </dt>
-            <dd className="mt-1 text-lg font-bold text-white">{seller.total_produtos ?? 0}</dd>
+            <dd className="mt-1 text-lg font-bold text-white">{items.length}</dd>
           </div>
-          <div className="bg-slate-900 px-2 py-4">
+          <div className="min-w-0 bg-slate-900/80 px-2 py-4 backdrop-blur">
             <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
               <Users className="h-3.5 w-3.5 text-blue-300" /> Clientes
             </dt>
             <dd className="mt-1 text-lg font-bold text-white">{seller.total_clientes ?? 0}</dd>
           </div>
-          {seller.gamificacao && (
-            <div className="bg-slate-900 px-2 py-4">
-              <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
-                <Medal className="h-3.5 w-3.5 text-blue-300" /> Nível
-              </dt>
-              <dd className="mt-1 text-lg font-bold text-white">
-                {LEVEL_BADGE[seller.gamificacao.level]?.emoji ?? '🥉'}{' '}
-                {LEVEL_BADGE[seller.gamificacao.level]?.label ?? 'Bronze'}
-              </dd>
-            </div>
-          )}
+          <div className="col-span-2 min-w-0 bg-slate-900/80 px-2 py-4 backdrop-blur sm:col-span-1">
+            <dt className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-slate-400">
+              <Medal className="h-3.5 w-3.5 text-blue-300" /> Nível
+            </dt>
+            <dd className="mt-1 text-lg font-bold text-white">
+              {seller.gamificacao
+                ? `${LEVEL_BADGE[seller.gamificacao.level]?.emoji ?? '🥉'} ${LEVEL_BADGE[seller.gamificacao.level]?.label ?? 'Bronze'}`
+                : '—'}
+            </dd>
+          </div>
         </dl>
 
         {/* Selos de confiança (Fase 7) */}
         {seller.gamificacao && seller.gamificacao.badges.length > 0 && (
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <div className="relative mt-4 flex flex-wrap justify-center gap-2 px-6 pb-6">
             {seller.gamificacao.badges.map((b) => (
               <span
                 key={b.code}
@@ -358,9 +360,9 @@ export default function PortfolioPublicoPage() {
       </header>
 
       {/* Sobre mim */}
-      <section aria-label="Sobre o prestador" className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">Sobre mim</h2>
-        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+      <section aria-label="Sobre o prestador" className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-white">Sobre mim</h2>
+        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           {seller.portfolio_bio || seller.bio || 'Este prestador ainda não escreveu a sua bio.'}
         </p>
         {seller.portfolio_url && (
@@ -368,59 +370,134 @@ export default function PortfolioPublicoPage() {
             href={seller.portfolio_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline dark:text-blue-300"
           >
             <Globe className="h-4 w-4" /> Website / portfólio externo
           </a>
         )}
       </section>
 
-      {/* Galeria de trabalhos */}
-      <section aria-label="Portfólio de trabalhos" className="mt-8">
-        <h2 className="text-xl font-bold text-slate-900">Trabalhos ({items.length})</h2>
+      {/* Serviços (ref. «Aarav Singh — What I Do») — derivados de dados reais */}
+      {(() => {
+        const serviceTypes = [...new Set(products.map((p) => p.type))].filter(
+          (t): t is ProductType => t in PRODUCT_TYPES,
+        );
+        const hasServices = serviceTypes.length > 0 || seller.especialidade;
+        if (!hasServices) return null;
+        return (
+          <section aria-label="Serviços" className="mt-10">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Serviços</h2>
+            <ul className="mt-4 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+              {seller.especialidade && (
+                <li className="hover-lift rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-md">
+                    <Handshake className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{seller.especialidade}</h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Especialidade principal declarada pelo prestador.</p>
+                </li>
+              )}
+              {serviceTypes.map((type) => {
+                const info = PRODUCT_TYPES[type];
+                return (
+                  <li key={type} className="hover-lift rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${info.gradient} text-white shadow-md`}>
+                      <Package className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{info.label}</h3>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {products.filter((p) => p.type === type).length} oferta(s) ativa(s) neste catálogo.
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })()}
+
+      {/* Galeria de trabalhos — imagens GRANDES (ref. «Aarav Singh — Projects») */}
+      <section aria-label="Portfólio de trabalhos" id="trabalhos" className="mt-10 scroll-mt-24">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Trabalhos ({items.length})</h2>
         {items.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+          <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 dark:border-white/15">
             Ainda não há trabalhos publicados neste portfólio.
           </p>
         ) : (
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-4 grid gap-5 sm:grid-cols-2">
             {items.map((item) => (
-              <li key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-                <img loading="lazy" src={item.image_url} alt={item.title} className="h-44 w-full object-cover" />
-                <div className="p-4">
-                  <h3 className="text-sm font-semibold text-slate-900">{item.title}</h3>
-                  {item.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{item.description}</p>
-                  )}
+              <li
+                key={item.id}
+                className="hover-lift group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900"
+              >
+                <div className="relative h-56 w-full overflow-hidden sm:h-64">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    loading="lazy"
+                    src={item.image_url}
+                    alt={item.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+                  <h3 className="absolute bottom-3 left-4 right-4 line-clamp-1 text-base font-bold text-white drop-shadow">
+                    {item.title}
+                  </h3>
                 </div>
+                <p className="p-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                  {item.description || 'Trabalho publicado pelo prestador.'}
+                </p>
               </li>
             ))}
           </ul>
         )}
       </section>
 
+      {/* Processo de trabalho numerado (ref. «Design Process») */}
+      <section aria-label="Processo de trabalho" className="mt-10">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Como trabalho</h2>
+        <ol className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { n: 1, t: 'Pedido', d: 'Envias o pedido pelo chat AngoStart, sem contactos expostos.' },
+            { n: 2, t: 'Proposta', d: 'O prestador responde com âmbito, prazo e preço em Kwanzas.' },
+            { n: 3, t: 'Execução', d: 'Trabalho acompanado — acompanhas cada atualização na plataforma.' },
+            { n: 4, t: 'Entrega', d: 'Confirmas a entrega e só então o pagamento é libertado.' },
+          ].map((s) => (
+            <li
+              key={s.n}
+              className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-sm font-black text-white shadow-md">
+                {s.n}
+              </span>
+              <h3 className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{s.t}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{s.d}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* Produtos/serviços à venda */}
       {products.length > 0 && (
-        <section aria-label="Produtos à venda" className="mt-8">
-          <h2 className="text-xl font-bold text-slate-900">Produtos à venda</h2>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section aria-label="Produtos à venda" className="mt-10">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Produtos à venda</h2>
+          <ul className="mt-4 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
               <li key={product.id}>
                 <Link
                   href={`/produtos/${product.id}`}
-                  className="block h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  className="hover-lift block h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900"
                 >
-                  <div className={`flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${getProductGradient(product)} text-white`}>
-                    <ProductIcon name={product.icon} className="h-7 w-7" />
+                  <div className={`flex h-20 w-full items-center justify-center rounded-xl bg-gradient-to-br ${getProductGradient(product)} text-white`}>
+                    <ProductIcon name={product.icon} className="h-9 w-9" />
                   </div>
-                  <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-slate-900">
+                  <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-slate-900 dark:text-white">
                     {product.name}
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-400">
                     {PRODUCT_TYPES[product.type as ProductType]?.short ?? product.type}
                   </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-base font-bold text-blue-600">
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-lg font-extrabold text-transparent dark:from-blue-400 dark:to-purple-400">
                       {formatKz(product.price_kz)}
                     </span>
                     {/* Fase 11: sem média real → "Novo" (nunca um 4.5 falso) */}
@@ -430,8 +507,8 @@ export default function PortfolioPublicoPage() {
                         {Number(product.rating).toFixed(1)}
                       </span>
                     ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
-                        Sem avaliações
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-white/10">
+                        Novo
                       </span>
                     )}
                   </div>
@@ -442,23 +519,26 @@ export default function PortfolioPublicoPage() {
         </section>
       )}
 
-      {/* Avaliações recebidas (Fase 6, ponto 1) */}
-      <section aria-label="Avaliações recebidas" className="mt-8">
-        <h2 className="text-xl font-bold text-slate-900">Avaliações ({totalAvaliacoes})</h2>
+      {/* Avaliações / testemunhos de clientes (Fase 6, ponto 1) */}
+      <section aria-label="Avaliações recebidas" className="mt-10">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Testemunhos ({totalAvaliacoes})</h2>
         {reviews.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+          <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 dark:border-white/15">
             Ainda sem avaliações reais — a nota acima é uma estimativa da
             plataforma e desaparece assim que chegarem as primeiras avaliações.
           </p>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {reviews.map((review) => (
               <li
                 key={review.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-slate-900">
+                <blockquote className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                  «{review.comment || 'Recomendo este prestador.'}»
+                </blockquote>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-white/10">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">
                     {review.user_name}
                     {review.user_username && (
                       <span className="ml-1 text-xs font-normal text-slate-400">
@@ -475,9 +555,6 @@ export default function PortfolioPublicoPage() {
                 </div>
                 {review.product_name && (
                   <p className="mt-1 text-xs text-slate-400">sobre «{review.product_name}»</p>
-                )}
-                {review.comment && (
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{review.comment}</p>
                 )}
               </li>
             ))}

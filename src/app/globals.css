@@ -302,6 +302,7 @@
   .animate-wave,
   .animate-pop,
   .animate-pulse-glow,
+  .animate-wave-arm,
   .text-gradient-animated {
     animation: none;
   }
@@ -406,6 +407,33 @@
 }
 .group:hover .animate-wave {
   animation: angostart-wave 1.1s ease-in-out infinite;
+}
+
+/* Aceno do HeroAvatar — braço inteiro roda a partir do ombro
+   (transform-origin definido inline no <g> via fill-box). */
+@keyframes angostart-wave-arm {
+  0%,
+  100% {
+    transform: rotate(8deg);
+  }
+  35% {
+    transform: rotate(-16deg);
+  }
+  70% {
+    transform: rotate(18deg);
+  }
+}
+.animate-wave-arm {
+  animation: angostart-wave-arm 1.8s ease-in-out infinite;
+}
+
+/* ── Guarda estrutural anti-overflow horizontal ──
+   Nenhum elemento fixed/absolute pode criar scroll horizontal.
+   «clip» não cria contexto de scroll (ao contrário de «hidden»),
+   preservando sticky do navbar e a âncora do menu. */
+html,
+body {
+  overflow-x: clip;
 }
 
 /* Pop-in elástico (badges, tiles flutuantes). */

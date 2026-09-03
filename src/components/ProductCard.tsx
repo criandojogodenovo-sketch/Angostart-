@@ -60,44 +60,54 @@ export default function ProductCard({ product }: { product: Product }) {
       viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
     >
-      {/* Cabeçalho ilustrativo — clique abre o modal com zoom (Fase 20) */}
-      <button
-        type="button"
-        onClick={() => setZoom(true)}
-        aria-label={`Ampliar imagem de ${product.name}`}
-        className={`relative flex h-44 w-full cursor-zoom-in items-center justify-center overflow-hidden bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.05] ${safeGradient}`}
-      >
-        {/* Brilho radial suave atrás do ícone (ref. Nexora) */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute h-32 w-32 rounded-full bg-white/15 blur-2xl transition-all duration-500 group-hover:h-40 group-hover:w-40"
-        />
-        <ProductIcon
-          name={product.icon}
-          className="relative h-16 w-16 text-white/90 drop-shadow-lg transition-transform duration-300 group-hover:scale-110"
-        />
-        <Badge
-          className="absolute left-3 top-3 border-0 bg-white/20 text-white backdrop-blur-sm"
-          variant="secondary"
+      {/* Cabeçalho ilustrativo GRANDE (ref. Stufius/Nexora) — clique abre o zoom.
+          O ShareButton fica FORA do <button> de zoom (botões não se aninham),
+          sobreposto via wrapper relativo. */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setZoom(true)}
+          aria-label={`Ampliar imagem de ${product.name}`}
+          className={`relative flex h-56 w-full cursor-zoom-in items-center justify-center overflow-hidden bg-gradient-to-br sm:h-60 ${safeGradient}`}
         >
-          {typeInfo.short}
-        </Badge>
-        {product.is_hot && (
-          <Badge className="absolute right-3 top-3 animate-pulse border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-            <Flame className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            Em alta
+          {/* Brilho radial suave atrás do ícone (ref. Nexora) */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute h-40 w-40 rounded-full bg-white/15 blur-2xl transition-all duration-500 group-hover:h-52 group-hover:w-52"
+          />
+          <ProductIcon
+            name={product.icon}
+            className="relative h-24 w-24 text-white/90 drop-shadow-lg transition-transform duration-300 group-hover:scale-110"
+          />
+          <Badge
+            className="absolute left-3 top-3 border-0 bg-white/20 text-white backdrop-blur-sm"
+            variant="secondary"
+          >
+            {typeInfo.short}
           </Badge>
-        )}
-        {product.featured && !product.is_hot && (
-          <Badge className="absolute right-3 top-3 border-0 bg-blue-600 text-white">
-            Destaque
-          </Badge>
-        )}
-        {/* Dica de zoom — aparece no hover (ref. Aeroflow: «Main view») */}
-        <span className="absolute bottom-3 right-3 flex h-8 w-8 translate-y-2 items-center justify-center rounded-full bg-white/90 text-blue-600 opacity-0 shadow-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-          <ZoomIn className="h-4 w-4" />
-        </span>
-      </button>
+          {product.is_hot && (
+            <Badge className="absolute right-3 top-3 animate-pulse border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+              <Flame className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+              Em alta
+            </Badge>
+          )}
+          {product.featured && !product.is_hot && (
+            <Badge className="absolute right-3 top-3 border-0 bg-blue-600 text-white">
+              Destaque
+            </Badge>
+          )}
+          {/* Dica de zoom — aparece no hover (ref. Aeroflow: «Main view») */}
+          <span className="absolute bottom-3 right-3 flex h-8 w-8 translate-y-2 items-center justify-center rounded-full bg-white/90 text-blue-600 opacity-0 shadow-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <ZoomIn className="h-4 w-4" />
+          </span>
+        </button>
+        {/* Partilha pública — canto inferior esquerdo, acima do botão de zoom */}
+        <ShareButton
+          productUrl={`/produtos/${product.id}`}
+          compact
+          className="absolute bottom-3 left-3 z-10 h-9 w-9 border-0 bg-white/90 text-blue-600 shadow-md hover:bg-white"
+        />
+      </div>
 
       {/* Conteúdo */}
       <div className="flex flex-1 flex-col gap-2 p-4">
@@ -177,32 +187,38 @@ export default function ProductCard({ product }: { product: Product }) {
           </Link>
         )}
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          {/* Preço em destaque (ref. Nexora/Aeroflow) */}
-          <p className="bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
-            {formatKz(product.price_kz)}
-          </p>
-          {/* Partilha pública — link limpo sem ?ref= (para qualquer utilizador) */}
-          <ShareButton
-            productUrl={`/produtos/${product.id}`}
-            compact
-            className="h-10 w-10"
-          />
+        {/* Preço GRANDE em destaque (ref. Stufius: preço é a âncora visual) */}
+        <p className="bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
+          {formatKz(product.price_kz)}
+        </p>
+
+        {/* Ações principais — «Comprar» + «Detalhes» sempre bem visíveis */}
+        <div className="mt-auto flex items-center gap-2 pt-1">
           <Button
             onClick={handleBuy}
             disabled={outOfStock}
-            className="btn-shine h-10 min-w-0 flex-1 max-w-[150px] bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-white shadow-md shadow-blue-600/25 transition-all hover:shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50"
+            className="btn-shine h-11 min-w-0 flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all hover:shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50"
             aria-label={`Comprar ${product.name} por ${formatKz(product.price_kz)}`}
           >
             {added ? (
               <>
-                <Check className="mr-1 h-4 w-4" /> Adicionado
+                <Check className="mr-1.5 h-4 w-4" /> Adicionado
               </>
             ) : (
               <>
-                <ShoppingCart className="mr-1 h-4 w-4" /> Comprar
+                <ShoppingCart className="mr-1.5 h-4 w-4" /> Comprar
               </>
             )}
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="h-11 shrink-0 border-blue-200 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+          >
+            <Link href={`/produtos/${product.id}`}>
+              Detalhes
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
           </Button>
         </div>
       </div>
