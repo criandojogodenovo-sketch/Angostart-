@@ -18,10 +18,26 @@ interface Announcement {
 }
 
 const TYPE_STYLES: Record<Announcement['type'], { icon: typeof Tag; classes: string }> = {
-  promo: { icon: Tag, classes: 'border-amber-300 bg-amber-50 text-amber-900' },
-  destaque: { icon: Sparkles, classes: 'border-blue-300 bg-blue-50 text-blue-900' },
-  novidade: { icon: Megaphone, classes: 'border-sky-300 bg-sky-50 text-sky-900' },
-  exclusivo: { icon: Megaphone, classes: 'border-slate-300 bg-slate-100 text-slate-800' },
+  promo: {
+    icon: Tag,
+    classes:
+      'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  },
+  destaque: {
+    icon: Sparkles,
+    classes:
+      'border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200',
+  },
+  novidade: {
+    icon: Megaphone,
+    classes:
+      'border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+  },
+  exclusivo: {
+    icon: Megaphone,
+    classes:
+      'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600/60 dark:bg-slate-800/80 dark:text-slate-200',
+  },
 };
 
 const dismissedKey = 'angostart.dismissedAnnouncements.v1';

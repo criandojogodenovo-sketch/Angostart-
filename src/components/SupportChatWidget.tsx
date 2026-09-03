@@ -562,7 +562,7 @@ export default function SupportChatWidget() {
           type="button"
           onClick={() => setAberto(true)}
           aria-label="Abrir assistente de suporte IA"
-          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-[76] flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:shadow-xl hover:brightness-110 active:scale-95 md:bottom-5 md:left-5"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] left-4 z-40 flex h-12 min-h-[48px] items-center gap-2 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:shadow-xl hover:brightness-110 active:scale-95 md:bottom-5 md:left-5"
         >
           <Sparkles className="h-5 w-5" />
           <span className="hidden sm:inline">Ajuda IA</span>

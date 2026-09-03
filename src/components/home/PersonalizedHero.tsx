@@ -138,6 +138,12 @@ export default function PersonalizedHero() {
 function HeroVisitante() {
   return (
     <>
+      {/* Avatar interativo com saudação por horário — também para visitantes
+          (ref. «Hello Josh / Good Morning»: a home cumprimenta SEMPRE). */}
+      <div className="mb-6 inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+        <GreetingAvatar variant="hero" />
+      </div>
+
       <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-400">
         <BadgeCheck className="h-4 w-4" />
         100% angolana · Luanda
