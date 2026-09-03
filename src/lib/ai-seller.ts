@@ -130,7 +130,7 @@ export async function analyzeSellerBio(
         bio: cleanBio,
         ...(hasKeywords ? { produtos: productInfo } : {}),
       }),
-      { maxTokens: 400, temperature: 0.2 }
+      { maxTokens: 400, temperature: 0.2, task: 'monitor' }
     )
   )?.data;
 

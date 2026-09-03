@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
              status, delivery_type, notes, comprovativo_url, delivery_address,
              payment_method, payment_proof_name, payment_proof_type,
              (payment_proof IS NOT NULL) AS has_payment_proof,
-             admin_note, validated_at, created_at
+             admin_note, validated_at, created_at,
+             ai_verification
       FROM orders
       WHERE status = ${status}${methodClause}
       ORDER BY created_at DESC

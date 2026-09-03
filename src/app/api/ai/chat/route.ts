@@ -2,47 +2,86 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { clientKey, rateLimit, sanitizeText } from '@/lib/security';
 import { aiAvailable, aiChatTurns } from '@/lib/ai/chat';
+import {
+  runFallbackChain,
+  type AiMessage,
+} from '@/lib/ai/providers';
 import { AI_SUPPORT_SYSTEM_PROMPT } from '@/lib/ai/knowledge';
 import { containsPromptInjection } from '@/lib/ai/security';
+import { consumeDailyQuota } from '@/lib/ai/usage';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /**
- * POST /api/ai/chat — Fase 14: chatbot de suporte AngoStart (IA multi-provider).
+ * POST /api/ai/chat — Fase 14/21: chatbot de suporte AngoStart (multimodal).
  *
- * - Cadeia de fallback: B.AI → OpenRouter → Gemini → Groq → Cerebras →
- *   SambaNova (lib/ai/chat.ts) — server-only, chaves nunca expostas ao cliente.
- * - Rate limit: máx. 10 req/min por utilizador (ou IP se anónimo).
- * - Segurança: filtro anti-injeção ANTES do modelo + system prompt
- *   comprometido com a AngoStart (não promete o que não pode, nunca pede
- *   senha/pagamento fora da plataforma, aponta para os sítios certos).
- * - O system prompt vive em lib/ai/knowledge.ts — base de conhecimento
- *   com TODAS as funcionalidades do produto (Busbt, Pedidos no Ar,
- *   contactos, estabelecimentos, keywords, comissões…). Atualizá-la
- *   sempre que o produto ganhar features novas.
+ * - Roteamento (Fase 21): tarefa 'chat' → B.AI MiMo-V2.5 (multimodal),
+ *   com fallback OpenRouter free. Chaves nunca expostas ao cliente.
+ * - TEXTO: histórico multi-turn (últimas 10 mensagens) — como antes.
+ * - IMAGEM: o utilizador anexa 1 imagem/mensagem (JPG/PNG/WebP ≤ 5 MB);
+ *   o modelo multimodal analisa e responde. Quota 10 imagens/dia.
+ * - ÁUDIO: o utilizador envia áudio ≤ 2 min; o sistema transcreve
+ *   (1 chamada) e responde ao texto (1 chamada). Quota 3 transcrições/dia.
+ * - Rate limit: máx. 30 req/min por utilizador (ou IP se anónimo).
+ * - O utilizador NUNCA vê qual modelo/provider respondeu — detalhe interno.
  * - Sem chave configurada → 503 com mensagem amigável (a plataforma
  *   funciona na mesma).
  */
 
 const MAX_TURNS = 10; // últimas 10 mensagens vão ao modelo (contexto curto)
 const MAX_CONTENT_LEN = 800;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // ~2 min de Opus/HE-AAC cabem folgados
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const AUDIO_FORMATS: Record<string, string> = {
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/mpeg': 'mpeg',
+  'audio/mp4': 'mp4',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+};
+
+const TRANSCRIBE_SYSTEM =
+  'És um transcritor de áudio para a plataforma AngoStart. Transcreve ' +
+  'LITERALMENTE o áudio em português (pode ter sotaque angolano e ruído de ' +
+  'fundo). Responde APENAS com o texto transcrito, sem comentários, sem ' +
+  'markdown, sem aspas. Se o áudio estiver ininteligível, responde ' +
+  'exatamente: [áudio ininteligível]';
 
 interface IncomingTurn {
   role?: unknown;
   content?: unknown;
 }
 
+/** Valida e parte um data-URL. Devolve {mime, base64} ou null. */
+function parseDataUrl(value: unknown): { mime: string; base64: string } | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^data:([a-z0-9.+/-]+);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return { mime: match[1].toLowerCase(), base64: match[2] };
+}
+
+/** Tamanho decodificado (bytes) de um bloco base64. */
+function base64Bytes(base64: string): number {
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
+
 export async function POST(request: NextRequest) {
-  /* 🔒 10 req/min: por utilizador autenticado, senão por IP. */
+  /* 🔒 30 req/min: por utilizador autenticado, senão por IP. */
   const user = await getAuthUser(request).catch(() => null);
-  if (!rateLimit(clientKey(request, user ? `ai-chat-u${user.id}` : 'ai-chat-anon'), 10, 60_000)) {
+  if (!rateLimit(clientKey(request, user ? `ai-chat-u${user.id}` : 'ai-chat-anon'), 30, 60_000)) {
     return NextResponse.json(
       { error: 'Aguarda um minuto antes de enviares mais mensagens.' },
       { status: 429 }
     );
   }
 
-  let body: { messages?: unknown };
+  let body: { messages?: unknown; image?: unknown; audio?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -64,13 +103,119 @@ export async function POST(request: NextRequest) {
     }))
     .filter((t) => t.content.length > 0);
 
+  /* ── Imagem anexada (opcional; 1 por mensagem; exige sessão) ── */
+  let imagePart: { type: 'image_url'; image_url: { url: string } } | null = null;
+  if (body.image) {
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Entra na tua conta para enviar imagens ao suporte.' },
+        { status: 401 }
+      );
+    }
+    const img = parseDataUrl(body.image);
+    if (!img || !IMAGE_TYPES.includes(img.mime as (typeof IMAGE_TYPES)[number])) {
+      return NextResponse.json(
+        { error: 'Formato de imagem não suportado — usa JPG, PNG ou WebP.' },
+        { status: 400 }
+      );
+    }
+    if (base64Bytes(img.base64) > MAX_IMAGE_BYTES) {
+      return NextResponse.json(
+        { error: 'A imagem excede o limite de 5 MB.' },
+        { status: 413 }
+      );
+    }
+    const okQuota = await consumeDailyQuota(user.id, 'images');
+    if (!okQuota) {
+      return NextResponse.json(
+        {
+          error:
+            'Alcançaste o limite diário de imagens (10). Tenta novamente amanhã.',
+          code: 'QUOTA_EXCEEDED',
+        },
+        { status: 429 }
+      );
+    }
+    imagePart = { type: 'image_url', image_url: { url: `data:${img.mime};base64,${img.base64}` } };
+  }
+
+  /* ── Áudio anexado (opcional; ≤2 min; quota 3/dia; exige sessão) ── */
+  let audioTranscript: string | null = null;
+  if (body.audio) {
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Entra na tua conta para enviar áudio ao suporte.' },
+        { status: 401 }
+      );
+    }
+    const aud = parseDataUrl(body.audio);
+    const format = aud ? AUDIO_FORMATS[aud.mime] : undefined;
+    if (!aud || !format) {
+      return NextResponse.json(
+        { error: 'Formato de áudio não suportado — grava em webm, ogg, mp3, m4a ou wav.' },
+        { status: 400 }
+      );
+    }
+    if (base64Bytes(aud.base64) > MAX_AUDIO_BYTES) {
+      return NextResponse.json(
+        { error: 'O áudio é demasiado grande — limita a 2 minutos.' },
+        { status: 413 }
+      );
+    }
+    const okQuota = await consumeDailyQuota(user.id, 'transcriptions');
+    if (!okQuota) {
+      return NextResponse.json(
+        {
+          error:
+            'Alcançaste o limite diário de transcrições (3). Tenta novamente amanhã ou escreve a tua dúvida.',
+          code: 'QUOTA_EXCEEDED',
+        },
+        { status: 429 }
+      );
+    }
+
+    /* Transcrição: tarefa 'chat' (mesma chave/modelo multimodal). 1 chamada. */
+    const result = await runFallbackChain(
+      [
+        { role: 'system', content: TRANSCRIBE_SYSTEM },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Transcreve o áudio a seguir.' },
+            { type: 'input_audio', input_audio: { data: aud.base64, format } },
+          ],
+        },
+      ],
+      'text',
+      { temperature: 0, maxTokens: 500 },
+      'chat'
+    );
+    const transcript = result?.content?.trim();
+    if (!transcript || /^\[áudio ininteligível\]$/i.test(transcript)) {
+      return NextResponse.json(
+        {
+          error:
+            'Não consegui transcrever o áudio. Tenta gravar de novo com menos ruído ou escreve a tua dúvida.',
+          code: 'TRANSCRIPTION_FAILED',
+        },
+        { status: 502 }
+      );
+    }
+    audioTranscript = sanitizeText(transcript, MAX_CONTENT_LEN);
+  }
+
   const lastUser = [...turns].reverse().find((t) => t.role === 'user');
-  if (!lastUser) {
+  if (!lastUser && !imagePart && !audioTranscript) {
     return NextResponse.json({ error: 'Envia uma mensagem para o suporte.' }, { status: 400 });
   }
 
+  /* Texto efetivo do último turno do utilizador (com anexos descritos). */
+  const userText = audioTranscript
+    ? `[Áudio do utilizador transcrito]: ${audioTranscript}`
+    : lastUser?.content ?? '';
+
   /* 🛡️ Anti-injeção: tentativa de jailbreak nem chega ao modelo. */
-  if (containsPromptInjection(lastUser.content)) {
+  if (userText && containsPromptInjection(userText)) {
     return NextResponse.json({
       reply:
         'Não posso alterar as minhas regras de funcionamento — sou o suporte da AngoStart. ' +
@@ -90,16 +235,67 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const reply = await aiChatTurns(AI_SUPPORT_SYSTEM_PROMPT, turns, { maxTokens: 400 });
-  if (!reply) {
-    return NextResponse.json(
-      {
-        error:
-          'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.',
-      },
-      { status: 502 }
+  /* Histórico para o modelo: se há imagem, o último turno vira partes
+     multimodais (texto + imagem); caso contrário, texto simples. */
+  const modelTurns: { role: 'user' | 'assistant'; content: string }[] = turns;
+  if (imagePart) {
+    /* Substitui o último turno do utilizador por versão com anotação. */
+    const withImage = modelTurns.map((t, i) =>
+      i === modelTurns.length - 1 && t.role === 'user'
+        ? {
+            role: t.role,
+            content:
+              `${t.content || 'Analisa a imagem que anexei.'}\n\n[O utilizador anexou uma imagem — analisa-a e responde em pt-AO.]`.trim(),
+          }
+        : t
     );
+    const messages: AiMessage[] = [
+      { role: 'system', content: AI_SUPPORT_SYSTEM_PROMPT },
+      ...withImage.slice(0, -1).map((t) => ({ role: t.role, content: t.content }) as AiMessage),
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: withImage[withImage.length - 1].content },
+          imagePart,
+        ],
+      },
+    ];
+    const reply = await aiChatTurnsFromMessages(messages);
+    return finish(reply);
   }
 
-  return NextResponse.json({ reply });
+  const reply = await aiChatTurns(
+    AI_SUPPORT_SYSTEM_PROMPT,
+    [
+      ...modelTurns.slice(0, -1),
+      { role: 'user', content: userText || 'Olá!' },
+    ],
+    { maxTokens: 400 }
+  );
+  return finish(reply);
+
+  /* Resposta final (o cliente nunca vê provider/modelo). */
+  function finish(r: string | null) {
+    if (!r) {
+      return NextResponse.json(
+        {
+          error:
+            'Não consegui contactar a IA. Tenta novamente ou contacta o suporte.',
+        },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ reply: r });
+  }
+}
+
+/** Chamada direta com mensagens já multimodais (imagem na última). */
+async function aiChatTurnsFromMessages(messages: AiMessage[]): Promise<string | null> {
+  const result = await runFallbackChain(
+    messages,
+    'text',
+    { temperature: 0.4, maxTokens: 500 },
+    'chat'
+  );
+  return result?.content ?? null;
 }

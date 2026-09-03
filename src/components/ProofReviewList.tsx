@@ -12,13 +12,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BadgeCheck,
   CheckCircle2,
   Download,
   ExternalLink,
   FileText,
   Loader2,
   RefreshCw,
+  ShieldQuestion,
   Smartphone,
+  Sparkles,
   XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,7 +55,33 @@ export interface KwikAdminOrder {
   admin_note: string | null;
   validated_at: string | null;
   created_at: string;
+  /** Fase 21: auditoria da análise IA do comprovativo (JSONB — só admin). */
+  ai_verification?: AiProofAudit | null;
 }
+
+/** Auditoria gravada por lib/ai-proof.ts (verifyOrderProof). */
+export interface AiProofAudit {
+  extracted: {
+    valor: number | null;
+    data: string | null;
+    referencia: string | null;
+    confianca: 'alta' | 'media' | 'baixa';
+    notas: string;
+  };
+  expected: { total_kz: number; order_id: number };
+  matched: { valor: boolean; referencia: boolean };
+  verdict: 'aprovado' | 'revisao';
+  motivo: string;
+  model: string;
+  provider: string;
+  at: string;
+}
+
+const CONFIANCA_STYLES: Record<string, string> = {
+  alta: 'bg-teal-500/15 text-teal-600',
+  media: 'bg-amber-500/15 text-amber-600',
+  baixa: 'bg-rose-500/15 text-rose-600',
+};
 
 interface ProofReviewListProps {
   orders: KwikAdminOrder[];
@@ -60,6 +89,11 @@ interface ProofReviewListProps {
   emptyMessage: string;
   onReload: () => void;
   onReview: (order: KwikAdminOrder, approve: boolean, note: string) => Promise<void>;
+  /**
+   * Fase 21 (visibilidade por perfil): o parecer da IA só é mostrado no
+   * painel de admin TOTAL — admin_limitado continua a validar à mão.
+   */
+  showAi?: boolean;
 }
 
 export default function ProofReviewList({
@@ -68,6 +102,7 @@ export default function ProofReviewList({
   emptyMessage,
   onReload,
   onReview,
+  showAi = false,
 }: ProofReviewListProps) {
   const { toast } = useToast();
   const [openOrderId, setOpenOrderId] = useState<number | null>(null);
@@ -222,6 +257,11 @@ export default function ProofReviewList({
                       </p>
                     )}
 
+                    {/* Fase 21: resumo da análise IA (só admin total). */}
+                    {showAi && order.ai_verification && (
+                      <AiProofSummary audit={order.ai_verification} compact />
+                    )}
+
                     {order.has_payment_proof ? (
                       <button
                         type="button"
@@ -300,6 +340,11 @@ export default function ProofReviewList({
             </DialogDescription>
           </DialogHeader>
 
+          {/* Fase 21: parecer completo da IA antes da decisão (só admin). */}
+          {showAi && openOrder?.ai_verification && (
+            <AiProofSummary audit={openOrder.ai_verification} />
+          )}
+
           {dialogBusy ? (
             <p className="flex items-center justify-center py-10 text-sm text-slate-400">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar comprovativo…
@@ -374,5 +419,111 @@ export default function ProofReviewList({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/* ───────────────── Fase 21: parecer da IA (só admin total) ───────────────── */
+
+/**
+ * Mostra a auditoria da análise IA do comprovativo: valor extraído vs.
+ * esperado, referência, data, confiança e a SUGESTÃO de decisão
+ * (aprovado/revisão). A decisão final continua a ser do admin — a IA
+ * nunca aprova nem rejeita sozinha sem cumprir a regra de segurança.
+ */
+export function AiProofSummary({
+  audit,
+  compact = false,
+}: {
+  audit: AiProofAudit;
+  compact?: boolean;
+}) {
+  const aprovado = audit.verdict === 'aprovado';
+  const confianca = audit.extracted?.confianca ?? 'baixa';
+
+  if (compact) {
+    return (
+      <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold ${
+            aprovado ? 'bg-teal-500/15 text-teal-600' : 'bg-amber-500/15 text-amber-600'
+          }`}
+        >
+          <Sparkles className="h-3 w-3" />
+          IA sugere: {aprovado ? 'aprovar' : 'revisão'}
+        </span>
+        <span
+          className={`rounded-full px-2 py-0.5 font-semibold ${CONFIANCA_STYLES[confianca]}`}
+        >
+          confiança {confianca}
+        </span>
+        {typeof audit.extracted?.valor === 'number' && (
+          <span className="text-slate-500">
+            extraído {formatKz(audit.extracted.valor)}
+          </span>
+        )}
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
+      <p className="flex items-center gap-1.5 text-xs font-bold text-blue-800">
+        <Sparkles className="h-3.5 w-3.5" /> Análise automática do comprovativo
+        <span
+          className={`ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            aprovado ? 'bg-teal-500/15 text-teal-700' : 'bg-amber-500/15 text-amber-700'
+          }`}
+        >
+          {aprovado ? <BadgeCheck className="h-3 w-3" /> : <ShieldQuestion className="h-3 w-3" />}
+          sugere {aprovado ? 'aprovar' : 'revisão manual'}
+        </span>
+      </p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-500">Valor extraído</dt>
+          <dd className="font-semibold">
+            {typeof audit.extracted?.valor === 'number'
+              ? formatKz(audit.extracted.valor)
+              : 'ilegível'}
+            {typeof audit.extracted?.valor === 'number' && (
+              <span className={audit.matched?.valor ? 'text-teal-600' : 'text-rose-600'}>
+                {' '}
+                ({audit.matched?.valor ? 'coincide' : 'não coincide'})
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-500">Esperado</dt>
+          <dd className="font-semibold">{formatKz(audit.expected?.total_kz ?? 0)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-500">Referência</dt>
+          <dd className="max-w-[160px] truncate font-mono" title={audit.extracted?.referencia ?? ''}>
+            {audit.extracted?.referencia ?? '—'}
+            {audit.extracted?.referencia && (
+              <span
+                className={audit.matched?.referencia ? 'text-teal-600' : 'text-rose-600'}
+              >
+                {' '}
+                ({audit.matched?.referencia ? 'ok' : 'sem n.º'})
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-500">Data / confiança</dt>
+          <dd className="font-semibold">
+            {audit.extracted?.data ?? '—'} · {confianca}
+          </dd>
+        </div>
+      </dl>
+      {audit.motivo && (
+        <p className="mt-2 border-t border-blue-100 pt-2 text-[11px] leading-relaxed text-slate-600">
+          {audit.motivo}
+          {audit.extracted?.notas ? ` — ${audit.extracted.notas}` : ''}
+        </p>
+      )}
+    </div>
   );
 }

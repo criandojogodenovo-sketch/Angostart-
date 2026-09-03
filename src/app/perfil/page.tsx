@@ -58,6 +58,7 @@ import KycVerificationCard from '@/components/KycVerificationCard';
 import ProfilePhotoCard from '@/components/ProfilePhotoCard';
 import StoreSetupCard from '@/components/StoreSetupCard';
 import MySpaceCard from '@/components/MySpaceCard';
+import ProfileAiCard from '@/components/ProfileAiCard';
 import ServiceTrackingMap, { type TrackingData } from '@/components/ServiceTrackingMap';
 import { formatKz, formatDateTime } from '@/lib/format';
 import { validatePassword, passwordStrength } from '@/lib/password';
@@ -1400,6 +1401,10 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
           ou loja virtual (criadores) a partir do perfil, mobile e desktop */}
       <div className="mt-6">
         <MySpaceCard user={user} />
+      </div>
+      {/* Fase 21 — «Analisar o meu perfil com IA»: nota 0-10 + sugestões */}
+      <div className="mt-6">
+        <ProfileAiCard user={user} />
       </div>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <ProfileHeader user={user} badge={ROLE_BADGE[user.role] ?? 'Vendedor'} />

@@ -1,10 +1,19 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14b: IA multi-provider com fallback chain.
+ * AngoStart — Fase 14b/21: IA multi-provider com fallback chain e
+ * ROTEAMENTO DE TAREFAS por modelo/chave (Fase 21).
  *
  * MISSÃO: a IA da plataforma NUNCA fica offline por rate limit ou modelo
  * indisponível de um único fornecedor. Custo zero (planos gratuitos).
+ *
+ * ROTEAMENTO POR TAREFA (Fase 21 — ver lib/ai/task-routing.ts):
+ *   chat    → B.AI B_AI_API_KEY          → MiMo-V2.5      (chatbot)
+ *   vision  → B.AI B_AI_API_KEY_VISION   → GLM-5.3-Flash  (comprovativos)
+ *   monitor → B.AI B_AI_API_KEY_MONITOR  → Qwen3.8-Flash  (monitorização)
+ *   Cada modelo fica na SUA área; se a chave dedicada falhar/ausente,
+ *   as outras chaves B.AI servem de emergência e, depois, o resto da
+ *   cadeia (OpenRouter free) entra como último recurso.
  *
  * CADEIA DE FALLBACK (ordem de prioridade, definida pelo CTO — Fase 19b):
  *   0. bai          — B.AI (gateway unificado estilo Z.ai): UMA chave, OpenAI-
@@ -38,7 +47,8 @@ import 'server-only';
  * os modelos são overridáveis via env sem novo deploy de código:
  *   OPENROUTER_MODEL_TEXT / OPENROUTER_MODEL_VISION / GEMINI_MODEL /
  *   GROQ_MODEL_CHAT / GROQ_MODEL_VISION / CEREBRAS_MODEL / SAMBANOVA_MODEL /
- *   B_AI_MODEL_CHAT / B_AI_MODEL_VISION
+ *   B_AI_MODEL_CHAT (default MiMo-V2.5) / B_AI_MODEL_VISION (default
+ *   GLM-5.3-Flash) / B_AI_MODEL_MONITOR (default Qwen3.8-Flash)
  *
  * Licenças (uso comercial): modelos open-weight — verificar os termos no
  * Hugging Face antes de uso comercial pesado (Llama Community License,
@@ -46,13 +56,27 @@ import 'server-only';
  * cobrem o uso normal da plataforma.
  */
 
+import {
+  AI_TASKS,
+  AI_TASK_ROUTES,
+  resolveTaskKeyEnv,
+  taskModel,
+  type AiTask,
+} from './task-routing';
+import { logAiCall } from './logs';
+
 export type ModelType = 'text' | 'vision';
+export type { AiTask };
 
 export type AiRole = 'system' | 'user' | 'assistant';
 
 export type AiContentPart =
   | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+  | { type: 'image_url'; image_url: { url: string } }
+  | {
+      type: 'input_audio';
+      input_audio: { data: string; format: string };
+    };
 
 export interface AiMessage {
   role: AiRole;
@@ -70,6 +94,14 @@ export interface ProviderConfig {
   textModel: () => string;
   /** `null` = provider não suporta visão (é saltado na cadeia de visão). */
   visionModel: () => string | null;
+  /** Fase 21: modelo dedicado à tarefa de monitorização (`null` = usa textModel). */
+  monitorModel?: () => string | null;
+  /**
+   * Fase 21: env var da chave a usar na tarefa (roteamento multi-chave).
+   * Só o gateway principal (bai) tem chaves dedicadas por tarefa — os
+   * restantes providers devolvem a chave única.
+   */
+  taskKeyEnv?: (task: AiTask) => string | null;
   /** Enviar `response_format: json_object`? (extractJSON cobre os outros.) */
   jsonMode: boolean;
   extraHeaders: () => Record<string, string>;
@@ -99,13 +131,16 @@ export const PROVIDERS: ProviderConfig[] = [
     label: 'B.AI (principal)',
     baseURL: 'https://api.b.ai/v1',
     apiKeyEnv: 'B_AI_API_KEY',
-    // Defaults = modelos gratuitos do catálogo B.AI indicados pelo CTO
-    // (glm-5.3-flash para texto; deepseek-v4-flash-vision-exp para visão).
-    // Endpoint verificado por curl (OpenAI-compat, 401 sem chave). IDs
-    // overridáveis — validar com a chave real em produção; se um ID estiver
-    // errado, a cadeia salta para o provider seguinte.
-    textModel: () => envOr('B_AI_MODEL_CHAT', 'glm-5.3-flash'),
-    visionModel: () => envOr('B_AI_MODEL_VISION', 'deepseek-v4-flash-vision-exp'),
+    // Defaults = roteamento por tarefa definido pelo CTO (Fase 21):
+    //  - chat    (B_AI_API_KEY)         → MiMo-V2.5
+    //  - vision  (B_AI_API_KEY_VISION)  → GLM-5.3-Flash
+    //  - monitor (B_AI_API_KEY_MONITOR) → Qwen3.8-Flash
+    // IDs overridáveis por env; se um ID estiver errado, a cadeia salta
+    // para o provider seguinte.
+    textModel: () => taskModel('chat'),
+    visionModel: () => taskModel('vision'),
+    monitorModel: () => taskModel('monitor'),
+    taskKeyEnv: (task) => resolveTaskKeyEnv(task),
     jsonMode: true,
     extraHeaders: () => ({}),
     // Fase 19b: timeout curto — 4G não deve esperar 30s pelo principal.
@@ -194,8 +229,23 @@ export const PROVIDERS: ProviderConfig[] = [
 
 /* ─────────────────────────── disponibilidade ─────────────────────────── */
 
+/** Todas as envs de chave que o provider consegue usar (qualquer tarefa). */
+export function providerKeyEnvs(p: ProviderConfig): string[] {
+  if (p.taskKeyEnv) {
+    /* Fase 21: as três chaves dedicadas do gateway principal. */
+    return [
+      ...new Set(
+        AI_TASKS.map((t) => p.taskKeyEnv!(t)).filter(
+          (env): env is string => typeof env === 'string'
+        )
+      ),
+    ];
+  }
+  return [p.apiKeyEnv];
+}
+
 export function providerAvailable(p: ProviderConfig): boolean {
-  return Boolean(process.env[p.apiKeyEnv]?.trim());
+  return providerKeyEnvs(p).some((env) => Boolean(process.env[env]?.trim()));
 }
 
 /** Há pelo menos um provider de IA configurado? */
@@ -208,15 +258,40 @@ export function modelFor(p: ProviderConfig, type: ModelType): string | null {
   return type === 'text' ? p.textModel() : p.visionModel();
 }
 
-/** Cadeia efetiva para o tipo: na cadeia + com chave + modelo do tipo. */
+/** Modelo do provider para a TAREFA (monitor usa o modelo dedicado). */
+export function modelForTask(
+  p: ProviderConfig,
+  task: AiTask
+): string | null {
+  if (task === 'monitor') return p.monitorModel?.() ?? p.textModel();
+  if (task === 'vision') return p.visionModel();
+  return p.textModel();
+}
+
+/**
+ * Cadeia efetiva para o tipo+tarefa: na cadeia + com chave da tarefa +
+ * modelo do tipo. `task` só muda a RESOLUÇÃO de chave/modelo do gateway
+ * principal; a ordem de providers é sempre a mesma.
+ */
 export function configuredProviders(
-  type: ModelType
-): { provider: ProviderConfig; model: string }[] {
+  type: ModelType,
+  task: AiTask = type === 'vision' ? 'vision' : 'chat'
+): { provider: ProviderConfig; model: string; keyEnv: string }[] {
   return PROVIDERS.filter((p) => p.inChain !== false && providerAvailable(p))
-    .map((provider) => ({ provider, model: modelFor(provider, type) }))
+    .map((provider) => {
+      const model = modelForTask(provider, task);
+      const keyEnv = provider.taskKeyEnv
+        ? provider.taskKeyEnv(task)
+        : providerAvailable(provider)
+          ? provider.apiKeyEnv
+          : null;
+      return { provider, model, keyEnv };
+    })
     .filter(
-      (entry): entry is { provider: ProviderConfig; model: string } =>
-        entry.model !== null
+      (
+        entry
+      ): entry is { provider: ProviderConfig; model: string; keyEnv: string } =>
+        entry.model !== null && entry.keyEnv !== null
     );
 }
 
@@ -231,16 +306,19 @@ export interface CallOptions {
 
 /**
  * Uma chamada a UM provider. LANÇA em qualquer falha (a cadeia apanha) —
- * devolve o conteúdo textual normalizado.
+ * devolve o conteúdo textual normalizado. `task` escolhe a CHAVE (Fase 21);
+ * `keyEnv` sobrepõe a env da chave quando a cadeia já a resolveu.
  */
 export async function callProvider(
   provider: ProviderConfig,
   model: string,
   messages: AiMessage[],
-  opts: CallOptions = {}
+  opts: CallOptions = {},
+  keyEnv?: string | null
 ): Promise<string> {
-  const apiKey = process.env[provider.apiKeyEnv]?.trim();
-  if (!apiKey) throw new Error(`${provider.apiKeyEnv} não configurada.`);
+  const envName = keyEnv || provider.taskKeyEnv?.('chat') || provider.apiKeyEnv;
+  const apiKey = process.env[envName]?.trim();
+  if (!apiKey) throw new Error(`${envName} não configurada.`);
 
   const url = `${provider.baseURL.replace(/\/+$/, '')}/chat/completions`;
   const body: Record<string, unknown> = {
@@ -305,29 +383,34 @@ export interface ChainResult {
 }
 
 /**
- * Percorre a cadeia de providers configurados para o tipo, na ordem de
- * prioridade, até um responder. Nunca lança — devolve `null` se TODOS
+ * Percorre a cadeia de providers configurados para o tipo+tarefa, na ordem
+ * de prioridade, até um responder. Nunca lança — devolve `null` se TODOS
  * falharem (o chamador aplica o seu fallback de negócio).
+ *
+ * Fase 21: cada tentativa bem-sucedida (ou a falha TOTAL) fica registada
+ * em ai_logs (fire-and-forget) para a secção «IA Interna» do admin.
  */
 export async function runFallbackChain(
   messages: AiMessage[],
   type: ModelType,
-  opts: CallOptions = {}
+  opts: CallOptions = {},
+  task: AiTask = type === 'vision' ? 'vision' : 'chat'
 ): Promise<ChainResult | null> {
-  const chain = configuredProviders(type);
+  const chain = configuredProviders(type, task);
   if (chain.length === 0) {
     console.error(
-      '[lib/ai] nenhum provider configurado — define B_AI_API_KEY, ' +
-        'OPENROUTER_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY ' +
-        'ou SAMBANOVA_API_KEY.'
+      '[lib/ai] nenhum provider configurado — define B_AI_API_KEY (chat), ' +
+        'B_AI_API_KEY_VISION (comprovativos), B_AI_API_KEY_MONITOR '
+        + '(monitorização) ou a chave de algum provider de reserva.'
     );
     return null;
   }
 
   const attempts: ChainAttempt[] = [];
-  for (const { provider, model } of chain) {
+  const startedAt = Date.now();
+  for (const { provider, model, keyEnv } of chain) {
     try {
-      const content = await callProvider(provider, model, messages, opts);
+      const content = await callProvider(provider, model, messages, opts, keyEnv);
       if (content) {
         if (attempts.length > 0) {
           console.warn(
@@ -335,6 +418,13 @@ export async function runFallbackChain(
               `após ${attempts.length} falha(s).`
           );
         }
+        void logAiCall({
+          task,
+          provider: provider.name,
+          model,
+          ok: true,
+          latencyMs: Date.now() - startedAt,
+        });
         return { content, provider: provider.name, model, attempts };
       }
       attempts.push({ provider: provider.name, model, error: 'resposta vazia' });
@@ -350,6 +440,14 @@ export async function runFallbackChain(
     }
   }
 
+  void logAiCall({
+    task,
+    provider: attempts[0]?.provider ?? 'nenhum',
+    model: attempts[0]?.model ?? '—',
+    ok: false,
+    latencyMs: Date.now() - startedAt,
+    error: attempts.map((a) => `${a.provider}: ${a.error}`).join(' | ') || 'sem providers',
+  });
   console.error(
     `[lib/ai] TODOS os providers falharam (${attempts.map((a) => a.provider).join(' → ')}).`
   );
@@ -386,6 +484,41 @@ export interface AiProviderStatus {
   available: boolean;
   textModel: string | null;
   visionModel: string | null;
+}
+
+/**
+ * Estado por TAREFA (Fase 21) — para a secção «IA Interna» do admin:
+ * modelo em uso, chave dedicada configurada?, env de emergência usada.
+ */
+export interface AiTaskStatus {
+  task: AiTask;
+  label: string;
+  audience: 'utilizadores' | 'admin';
+  description: string;
+  model: string;
+  dedicatedKeyConfigured: boolean;
+  /** Env da chave efetivamente usada (dedicada ou emergência). */
+  activeKeyEnv: string | null;
+  /** Alguma chave disponível (dedicada ou emergência)? */
+  available: boolean;
+}
+
+export function aiTasksStatus(): AiTaskStatus[] {
+  return AI_TASKS.map((task) => {
+    const route = AI_TASK_ROUTES[task];
+    const dedicated = Boolean(process.env[route.apiKeyEnv]?.trim());
+    const activeKeyEnv = resolveTaskKeyEnv(task);
+    return {
+      task,
+      label: route.label,
+      audience: route.audience,
+      description: route.description,
+      model: taskModel(task),
+      dedicatedKeyConfigured: dedicated,
+      activeKeyEnv,
+      available: activeKeyEnv !== null,
+    };
+  });
 }
 
 /** Estado atual da cadeia (para logs de diagnóstico e páginas de estado). */

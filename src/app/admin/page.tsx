@@ -33,6 +33,7 @@ import {
   Send,
   ShieldCheck,
   ShieldAlert,
+  Sparkles,
   Trash2,
   UserPlus,
   Users,
@@ -124,6 +125,54 @@ interface CommissionData {
   report: CommissionReport;
 }
 
+/* ── IA Interna (Fase 21 — espelha /api/admin/ai-interna) ── */
+
+interface AiTaskStatus {
+  task: 'chat' | 'vision' | 'monitor';
+  label: string;
+  audience: 'utilizadores' | 'admin';
+  description: string;
+  model: string;
+  dedicatedKeyConfigured: boolean;
+  activeKeyEnv: string | null;
+  available: boolean;
+}
+
+interface AiInternaLogRow {
+  id: number;
+  task: string;
+  provider: string;
+  model: string;
+  ok: boolean;
+  latency_ms: number;
+  error: string | null;
+  created_at: string;
+}
+
+interface AiMonitorAlert {
+  id: number;
+  kind: 'duplicado' | 'ofensivo' | 'spam';
+  severity: 'alta' | 'media' | 'baixa';
+  entity_type: 'produto' | 'comentario' | 'mensagem';
+  entity_id: number;
+  related_entity_id: number | null;
+  excerpt: string | null;
+  reason: string | null;
+  model: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface AiInternaData {
+  tasks: AiTaskStatus[];
+  stats24h: { task: string; calls: number; errors: number; avg_latency_ms: number | null }[];
+  logs: AiInternaLogRow[];
+  monitor: {
+    alerts: AiMonitorAlert[];
+    counts: Record<string, number>;
+  };
+}
+
 type Tab =
   | 'utilizadores'
   | 'produtos'
@@ -136,6 +185,7 @@ type Tab =
   | 'admins'
   | 'anuncios'
   | 'monitorizacao'
+  | 'ia'
   | 'relatorios'
   | 'seguranca';
 
@@ -295,6 +345,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'videos', label: 'Vídeos', icon: Film },
   { key: 'anuncios', label: 'Anúncios', icon: Megaphone },
   { key: 'monitorizacao', label: 'Monitorização', icon: Eye },
+  { key: 'ia', label: 'IA Interna', icon: Sparkles },
   { key: 'relatorios', label: 'Relatórios', icon: BarChart3 },
   { key: 'admins', label: 'Gerir Admins Limitados', icon: UserPlus },
   { key: 'seguranca', label: 'Segurança 2FA', icon: ShieldCheck },
@@ -399,6 +450,11 @@ function AdminPanel() {
   const [qr, setQr] = useState<string | null>(null);
   const [otpauth, setOtpauth] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+
+  /* ── IA Interna (Fase 21 — só admin total) ── */
+  const [iaData, setIaData] = useState<AiInternaData | null>(null);
+  const [iaLoading, setIaLoading] = useState(false);
+  const [iaBusy, setIaBusy] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -716,6 +772,94 @@ function AdminPanel() {
     }
   }
 
+  /* ── IA Interna (Fase 21): carregar estado + ações ── */
+  const loadAiInterna = useCallback(async () => {
+    setIaLoading(true);
+    try {
+      const res = await fetch('/api/admin/ai-interna', { headers: authHeaders() });
+      const data = (await res.json()) as { error?: string } & Partial<AiInternaData>;
+      if (!res.ok) {
+        toast({ title: 'Erro', description: data.error });
+        return;
+      }
+      setIaData({
+        tasks: data.tasks ?? [],
+        stats24h: data.stats24h ?? [],
+        logs: data.logs ?? [],
+        monitor: data.monitor ?? { alerts: [], counts: {} },
+      });
+    } finally {
+      setIaLoading(false);
+    }
+  }, [toast]);
+
+  /** Ação pontual: forçar monitorização / re-analisar comprovativos. */
+  async function runAiAction(action: 'run-monitor' | 'reanalyze-proofs') {
+    if (iaBusy) return;
+    setIaBusy(action);
+    try {
+      const res = await fetch('/api/admin/ai-interna', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ action }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        monitor?: { scanned?: number; alerts?: number };
+        analisados?: { order_id: number; ok: boolean; verdict?: string; error?: string }[];
+      };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Ação falhou', description: data.error });
+        return;
+      }
+      if (action === 'run-monitor') {
+        toast({
+          title: 'Monitorização concluída',
+          description: `${data.monitor?.scanned ?? 0} itens analisados · ${data.monitor?.alerts ?? 0} novo(s) alerta(s).`,
+        });
+      } else {
+        const okCount = (data.analisados ?? []).filter((r) => r.ok).length;
+        toast({
+          title: 'Re-análise concluída',
+          description: `${okCount}/${data.analisados?.length ?? 0} comprovativo(s) analisado(s) com sucesso.`,
+        });
+      }
+      loadAiInterna();
+    } finally {
+      setIaBusy(null);
+    }
+  }
+
+  /** Triagem de um alerta da monitorização (ignorar / resolver). */
+  async function triageAlert(id: number, estado: 'ignorada' | 'resolvida') {
+    try {
+      const res = await fetch('/api/admin/ai-interna', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ action: 'triage', id, estado }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast({ title: 'Não foi possível atualizar', description: data.error });
+        return;
+      }
+      setIaData((old) =>
+        old
+          ? {
+              ...old,
+              monitor: {
+                ...old.monitor,
+                alerts: old.monitor.alerts.filter((a) => a.id !== id),
+              },
+            }
+          : old
+      );
+    } catch {
+      toast({ title: 'Erro de ligação' });
+    }
+  }
+
   useEffect(() => {
     if (tab === 'encomendas') loadOrders();
   }, [tab, loadOrders]);
@@ -728,6 +872,7 @@ function AdminPanel() {
     if (tab === 'carteira') loadWalletOps();
     if (tab === 'anuncios') loadAnnouncements();
     if (tab === 'monitorizacao') loadSuspicious();
+    if (tab === 'ia') loadAiInterna();
     if (tab === 'relatorios') loadReport();
     if (tab === 'disputas') loadDisputes();
     if (tab === 'comissoes') loadCommissions();
@@ -1111,6 +1256,7 @@ function AdminPanel() {
             }
             onReload={loadOrders}
             onReview={reviewOrder}
+            showAi
           />
         </>
       )}
@@ -2002,6 +2148,222 @@ function AdminPanel() {
             </ul>
           )}
         </section>
+      )}
+
+      {/* ── IA Interna (Fase 21 — roteamento multi-modelo, só admin total) ── */}
+      {tab === 'ia' && (
+        <div className="mt-6 space-y-6">
+          <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-semibold text-slate-100">
+                  <Sparkles className="h-4 w-4 text-blue-400" /> IA Interna — roteamento por tarefa
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  Cada tarefa usa a SUA chave e o SEU modelo. Se uma chave falhar,
+                  as outras entram como emergência. O utilizador nunca vê estes detalhes.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => runAiAction('run-monitor')}
+                  disabled={iaBusy !== null || iaLoading}
+                  className="h-9 bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {iaBusy === 'run-monitor' ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Eye className="mr-1.5 h-4 w-4" />
+                  )}
+                  Forçar monitorização agora
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => runAiAction('reanalyze-proofs')}
+                  disabled={iaBusy !== null || iaLoading}
+                  className="h-9 border-white/15 bg-transparent text-slate-200 hover:bg-slate-700/40"
+                >
+                  {iaBusy === 'reanalyze-proofs' ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1.5 h-4 w-4" />
+                  )}
+                  Re-analisar comprovativos (5)
+                </Button>
+              </div>
+            </div>
+
+            {/* Tarefas: modelo + chave por tarefa */}
+            {iaLoading && !iaData ? (
+              <p className="flex items-center justify-center py-8 text-sm text-slate-400">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> A carregar…
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {(iaData?.tasks ?? []).map((t) => {
+                  const stat = iaData?.stats24h.find((s) => s.task === t.task);
+                  return (
+                    <div
+                      key={t.task}
+                      className="rounded-xl border border-white/10 bg-slate-900/60 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-slate-100">{t.label}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            t.dedicatedKeyConfigured
+                              ? 'bg-teal-500/15 text-teal-400'
+                              : t.available
+                                ? 'bg-amber-500/15 text-amber-400'
+                                : 'bg-rose-500/15 text-rose-400'
+                          }`}
+                        >
+                          {t.dedicatedKeyConfigured
+                            ? 'chave dedicada'
+                            : t.available
+                              ? 'emergência'
+                              : 'sem chave'}
+                        </span>
+                      </div>
+                      <p className="mt-1 font-mono text-xs text-blue-300">{t.model}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                        {t.description}
+                      </p>
+                      <p className="mt-2 text-[10px] text-slate-500">
+                        Acesso: {t.audience} · env: {t.activeKeyEnv ?? '—'}
+                      </p>
+                      {stat && (
+                        <p className="mt-2 border-t border-white/10 pt-2 text-[11px] text-slate-300">
+                          24 h: {stat.calls} chamada(s) · {stat.errors} erro(s)
+                          {stat.avg_latency_ms !== null && ` · ~${stat.avg_latency_ms} ms`}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Alertas da monitorização IA */}
+            <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-700/50 px-5 py-4">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Alertas da monitorização ({iaData?.monitor.alerts.length ?? 0} abertos)
+                </h3>
+                <Button variant="ghost" size="sm" onClick={loadAiInterna}>
+                  <RefreshCw className={`mr-1.5 h-4 w-4 ${iaLoading ? 'animate-spin' : ''}`} /> Atualizar
+                </Button>
+              </div>
+              {(iaData?.monitor.alerts.length ?? 0) === 0 ? (
+                <p className="px-5 py-8 text-center text-xs text-slate-400">
+                  Sem alertas abertos — o lote diário corre às 05:45 (Luanda).
+                </p>
+              ) : (
+                <ul className="max-h-[420px] divide-y divide-slate-700/50 overflow-y-auto">
+                  {iaData!.monitor.alerts.map((a) => (
+                    <li key={a.id} className="px-5 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            a.kind === 'duplicado'
+                              ? 'bg-amber-500/15 text-amber-400'
+                              : a.kind === 'ofensivo'
+                                ? 'bg-rose-500/15 text-rose-400'
+                                : 'bg-blue-500/15 text-blue-400'
+                          }`}
+                        >
+                          {a.kind}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {a.entity_type} #{a.entity_id}
+                          {a.related_entity_id ? ` ↔ #${a.related_entity_id}` : ''} ·
+                          gravidade {a.severity}
+                        </span>
+                      </div>
+                      {a.excerpt && (
+                        <p className="mt-1 line-clamp-2 text-[11px] italic text-slate-300">
+                          “{a.excerpt}”
+                        </p>
+                      )}
+                      {a.reason && (
+                        <p className="mt-0.5 text-[11px] text-slate-400">{a.reason}</p>
+                      )}
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 border-white/15 px-2 text-[11px] text-slate-300 hover:bg-slate-700/40"
+                          onClick={() => triageAlert(a.id, 'ignorada')}
+                        >
+                          Ignorar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 bg-teal-600 px-2 text-[11px] text-white hover:bg-teal-700"
+                          onClick={() => triageAlert(a.id, 'resolvida')}
+                        >
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Resolver
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Últimas execuções */}
+            <section className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl shadow-sm">
+              <div className="border-b border-slate-700/50 px-5 py-4">
+                <h3 className="text-sm font-semibold text-slate-100">Últimas execuções</h3>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Cada chamada de IA (texto, visão ou monitorização) fica registada aqui.
+                </p>
+              </div>
+              {(iaData?.logs.length ?? 0) === 0 ? (
+                <p className="px-5 py-8 text-center text-xs text-slate-400">
+                  Ainda sem chamadas registadas nas últimas horas.
+                </p>
+              ) : (
+                <ul className="max-h-[420px] divide-y divide-slate-700/50 overflow-y-auto">
+                  {iaData!.logs.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-xs text-slate-200">
+                          <span
+                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                              l.ok ? 'bg-teal-400' : 'bg-rose-400'
+                            }`}
+                          />
+                          <span className="font-semibold">{l.task}</span>
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {l.model}
+                          </span>
+                        </p>
+                        {!l.ok && l.error && (
+                          <p className="mt-0.5 line-clamp-1 text-[10px] text-rose-300" title={l.error}>
+                            {l.error}
+                          </p>
+                        )}
+                      </div>
+                      <p className="shrink-0 text-right text-[10px] text-slate-500">
+                        {l.latency_ms} ms
+                        <br />
+                        {new Date(l.created_at).toLocaleTimeString('pt-PT', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
       )}
 
       {/* ── Relatórios (Fase 5) ── */}

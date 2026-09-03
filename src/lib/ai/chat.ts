@@ -15,6 +15,7 @@ import {
   extractJSON,
   runFallbackChain,
   type AiMessage,
+  type AiTask,
 } from './providers';
 
 /* Re-export para os call sites importarem tudo de um sítio só. */
@@ -25,6 +26,11 @@ export interface ChatOptions {
   temperature?: number;
   /** Teto de tokens da resposta. */
   maxTokens?: number;
+  /**
+   * Fase 21: tarefa que escolhe a chave/modelo do gateway principal
+   * (default 'chat'; 'monitor' para lote admin — Qwen3.8-Flash).
+   */
+  task?: AiTask;
 }
 
 export interface AiTurn {
@@ -49,10 +55,15 @@ export async function aiChatTurns(
   turns: AiTurn[],
   options: ChatOptions = {}
 ): Promise<string | null> {
-  const result = await runFallbackChain(asMessages(system, turns), 'text', {
-    temperature: options.temperature ?? 0.4,
-    maxTokens: options.maxTokens ?? 500,
-  });
+  const result = await runFallbackChain(
+    asMessages(system, turns),
+    'text',
+    {
+      temperature: options.temperature ?? 0.4,
+      maxTokens: options.maxTokens ?? 500,
+    },
+    options.task ?? 'chat'
+  );
   return result?.content ?? null;
 }
 
@@ -81,7 +92,8 @@ export async function aiChatJSON<T>(
       temperature: options.temperature ?? 0.3,
       maxTokens: options.maxTokens ?? 400,
       json: true,
-    }
+    },
+    options.task ?? 'chat'
   );
   if (!result) return null;
 

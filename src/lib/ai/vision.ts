@@ -57,7 +57,8 @@ export async function aiVisionJSON<T>(
       temperature: options.temperature ?? 0.1,
       maxTokens: options.maxTokens ?? 400,
       json: true,
-    }
+    },
+    'vision' /* Fase 21: comprovativos → chave dedicada (GLM-5.3-Flash). */
   );
   if (!result) return null;
 
