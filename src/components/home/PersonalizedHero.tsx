@@ -139,8 +139,10 @@ function HeroVisitante() {
   return (
     <>
       {/* Avatar interativo com saudação por horário — também para visitantes
-          (ref. «Hello Josh / Good Morning»: a home cumprimenta SEMPRE). */}
-      <div className="mb-6 inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+          (ref. «Hello Josh / Good Morning»: a home cumprimenta SEMPRE).
+          flex w-fit força linha própria (o badge fica por baixo) e pl-10
+          contém os tiles flutuantes dentro do cartão. */}
+      <div className="mb-6 flex w-fit rounded-2xl border border-white/10 bg-white/5 p-3 pl-10 backdrop-blur">
         <GreetingAvatar variant="hero" />
       </div>
 
@@ -213,7 +215,7 @@ function HeroLogado({
   return (
     <>
       {/* Avatar/boneco interativo com saudação por horário (Fase 20) */}
-      <div className="mb-6 inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+      <div className="mb-4 flex w-fit rounded-2xl border border-white/10 bg-white/5 p-3 pl-10 backdrop-blur">
         <GreetingAvatar variant="hero" />
       </div>
 
