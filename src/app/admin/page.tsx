@@ -54,6 +54,7 @@ import {
 } from 'recharts';
 import AdminGate from '@/components/AdminGate';
 import AdminKycTab from '@/components/AdminKycTab';
+import GreetingAvatar from '@/components/GreetingAvatar';
 import ProofReviewList, {
   type KwikAdminOrder,
 } from '@/components/ProofReviewList';
@@ -1209,14 +1210,18 @@ function AdminPanel() {
       {/* Fase 16 — fundo Dark Premium fixo atrás de todo o painel */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-100">
-            <ShieldCheck className="h-7 w-7 text-teal-500" /> Administração Total
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Rota oculta <code className="rounded bg-slate-700/40 px-1.5 py-0.5">/admin</code> — não
-            indexada nem linkada no site.
-          </p>
+        <div className="flex items-center gap-4">
+          {/* Avatar interativo com saudação por horário (Fase 20) */}
+          <GreetingAvatar variant="dashboard" showTiles={false} />
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-100">
+              <ShieldCheck className="h-7 w-7 text-teal-500" /> Administração Total
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Rota oculta <code className="rounded bg-slate-700/40 px-1.5 py-0.5">/admin</code> — não
+              indexada nem linkada no site.
+            </p>
+          </div>
         </div>
         <Button variant="outline" onClick={logoutAdmin} className="h-10">
           <LogOut className="mr-2 h-4 w-4" /> Sair do painel

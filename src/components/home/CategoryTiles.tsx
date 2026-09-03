@@ -51,8 +51,13 @@ export default function CategoryTiles() {
             <FadeIn key={type} delay={0.05 * i} className="h-full">
               <Link
                 href={`/produtos?tipo=${type}`}
-                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
+                className="hover-lift group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:border-blue-300"
               >
+                {/* Halo suave revelado no hover (ref. Nexora) */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
+                />
                 <span
                   className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${info.gradient} text-white shadow-lg`}
                 >

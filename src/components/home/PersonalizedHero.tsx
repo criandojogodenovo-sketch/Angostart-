@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { ROLE_LABELS } from '@/lib/roles';
 import type { Role } from '@/lib/roles';
+import GreetingAvatar from '@/components/GreetingAvatar';
 import HeroIllustration from '@/components/illustrations/HeroIllustration';
 import SalesChartIllustration from '@/components/illustrations/SalesChartIllustration';
 import CartIllustration from '@/components/illustrations/CartIllustration';
@@ -39,10 +40,10 @@ type HeroVariant = 'visitante' | 'vendedor' | 'cliente';
 type CtaIcon = React.ComponentType<{ className?: string }> | null;
 
 const PRIMARY_CTA =
-  'inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:shadow-xl hover:brightness-110';
+  'btn-shine inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:shadow-xl hover:brightness-110 active:scale-95';
 
 const SECONDARY_CTA =
-  'inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur transition-colors hover:bg-white/10';
+  'inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur transition-all hover:bg-white/10 hover:scale-[1.02] active:scale-95';
 
 export default function PersonalizedHero() {
   const { user, loading, isSeller } = useAuth();
@@ -55,7 +56,6 @@ export default function PersonalizedHero() {
         : 'cliente'
       : 'visitante';
 
-  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
   const roleLabel = user ? ROLE_LABELS[user.role as Role] ?? 'Cliente' : null;
 
   return (
@@ -83,7 +83,8 @@ export default function PersonalizedHero() {
             {variant === 'visitante' && <HeroVisitante />}
             {variant === 'vendedor' && (
               <HeroLogado
-                greeting={`Olá${firstName ? `, ${firstName}` : ''}! 👋`}
+                /* Fase 20: avatar interativo com saudação por horário
+                   (Bom dia/Boa tarde/Boa noite) substitui o «Olá, X! 👋». */
                 title="Pronto para gerir as tuas vendas?"
                 description={
                   'O teu painel mostra encomendas, pagamentos KWiK e o catálogo em tempo real. Publica novos produtos e acompanha cada venda em Kwanzas.'
@@ -103,7 +104,6 @@ export default function PersonalizedHero() {
             )}
             {variant === 'cliente' && (
               <HeroLogado
-                greeting={`Olá${firstName ? `, ${firstName}` : ''}! 👋`}
                 title="Que produto procuras hoje?"
                 description={
                   'Explora infoprodutos, produtos físicos e serviços verificados. Recebe em Luanda em até 48 horas e paga em Kwanzas, sem complicações.'
@@ -188,7 +188,6 @@ function HeroVisitante() {
 /* ─────────────── Variante logada (vendedor / cliente) ─────────────── */
 
 type HeroLogadoProps = {
-  greeting: string;
   title: string;
   description: string;
   badgeLabel: string;
@@ -197,7 +196,6 @@ type HeroLogadoProps = {
 };
 
 function HeroLogado({
-  greeting,
   title,
   description,
   badgeLabel,
@@ -208,13 +206,18 @@ function HeroLogado({
   const SecondaryIcon = secondary.icon;
   return (
     <>
-      <span className="inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-teal-300">
+      {/* Avatar/boneco interativo com saudação por horário (Fase 20) */}
+      <div className="mb-6 inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+        <GreetingAvatar variant="hero" />
+      </div>
+
+      <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-full border border-teal-400/30 bg-teal-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-teal-300">
         <BadgeCheck className="h-4 w-4" />
         Sessão iniciada · {badgeLabel}
       </span>
 
       <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-        {greeting} <span className="text-blue-400">{title}</span>
+        <span className="text-gradient-animated">{title}</span>
       </h1>
 
       <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">

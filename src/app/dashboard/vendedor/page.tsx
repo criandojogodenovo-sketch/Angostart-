@@ -64,6 +64,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BackToTop from '@/components/BackToTop';
+import GreetingAvatar from '@/components/GreetingAvatar';
 import { useAuth } from '@/context/AuthContext';
 import { authHeaders, getToken, type AuthUser } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
@@ -561,15 +562,18 @@ export default function DashboardVendedorPage() {
     <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Fase 16 — fundo Dark Premium fixo atrás de todo o painel */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
-      {/* Cabeçalho */}
+      {/* Cabeçalho — avatar interativo com saudação por horário (Fase 20) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100 sm:text-3xl">
-            Painel de vendas
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Olá {user?.name?.split(' ')[0]} — aqui está o resumo do teu negócio na AngoStart.
-          </p>
+        <div className="flex items-center gap-4">
+          <GreetingAvatar variant="dashboard" showTiles={false} />
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100 sm:text-3xl">
+              Painel de vendas
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Aqui está o resumo do teu negócio na AngoStart.
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           {user?.username && (
@@ -845,6 +849,13 @@ export default function DashboardVendedorPage() {
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.revenueByMonth ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  {/* Gradiente azul→roxo nas barras (Fase 20, ref. dashboards premium) */}
+                  <linearGradient id="angostart-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#3b82f6" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} />
                 <YAxis
@@ -857,8 +868,9 @@ export default function DashboardVendedorPage() {
                   formatter={(value) => [formatKz(Number(value)), 'Receita']}
                   labelFormatter={(label) => `Mês ${label}`}
                   contentStyle={{ borderRadius: 12, borderColor: '#334155', backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: 13 }}
+                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
                 />
-                <Bar dataKey="revenue" fill="#3b82f6" radius={[8, 8, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="revenue" fill="url(#angostart-bar-gradient)" radius={[8, 8, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -162,9 +162,9 @@
     @apply rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl backdrop-blur-xl;
   }
 
-  /* Botão primário — gradiente azul→roxo + sombra premium */
+  /* Botão primário — gradiente azul→roxo + sombra premium + brilho (Fase 20) */
   .btn-primary {
-    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply relative inline-flex h-11 items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   /* Botão secundário — cinza suave (páginas claras) */
@@ -298,16 +298,250 @@
   .animate-float-delay,
   .animate-float-slow,
   .animate-grow,
-  .animate-draw {
+  .animate-draw,
+  .animate-wave,
+  .animate-pop,
+  .animate-pulse-glow,
+  .text-gradient-animated {
     animation: none;
   }
   /* sem animação, a linha aparece já desenhada */
   .animate-draw {
     stroke-dashoffset: 0;
   }
+  .text-gradient-animated {
+    background-position: 0% 50%;
+  }
+  .hover-lift,
+  .hover-lift:hover {
+    transform: none;
+    transition: none;
+  }
+  .btn-shine::after,
+  .btn-primary::after {
+    display: none;
+  }
   html {
     scroll-behavior: auto;
   }
+}
+
+/* ————— Redesign Premium (Fase 20) — animações de classe mundial ————— */
+
+/* Brilho (shine) que percorre botões premium ao hover — usado no
+   .btn-primary, no Comprar e nos CTAs do hero. */
+@keyframes angostart-shine {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after,
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 80%
+  );
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+.btn-shine:hover::after,
+.btn-primary:hover::after {
+  animation: angostart-shine 0.9s ease;
+}
+
+/* Elevação premium em cards: -5px + escala 1.02 + sombra expandida. */
+.hover-lift {
+  transition:
+    transform 0.3s cubic-bezier(0.21, 0.47, 0.32, 0.98),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow:
+    0 22px 45px -12px rgba(37, 99, 235, 0.22),
+    0 8px 20px -8px rgba(139, 92, 246, 0.18);
+}
+
+/* Acenar (wave) do avatar de boas-vindas — origem no pulso. */
+@keyframes angostart-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(16deg);
+  }
+  30% {
+    transform: rotate(-8deg);
+  }
+  45% {
+    transform: rotate(14deg);
+  }
+  60% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+.animate-wave {
+  animation: angostart-wave 1.6s ease-in-out 0.4s 2;
+  transform-origin: 78% 82%;
+}
+.group:hover .animate-wave {
+  animation: angostart-wave 1.1s ease-in-out infinite;
+}
+
+/* Pop-in elástico (badges, tiles flutuantes). */
+@keyframes angostart-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: angostart-pop 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+}
+
+/* Brilho suave pulsante (anel do avatar, CTAs de destaque). */
+@keyframes angostart-pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0);
+  }
+}
+.animate-pulse-glow {
+  animation: angostart-pulse-glow 2.6s ease-out infinite;
+}
+
+/* Gradiente animado em texto de destaque (títulos do hero). */
+@keyframes angostart-gradient-x {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.text-gradient-animated {
+  background-image: linear-gradient(
+    90deg,
+    #60a5fa,
+    #a78bfa,
+    #2dd4bf,
+    #60a5fa
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: angostart-gradient-x 7s ease infinite;
+}
+
+/* ————— Dark Mode (opção — o tema claro continua o padrão) —————
+   Retrofit pragmático: os componentes usam muitas cores utilitárias
+   hardcoded; em vez de tocar em 100+ ficheiros (risco de regressão),
+   invertemos as superfícies mais comuns sob .dark com especificidade
+   controlada. Dashboards já são dark por natureza (bg #0B1120). */
+.dark body {
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(1100px 520px at 88% -8%, rgba(139, 92, 246, 0.14), transparent 62%),
+    radial-gradient(950px 480px at -12% 12%, rgba(59, 130, 246, 0.16), transparent 62%),
+    radial-gradient(720px 420px at 50% 118%, rgba(20, 184, 166, 0.1), transparent 60%);
+}
+.dark .glass-navbar {
+  @apply border-white/10 bg-slate-900/70 text-slate-100;
+}
+.dark .glass-navbar .text-slate-900 {
+  @apply text-slate-100;
+}
+.dark .card-premium {
+  @apply border-white/10 bg-slate-800/70;
+}
+.dark .glass-pill {
+  @apply border-white/10 bg-slate-900/85;
+}
+.dark .input-modern {
+  @apply border-white/10 bg-slate-800/60 text-slate-100 focus:bg-slate-800;
+}
+.dark .btn-secondary {
+  @apply bg-slate-800 text-slate-200 hover:bg-slate-700;
+}
+.dark .bg-white {
+  background-color: rgb(15 23 42 / 0.75);
+}
+.dark .bg-white\/70,
+.dark .bg-white\/60 {
+  background-color: rgb(15 23 42 / 0.55);
+}
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: rgb(30 41 59 / 0.55);
+}
+.dark .bg-gray-100 {
+  background-color: rgb(30 41 59 / 0.7);
+}
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
+.dark .text-slate-800 {
+  color: #e2e8f0;
+}
+.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+.dark .text-slate-600 {
+  color: #94a3b8;
+}
+.dark .text-slate-500 {
+  color: #94a3b8;
+}
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: rgb(255 255 255 / 0.12);
+}
+.dark .bg-blue-50 {
+  background-color: rgb(59 130 246 / 0.14);
+}
+.dark .text-blue-700 {
+  color: #93c5fd;
+}
+
+/* Transição suave ao trocar de tema */
+body,
+.card-premium,
+.glass-navbar {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.3s;
 }
 
 /* Scrollbar personalizada (listas longas) */

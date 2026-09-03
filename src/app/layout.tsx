@@ -52,6 +52,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/** Anti-FOUC: aplica o tema guardado ANTES da primeira pintura.
+    Tema claro é o padrão — só adiciona .dark se o utilizador escolheu. */
+const themeInitScript = `
+try {
+  if (localStorage.getItem('angostart-theme') === 'dark') {
+    document.documentElement.classList.add('dark');
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -59,6 +69,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-AO" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${poppins.variable} flex min-h-screen flex-col overflow-x-hidden antialiased bg-background text-foreground pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-0`}
       >

@@ -12,6 +12,7 @@ import { Menu, Plus, Rocket, ShoppingCart } from 'lucide-react';
 import HamburgerMenu from '@/components/HamburgerMenu';
 import SearchBar from '@/components/SearchBar';
 import NotificationBell from '@/components/NotificationBell';
+import ThemeToggle from '@/components/ThemeToggle';
 import { useCart } from '@/context/StoreContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -99,6 +100,9 @@ export default function Navbar() {
         <div className="hidden w-72 lg:block">
           <SearchBar />
         </div>
+
+        {/* Tema claro/escuro (Fase 20) — claro é o padrão */}
+        <ThemeToggle />
 
         {/* Sino de notificações (Fase 5) */}
         <NotificationBell />
