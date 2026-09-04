@@ -1,32 +1,31 @@
 'use client';
 
 /**
- * AngoStart — Loader do Avatar 3D (Fase 22).
+ * AngoStart — Loader do Avatar 3D (Fases 22→24).
  *
  * Estratégia de performance (o 3D NUNCA atrasa o carregamento):
  *  1. `next/dynamic` → three/R3F ficam num chunk SEPARADO do bundle
  *     inicial (a primeira pintura não espera pelo WebGL);
  *  2. O canvas só monta ~300ms DEPOIS da hidratação (idle) → o LCP
  *     é sempre o texto do hero, não o 3D;
- *  3. Fallback gracioso: sem WebGL ou com prefers-reduced-motion →
- *     o HeroAvatar SVG (server-friendly) fica visível permanentemente;
+ *  3. Fallback gracioso (Fase 24): sem WebGL ou com prefers-reduced-motion
+ *     → Mascot2D SVG (o personagem refinado: barba + óculos + dentes)
+ *     com o chip de saudação;
  *  4. Contentor com altura fixa em TODOS os estados → zero CLS na
  *     troca SVG → WebGL.
  */
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import HeroAvatar from '@/components/illustrations/HeroAvatar';
 import type { Avatar3DProps } from './Avatar3D';
 import { webglSupported } from './webgl';
+import Mascot2D from '@/components/illustrations/Mascot2D';
 
 // Chunk separado — só descarregado quando necessário (lazy).
 const Avatar3D = dynamic<Avatar3DProps>(() => import('./Avatar3D'), {
   ssr: false,
-  loading: () => null, // o fallback SVG já está visível durante a carga
+  loading: () => null, // o fallback 2D já está visível durante a carga
 });
-
-/** Deteta suporte a WebGL (helper partilhado — ./webgl.ts). */
 
 type Avatar3DLoaderProps = Avatar3DProps & {
   /** Chip do fallback SVG (ex.: primeiro nome do utilizador). */
@@ -61,7 +60,7 @@ export default function Avatar3DLoader({
         className={`flex h-full w-full items-center justify-center ${className}`}
         aria-hidden="true"
       >
-        <HeroAvatar withGlasses={withGlasses} chipLabel={fallbackChip} />
+        <Mascot2D withGlasses={withGlasses} chipLabel={fallbackChip} />
       </div>
     );
   }

@@ -269,6 +269,9 @@ export default function SupportChatWidget() {
   const [bubble, setBubble] = useState('');
   const [speaking, setSpeaking] = useState(false);
   const [emotion, setEmotion] = useState<MascotEmotion>('neutro');
+  /* Fase 24: aceno de BOAS-VINDAS — a mascote acena ~2.8 s quando o widget
+     abre (spec: «a acenar quando abre»), depois volta à expressão normal. */
+  const [mascotGreet, setMascotGreet] = useState(false);
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastAssistantRef = useRef<string | null>(null);
   const bubbleScrollRef = useRef<HTMLDivElement>(null);
@@ -296,6 +299,14 @@ export default function SupportChatWidget() {
     window.addEventListener(AI_CHAT_OPEN_EVENT, abrir);
     return () => window.removeEventListener(AI_CHAT_OPEN_EVENT, abrir);
   }, []);
+
+  /* Fase 24: mascote acena ao ABRIR o widget (boas-vindas, ~2.8 s). */
+  useEffect(() => {
+    if (!aberto) return;
+    setMascotGreet(true);
+    const id = window.setTimeout(() => setMascotGreet(false), 2800);
+    return () => window.clearTimeout(id);
+  }, [aberto]);
 
   /* Auto-scroll das mensagens + foco no campo ao abrir */
   useEffect(() => {
@@ -726,7 +737,12 @@ export default function SupportChatWidget() {
               chunk lazy — ver ChatMascotLoader). */}
           <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-gradient-to-b from-blue-50/70 via-white to-white px-2.5 py-2 md:px-3 md:py-2.5">
             <div className="h-[84px] w-[68px] shrink-0 md:h-[104px] md:w-[86px]" aria-hidden="true">
-              <ChatMascotLoader speaking={speaking} thinking={aEnviar} emotion={emotion} />
+              <ChatMascotLoader
+                speaking={speaking}
+                thinking={aEnviar}
+                emotion={emotion}
+                wave={mascotGreet}
+              />
             </div>
             {/* Balão estilo SMS (canto superior esquerdo «cortado» — aponta
                 à mascote); auto-scroll interno em respostas longas. */}

@@ -65,6 +65,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BackToTop from '@/components/BackToTop';
 import GreetingAvatar from '@/components/GreetingAvatar';
+import DashboardMascot from '@/components/DashboardMascot';
 import { useAuth } from '@/context/AuthContext';
 import { authHeaders, getToken, type AuthUser } from '@/context/AuthContext';
 import { formatKz } from '@/lib/format';
@@ -558,10 +559,31 @@ export default function DashboardVendedorPage() {
 
   const cards = data?.cards;
 
+  /* Fase 24 — mascote 3D pequena no canto: REAGE aos dados reais do painel
+     (reclamações/suspeita → alerta; vendas/receita → positivo; senão neutro). */
+  const mascotMood =
+    !cards
+      ? 'neutral'
+      : cards.complaints > 0 || cards.suspicious > 0
+        ? 'alert'
+        : cards.revenueConfirmed > 0 || cards.totalOrders > 0
+          ? 'positive'
+          : 'neutral';
+  const mascotLabel = !cards
+    ? undefined
+    : cards.complaints > 0
+      ? `${cards.complaints} reclamaç${cards.complaints === 1 ? 'ão' : 'ões'}`
+      : cards.suspicious > 0
+        ? 'Atividade suspeita'
+        : cards.revenueConfirmed > 0 || cards.totalOrders > 0
+          ? 'A vender!'
+          : 'À espera de vendas';
+
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Fase 16 — fundo Dark Premium fixo atrás de todo o painel */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#0B1120]" />
+      <DashboardMascot mood={mascotMood} label={mascotLabel} />
       {/* Cabeçalho — avatar interativo com saudação por horário (Fase 20) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
