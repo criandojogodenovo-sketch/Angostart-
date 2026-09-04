@@ -1,17 +1,16 @@
 'use client';
 
 /**
- * AngoStart — Hero personalizado por sessão (Fase 22 · 3D premium).
+ * AngoStart — Hero personalizado por sessão (mascote 2.5D premium).
  *
- * Grelha de 2 colunas — texto à esquerda, CENA 3D WebGL à direita:
- *  - Visitante → Avatar3D a ACENAR com telemóvel/sacola/moeda/gema a
- *    flutuar (cena de comércio interativa que segue o ponteiro);
- *  - Autenticado → o MESMO boneco COM óculos 3D + «empurrar os óculos»
- *    + mini gráfico e cartão flutuantes + chips HTML personalizados
- *    (Carteira · Encomendas · Favoritos) sobre o canvas.
+ * Grelha de 2 colunas — texto à esquerda, MASCOTE 2.5D à direita:
+ *  - Visitante → ilustração premium a ACENAR (sem óculos, camisa cinza)
+ *    com flutuação/respiração/sombra projectada via CSS;
+ *  - Autenticado → o MESMO personagem COM óculos + crachá + telemóvel
+ *    + chips HTML personalizados (Carteira · Encomendas · Favoritos).
  *
- * Fallback gracioso: sem WebGL ou prefers-reduced-motion → HeroAvatar SVG
- * (server-friendly, mesmo contentor de altura fixa → zero CLS).
+ * 100% CSS/HTML — SEM WebGL: carrega instantâneo em qualquer telemóvel;
+ * fallback de imagem → ícone simples (ver Mascot2p5D).
  *
  * Missão 4.3 — texto de visitante condensado a UMA frase e CTAs sem
  * duplicação (primário registo → /perfil; secundário catálogo → /produtos).
@@ -34,7 +33,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { ROLE_LABELS } from '@/lib/roles';
 import type { Role } from '@/lib/roles';
-import Avatar3DLoader from '@/components/three/Avatar3DLoader';
+import Mascot2p5D from '@/components/mascot/Mascot2p5D';
 import PatternWaves from '@/components/illustrations/PatternWaves';
 
 type HeroVariant = 'visitante' | 'vendedor' | 'cliente';
@@ -163,9 +162,9 @@ export default function PersonalizedHero() {
             )}
           </motion.div>
 
-          {/* ── Cena 3D (Missão 1 + 2): boneco WebGL SEMPRE visível —
-              visitante a acenar com comércio à volta; autenticado com
-              óculos + dados flutuantes. Altura ~60% do hero no mobile e
+          {/* ── Mascote 2.5D (ilustração premium + CSS): SEM WebGL —
+              visitante a acenar; autenticado com óculos/crachá/telemóvel
+              + cartões flutuantes. Altura ~60% do hero no mobile e
               ~40% no desktop (dvh, com teto para nunca sair do ecrã). ── */}
           <motion.div
             key={`fig-${variant}`}
@@ -175,14 +174,15 @@ export default function PersonalizedHero() {
             transition={{ duration: 0.6, delay: 0.15, ease: [0.21, 0.47, 0.32, 0.98] }}
           >
             <div className="relative h-[min(58dvh,430px)] w-full max-w-[460px] sm:h-[min(52dvh,420px)] lg:h-[min(42dvh,420px)]">
-              <Avatar3DLoader
-                withGlasses={variant !== 'visitante'}
-                variant={variant === 'visitante' ? 'visitante' : 'logado'}
-                fallbackChip={greetingChip}
+              <Mascot2p5D
+                context="home"
+                isLoggedIn={variant !== 'visitante'}
+                chipLabel={greetingChip}
+                eager
               />
 
               {/* Missão 2.2 — cartões flutuantes personalizados (HTML leve
-                  sobre o canvas; links REAIS, sem valores inventados) */}
+                  sobre a ilustração; links REAIS, sem valores inventados) */}
               {variant !== 'visitante' && (
                 <>
                   <FloatChip

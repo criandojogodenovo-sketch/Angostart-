@@ -707,3 +707,127 @@ body,
     animation: none;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   MASCOTE 2.5D PREMIUM (ilustração PNG + profundidade 100% CSS)
+   Camadas separadas para as animações nunca colidirem:
+     .m2p5d         → flutuação (translateY)            [div exterior]
+     .m2p5d-pose    → pose: rotação/inclinação           [div dobra]
+     .m2p5d-img     → respiração (escala) + piscar       [<img>]
+     .m2p5d-shadow  → sombra no chão (contra-fase)       [elipse]
+   Componente: src/components/mascot/Mascot2p5D.tsx
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Flutuação suave — sobe e desce ~14px */
+@keyframes m2p5d-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+.m2p5d {
+  animation: m2p5d-float 6s ease-in-out infinite;
+}
+
+/* «Aceno» contínuo (home): rotação sutil do corpo — a mão erguida
+   da ilustração + oscilação lêem-se como um aceno natural. */
+@keyframes m2p5d-rock {
+  0%, 100% { transform: rotate(-1.8deg); }
+  50%      { transform: rotate(1.8deg); }
+}
+.m2p5d-pose {
+  transform-origin: 50% 90%;
+}
+.m2p5d-rock {
+  animation: m2p5d-rock 3.6s ease-in-out infinite;
+}
+
+/* Aceno de boas-vindas (chat): 2 oscilações mais vivas (~2,4s) */
+.m2p5d-wave {
+  animation: m2p5d-rock 1.1s ease-in-out 2;
+}
+
+/* Pose «a pensar» (isTyping): cabeça inclinada, transição suave */
+.m2p5d-thinking {
+  transform: rotate(-3.5deg) translateY(-3px);
+  transition: transform 0.45s cubic-bezier(0.21, 0.47, 0.32, 0.98);
+  animation: none;
+}
+
+/* Respiração (escala subtil) + piscar (micro-impulso de brilho,
+   ~cada 5,2s) — propriedades distintas, coexistem na <img>. */
+@keyframes m2p5d-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.014); }
+}
+@keyframes m2p5d-blink {
+  0%, 93.5%, 100% { filter: brightness(1); }
+  95%, 97%        { filter: brightness(0.8); }
+}
+/* O <picture> é inline por defeito — sem isto, `height:100%` da <img>
+   perde a referência e a figura transborda o contentor. */
+.m2p5d-picture {
+  display: block;
+  height: 100%;
+  max-height: 100%;
+  width: 100%;
+  max-width: 100%;
+}
+.m2p5d-img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  transform-origin: 50% 94%;
+  animation:
+    m2p5d-breathe 4.2s ease-in-out infinite,
+    m2p5d-blink 5.2s linear infinite;
+}
+
+/* FALA (chat — isTyping/speaking): a imagem «pulsa» — escala + brilho
+   a ~2,6Hz (substitui respiração+piscar enquanto fala). */
+@keyframes m2p5d-talk {
+  0%, 100% { transform: scale(1);     filter: brightness(1); }
+  50%      { transform: scale(1.05);  filter: brightness(1.08); }
+}
+.m2p5d-speaking {
+  animation: m2p5d-talk 0.38s ease-in-out infinite;
+}
+
+/* Sombra no chão: encolhe/escurece quando o corpo sobe (contra-fase
+   da flutuação — vende o efeito de peso/altura). */
+@keyframes m2p5d-shadow {
+  0%, 100% { transform: translateX(-50%) scaleX(1);    opacity: 1; }
+  50%      { transform: translateX(-50%) scaleX(0.86); opacity: 0.62; }
+}
+.m2p5d-shadow {
+  animation: m2p5d-shadow 6s ease-in-out infinite;
+  filter: blur(3px);
+  will-change: transform, opacity;
+}
+
+/* Halo pulsante atrás da mascote enquanto FALA (chat) */
+@keyframes m2p5d-halo {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.94); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.06); }
+}
+.m2p5d-halo {
+  animation: m2p5d-halo 0.76s ease-in-out infinite;
+}
+
+/* Acessibilidade: sem movimento, a mascote fica estática (imagem
+   continua visível — só as animações param). */
+@media (prefers-reduced-motion: reduce) {
+  .m2p5d,
+  .m2p5d-rock,
+  .m2p5d-wave,
+  .m2p5d-thinking,
+  .m2p5d-img,
+  .m2p5d-speaking,
+  .m2p5d-shadow,
+  .m2p5d-halo {
+    animation: none;
+    transition: none;
+  }
+  .m2p5d-thinking {
+    transform: none;
+  }
+}

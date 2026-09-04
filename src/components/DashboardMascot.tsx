@@ -1,20 +1,19 @@
 'use client';
 
 /**
- * AngoStart — DashboardMascot (Fase 24 · painel de vendas).
+ * AngoStart — DashboardMascot (painel de vendas · mascote 2.5D).
  *
- * Versão PEQUENA (2.5D/3D leve) da mascote refinada, fixa no canto
- * inferior direito do painel do vendedor (/dashboard/vendedor), a flutuar
- * suavemente e a REAGIR AOS DADOS:
+ * Versão PEQUENA da mascote 2.5D (ilustração premium + CSS), fixa no
+ * canto inferior direito do painel do vendedor (/dashboard/vendedor),
+ * a flutuar suavemente e a REAGIR AOS DADOS:
  *
- *   mood 'positive' → sorriso largo + aceno (vendas/receita a acontecer);
- *   mood 'alert'    → sobrancelhas franzidas + boca ∩ (reclamações/
- *                     atividade suspeita — empatia);
- *   mood 'neutral'  → sorriso suave (à espera de vendas).
+ *   mood 'positive' → chip verde «A vender!» (ilustração normal);
+ *   mood 'alert'    → chip rosado + leve dessaturação (empatia);
+ *   mood 'neutral'  → chip azul «À espera de vendas».
  *
- * Performance: canvas minúsculo (~90-104px), chunk lazy partilhado com a
- * home/chat (só desce quando o painel abre — e só depois da primeira
- * pintura), dpr ≤ 1.5, SEM decoração extra; sem WebGL → Mascot2D.
+ * Performance: 100% CSS/HTML (SEM WebGL) — <picture> WebP/PNG de ~30KB
+ * (miniatura dedicada do busto), lazy loading, sombra/halo/ flutuação
+ * em keyframes GPU. Zero JS de runtime, zero CLS.
  *
  * `pointer-events-none` + `aria-hidden` → NUNCA bloqueia cliques nem
  * leitores de ecrã; posicionado ACIMA dos botões flutuantes existentes
@@ -22,8 +21,8 @@
  */
 
 import { motion } from 'framer-motion';
-import Mascot3DLoader from '@/components/three/Mascot3DLoader';
-import type { MascotMood } from '@/components/three/MascotCharacter';
+import Mascot2p5D from '@/components/mascot/Mascot2p5D';
+import type { MascotMood } from '@/components/mascot/Mascot2p5D';
 
 type DashboardMascotProps = {
   /** Humor derivado dos cartões REAIS do dashboard (nunca inventado). */
@@ -50,7 +49,7 @@ export default function DashboardMascot({ mood = 'neutral', label }: DashboardMa
       transition={{ duration: 0.55, delay: 0.4, ease: [0.21, 0.47, 0.32, 0.98] }}
     >
       <div className="h-[104px] w-[88px] sm:h-[124px] sm:w-[104px]">
-        <Mascot3DLoader context="dashboard" mood={mood} />
+        <Mascot2p5D context="dashboard" mood={mood} />
       </div>
       {/* Chip de estado (dados reais — sem valores inventados) */}
       <span

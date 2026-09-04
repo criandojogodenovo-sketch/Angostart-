@@ -30,12 +30,13 @@
  * - P4 LATÊNCIA: 70 s por tentativa + 1 retry com backoff só em falha de
  *   rede rápida (timeout não repete); JSON corrompido tem mensagem própria.
  *
- * Fase 23 (CTO — «assistente virtual vivo»):
- * - MASCOTE 3D no topo do widget (ChatMascot: o mesmo boneco da home em
- *   versão busto, chunk lazy + fallback 2D sem WebGL);
- * - LIP SYNC: a boca mexe-se enquanto a resposta é revelada no balão;
- * - PENSAR: `aEnviar` (espera da IA) → cabeça inclinada + mão no queixo
- *   + bolha de pensamento;
+ * Fase 25 (CTO — «assistente virtual vivo», agora 2.5D premium):
+ * - MASCOTE 2.5D no topo do widget (Mascot2p5D: ilustração premium do
+ *   MESMO personagem da home em versão busto, 100% CSS/HTML);
+ * - FALA: a imagem PULSA (escala+brilho) enquanto a resposta é
+ *   revelada no balão (isTyping/typewriter);
+ * - PENSAR: `aEnviar` (espera da IA) → pose inclinada + bolha de
+ *   pensamento;
  * - EMOÇÕES: detectEmotion() (palavras-chave, 0 chamadas API) sobre a
  *   resposta da IA e a mensagem do utilizador — feliz/preocupado/
  *   pensativo/neutro;
@@ -61,8 +62,8 @@ import {
    Authorization o servidor tratava utilizador autenticado como anónimo e
    imagens/áudio eram rejeitados com «Entra na tua conta» (401). */
 import { authHeaders } from '@/context/AuthContext';
-/* Fase 23: mascote 3D sincronizada com a IA — lip sync + emoções + balão. */
-import ChatMascotLoader from '@/components/three/ChatMascotLoader';
+/* Mascote 2.5D sincronizada com a IA — pulso de fala + emoções + balão. */
+import Mascot2p5D from '@/components/mascot/Mascot2p5D';
 import { detectEmotion, type MascotEmotion } from '@/lib/mascot-emotions';
 
 interface Turn {
@@ -730,14 +731,15 @@ export default function SupportChatWidget() {
             </button>
           </div>
 
-          {/* ── Fase 23: MASCOTE 3D + BALÃO DE RESPOSTA (SMS) ──
+          {/* ── Mascote 2.5D + BALÃO DE RESPOSTA (SMS) ──
               Topo do widget, ao lado das mensagens, tamanho reduzido.
               NÃO bloqueia a área de escrita nem os botões (faixa fixa
-              shrink-0; o 3D só monta quando o chat está aberto e vive em
-              chunk lazy — ver ChatMascotLoader). */}
+              shrink-0); a imagem pulsa enquanto `speaking` (isTyping) e
+              inclina-se quando a IA está a pensar). */}
           <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-gradient-to-b from-blue-50/70 via-white to-white px-2.5 py-2 md:px-3 md:py-2.5">
-            <div className="h-[84px] w-[68px] shrink-0 md:h-[104px] md:w-[86px]" aria-hidden="true">
-              <ChatMascotLoader
+            <div className="h-[84px] w-[68px] shrink-0 md:h-[104px] md:w-[86px]">
+              <Mascot2p5D
+                context="chat"
                 speaking={speaking}
                 thinking={aEnviar}
                 emotion={emotion}
