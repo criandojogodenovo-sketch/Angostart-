@@ -29,6 +29,19 @@
  *   401 mesmo autenticado); 401 → «A tua sessão expirou…».
  * - P4 LATÊNCIA: 70 s por tentativa + 1 retry com backoff só em falha de
  *   rede rápida (timeout não repete); JSON corrompido tem mensagem própria.
+ *
+ * Fase 23 (CTO — «assistente virtual vivo»):
+ * - MASCOTE 3D no topo do widget (ChatMascot: o mesmo boneco da home em
+ *   versão busto, chunk lazy + fallback 2D sem WebGL);
+ * - LIP SYNC: a boca mexe-se enquanto a resposta é revelada no balão;
+ * - PENSAR: `aEnviar` (espera da IA) → cabeça inclinada + mão no queixo
+ *   + bolha de pensamento;
+ * - EMOÇÕES: detectEmotion() (palavras-chave, 0 chamadas API) sobre a
+ *   resposta da IA e a mensagem do utilizador — feliz/preocupado/
+ *   pensativo/neutro;
+ * - BALÃO SMS ao lado da mascote mostra a resposta em tempo real
+ *   (typewriter ~6 s máximo) e a última mensagem da lista fica
+ *   sincronizada com a revelação.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -48,6 +61,9 @@ import {
    Authorization o servidor tratava utilizador autenticado como anónimo e
    imagens/áudio eram rejeitados com «Entra na tua conta» (401). */
 import { authHeaders } from '@/context/AuthContext';
+/* Fase 23: mascote 3D sincronizada com a IA — lip sync + emoções + balão. */
+import ChatMascotLoader from '@/components/three/ChatMascotLoader';
+import { detectEmotion, type MascotEmotion } from '@/lib/mascot-emotions';
 
 interface Turn {
   role: 'user' | 'assistant';
@@ -242,6 +258,21 @@ export default function SupportChatWidget() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* ── Fase 23: mascote 3D sincronizada com a IA ──
+     - `bubble`   → texto visível no BALÃO SMS ao lado da mascote
+       (revelado progressivamente — typewriter);
+     - `speaking` → true enquanto o texto está a ser revelado → a BOCA da
+       mascote mexe-se (lip sync) ao ritmo da revelação;
+     - `emotion`  → expressão facial (detectEmotion, 0 chamadas de API);
+     - o estado «a pensar» é o próprio `aEnviar` (espera da resposta):
+       cabeça inclinada + mão no queixo + bolha de pensamento. */
+  const [bubble, setBubble] = useState('');
+  const [speaking, setSpeaking] = useState(false);
+  const [emotion, setEmotion] = useState<MascotEmotion>('neutro');
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastAssistantRef = useRef<string | null>(null);
+  const bubbleScrollRef = useRef<HTMLDivElement>(null);
+
   /* Fase 21: imagem anexada (1 por mensagem) */
   const [imagem, setImagem] = useState<PendingImage | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -301,6 +332,85 @@ export default function SupportChatWidget() {
     if (!aberto && gravando) pararGravacao(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto]);
+
+  /* ────────────────── Fase 23: sincronização mascote ↔ IA ────────────────── */
+
+  /** Pára o typewriter (e desliga a boca da mascote). */
+  function pararTypewriter() {
+    if (typewriterRef.current) {
+      clearInterval(typewriterRef.current);
+      typewriterRef.current = null;
+    }
+    setSpeaking(false);
+  }
+
+  /**
+   * Revela o texto progressivamente no BALÃO ao lado da mascote:
+   * a boca mexe-se (lip sync) enquanto o texto aparece — «tempo real».
+   * Passo adaptativo: respostas longas terminam em ~6 s (nunca 40 s).
+   */
+  function revelar(texto: string) {
+    pararTypewriter();
+    setEmotion(detectEmotion(texto));
+    setBubble('');
+    setSpeaking(true);
+    const passo = Math.max(1, Math.ceil(texto.length / 300));
+    let i = 0;
+    typewriterRef.current = setInterval(() => {
+      i += passo;
+      if (i >= texto.length) {
+        setBubble(texto);
+        pararTypewriter();
+      } else {
+        setBubble(texto.slice(0, i));
+      }
+    }, 20);
+  }
+
+  /* Nova resposta da IA (ou a ABERTURA, ao abrir) → balão + boca.
+     Guard ref: a mesma mensagem nunca é «revelada» duas vezes. */
+  useEffect(() => {
+    if (!aberto) return;
+    const last = turns[turns.length - 1];
+    if (!last || last.role !== 'assistant') return;
+    if (lastAssistantRef.current === last.content) return;
+    lastAssistantRef.current = last.content;
+    revelar(last.content);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns, aberto]);
+
+  /* Fechou a meio da revelação → termina INSTANTÂNEO (sem animação
+     invisível a correr em fundo) e a boca para. */
+  useEffect(() => {
+    if (!aberto && typewriterRef.current) {
+      const last = turns[turns.length - 1];
+      if (last?.role === 'assistant' && lastAssistantRef.current === last.content) {
+        setBubble(last.content);
+      }
+      pararTypewriter();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto]);
+
+  /* Erros de rede/API → expressão de PREOCUPAÇÃO (empatia da mascote). */
+  useEffect(() => {
+    if (erro) setEmotion('preocupado');
+  }, [erro]);
+
+  /* O balão acompanha o texto (auto-scroll interno em respostas longas). */
+  useEffect(() => {
+    if (bubbleScrollRef.current) {
+      bubbleScrollRef.current.scrollTop = bubbleScrollRef.current.scrollHeight;
+    }
+  }, [bubble, aEnviar]);
+
+  /* Limpeza total ao desmontar (interval nunca «escapa»). */
+  useEffect(
+    () => () => {
+      if (typewriterRef.current) clearInterval(typewriterRef.current);
+    },
+    []
+  );
 
   /* ────────────────────── Imagem ────────────────────── */
 
@@ -457,6 +567,11 @@ export default function SupportChatWidget() {
     setEnviandoAudio(!!audioEnviado);
     setAEnviar(true);
     setErro(null);
+    /* Fase 23: enquanto a IA «pensa», a mascote REAGE ao humor da mensagem
+       do utilizador («tenho um problema» → preocupado; «obrigado!» → feliz).
+       A pose «a pensar» (cabeça inclinada + mão no queixo + bolha) vem do
+       próprio `aEnviar` (estado de espera da resposta). */
+    setEmotion(detectEmotion(texto));
 
     /* P3: token do AuthContext SEMPRE anexado — sem ele o servidor tratava
        o utilizador autenticado como anónimo e imagens/áudio eram rejeitados
@@ -604,6 +719,52 @@ export default function SupportChatWidget() {
             </button>
           </div>
 
+          {/* ── Fase 23: MASCOTE 3D + BALÃO DE RESPOSTA (SMS) ──
+              Topo do widget, ao lado das mensagens, tamanho reduzido.
+              NÃO bloqueia a área de escrita nem os botões (faixa fixa
+              shrink-0; o 3D só monta quando o chat está aberto e vive em
+              chunk lazy — ver ChatMascotLoader). */}
+          <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-gradient-to-b from-blue-50/70 via-white to-white px-2.5 py-2 md:px-3 md:py-2.5">
+            <div className="h-[84px] w-[68px] shrink-0 md:h-[104px] md:w-[86px]" aria-hidden="true">
+              <ChatMascotLoader speaking={speaking} thinking={aEnviar} emotion={emotion} />
+            </div>
+            {/* Balão estilo SMS (canto superior esquerdo «cortado» — aponta
+                à mascote); auto-scroll interno em respostas longas. */}
+            <div
+              ref={bubbleScrollRef}
+              className="scrollbar-thin max-h-[76px] min-w-0 flex-1 overflow-y-auto rounded-2xl rounded-tl-md border border-slate-200 bg-white px-3 py-2 shadow-sm md:max-h-[92px]"
+              aria-live="polite"
+            >
+              {aEnviar ? (
+                /* Espera da IA → bolha de pensamento + pontos animados */
+                <p className="flex items-center gap-1.5 text-sm text-slate-400">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:300ms]" />
+                  <span className="ml-1 text-xs">
+                    {enviandoAudio ? 'A transcrever o áudio…' : 'A pensar…'}
+                  </span>
+                </p>
+              ) : bubble ? (
+                /* Resposta revelada em tempo real (typewriter) — a boca da
+                   mascote mexe-se ao mesmo ritmo (prop `speaking`). */
+                <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-700">
+                  {bubble}
+                  {speaking && (
+                    <span
+                      aria-hidden="true"
+                      className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-blue-500 align-middle"
+                    />
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  O assistente responde aqui — pergunta-me o que quiseres!
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Mensagens */}
           <div
             ref={scrollRef}
@@ -630,7 +791,12 @@ export default function SupportChatWidget() {
                     <Mic className="h-3 w-3" /> Áudio transcrito
                   </span>
                 )}
-                {t.content}
+                {/* Fase 23: enquanto a mascote «fala» (revelação no balão),
+                    a última resposta na lista mostra o texto PARCIAL — a
+                    conversação inteira fica sincronizada com a boca. */}
+                {i === turns.length - 1 && t.role === 'assistant' && speaking
+                  ? bubble || '…'
+                  : t.content}
               </div>
             ))}
             {aEnviar && (

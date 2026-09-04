@@ -680,3 +680,30 @@ body,
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ── Fase 23: mascote 2D de fallback (chat sem WebGL) ──
+   Boca que «fala» (lip sync CSS) + bolha de pensamento flutuante. */
+@keyframes angostart-mascot-talk {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+.angostart-mascot-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: angostart-mascot-talk 0.42s ease-in-out infinite;
+}
+@keyframes angostart-mascot-think-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.angostart-mascot-think {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: angostart-mascot-think-float 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .angostart-mascot-mouth,
+  .angostart-mascot-think {
+    animation: none;
+  }
+}

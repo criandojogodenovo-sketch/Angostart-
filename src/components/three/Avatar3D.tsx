@@ -24,6 +24,8 @@ import { useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Float, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
+// Paleta partilhada com a mascote do chat (ChatMascot) — mesmo boneco.
+import { SKIN, SKIN_DARK, SHIRT, SHIRT_DARK, HAIR, DARK } from './mascot-palette';
 
 export type Avatar3DProps = {
   /** Autenticado → óculos + gesto de ajuste + elementos «logado». */
@@ -32,14 +34,8 @@ export type Avatar3DProps = {
   variant?: 'visitante' | 'logado';
 };
 
-/* ─────────────────────── Paleta (consistente com o SVG da marca) ─────────────────────── */
-
-const SKIN = '#f2b380';
-const SKIN_DARK = '#e09a66';
-const SHIRT = '#3b82f6';
-const SHIRT_DARK = '#2563eb';
-const HAIR = '#312e4f';
-const DARK = '#1e293b';
+/* ─────────────────────── Paleta ─────────────────────── */
+/* (constantes exportadas em ./mascot-palette.ts — partilhadas com o ChatMascot) */
 
 /* ─────────────────────── O boneco (meia-corpo, emerge do pódio) ─────────────────────── */
 

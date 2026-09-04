@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import HeroAvatar from '@/components/illustrations/HeroAvatar';
 import type { Avatar3DProps } from './Avatar3D';
+import { webglSupported } from './webgl';
 
 // Chunk separado — só descarregado quando necessário (lazy).
 const Avatar3D = dynamic<Avatar3DProps>(() => import('./Avatar3D'), {
@@ -25,18 +26,7 @@ const Avatar3D = dynamic<Avatar3DProps>(() => import('./Avatar3D'), {
   loading: () => null, // o fallback SVG já está visível durante a carga
 });
 
-/** Deteta suporte a WebGL sem ostrar a página. */
-function webglSupported(): boolean {
-  try {
-    const canvas = document.createElement('canvas');
-    return !!(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl2') || canvas.getContext('webgl'))
-    );
-  } catch {
-    return false;
-  }
-}
+/** Deteta suporte a WebGL (helper partilhado — ./webgl.ts). */
 
 type Avatar3DLoaderProps = Avatar3DProps & {
   /** Chip do fallback SVG (ex.: primeiro nome do utilizador). */
