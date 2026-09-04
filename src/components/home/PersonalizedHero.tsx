@@ -1,21 +1,20 @@
 'use client';
 
 /**
- * AngoStart — Hero personalizado por sessão (Fase 19 · redesign real).
+ * AngoStart — Hero personalizado por sessão (Fase 22 · 3D premium).
  *
- * Estrutura «Hello Josh»: grelha de 2 colunas — texto à esquerda,
- * FIGURA à direita: o HeroAvatar (boneco) aparece SEMPRE — visitante
- * SEM óculos; autenticado COM óculos + blink + gesto de ajustar os
- * óculos. No mobile a figura fica CENTRADA por baixo do texto, sem
- * sair do ecrã (max-w-full + grid).
+ * Grelha de 2 colunas — texto à esquerda, CENA 3D WebGL à direita:
+ *  - Visitante → Avatar3D a ACENAR com telemóvel/sacola/moeda/gema a
+ *    flutuar (cena de comércio interativa que segue o ponteiro);
+ *  - Autenticado → o MESMO boneco COM óculos 3D + «empurrar os óculos»
+ *    + mini gráfico e cartão flutuantes + chips HTML personalizados
+ *    (Carteira · Encomendas · Favoritos) sobre o canvas.
  *
- * Lê o AuthContext e renderiza o hero em 3 variantes (texto/CTAs):
- * - Visitante (não logado): saudação neutra + CTAs de registo.
- * - Vendedor logado: saudação por horário com nome + CTAs de painel.
- * - Cliente logado: saudação por horário com nome + CTAs de compra.
+ * Fallback gracioso: sem WebGL ou prefers-reduced-motion → HeroAvatar SVG
+ * (server-friendly, mesmo contentor de altura fixa → zero CLS).
  *
- * Enquanto a sessão é restaurada (`loading`), mostra a variante de visitante —
- * igual ao HTML server-renderizado, sem flash nem salto de layout.
+ * Missão 4.3 — texto de visitante condensado a UMA frase e CTAs sem
+ * duplicação (primário registo → /perfil; secundário catálogo → /produtos).
  *
  * Só apresentação: nenhuma lógica de negócio — apenas CTAs e ilustrações.
  */
@@ -29,11 +28,13 @@ import {
   FilePlus2,
   LayoutDashboard,
   Package,
+  Star,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ROLE_LABELS } from '@/lib/roles';
 import type { Role } from '@/lib/roles';
-import HeroAvatar from '@/components/illustrations/HeroAvatar';
+import Avatar3DLoader from '@/components/three/Avatar3DLoader';
 import PatternWaves from '@/components/illustrations/PatternWaves';
 
 type HeroVariant = 'visitante' | 'vendedor' | 'cliente';
@@ -76,6 +77,7 @@ const SECONDARY_CTA =
 
 export default function PersonalizedHero() {
   const { user, loading, isSeller } = useAuth();
+  const { greeting, mounted } = useGreeting();
 
   const variant: HeroVariant = loading
     ? 'visitante'
@@ -87,6 +89,14 @@ export default function PersonalizedHero() {
 
   const roleLabel = user ? ROLE_LABELS[user.role as Role] ?? 'Cliente' : null;
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+
+  // Missão 1.3 — saudação completa no chip 3D: «Boa noite, [Nome]!»
+  const greetingChip =
+    variant !== 'visitante' && firstName && mounted
+      ? `${greeting}, ${firstName}!`
+      : variant !== 'visitante'
+        ? `${greeting}!`
+        : 'Olá!';
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
@@ -102,7 +112,7 @@ export default function PersonalizedHero() {
       />
 
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-        {/* Grelha estrutural: min-w-0 impede overflow do texto; a figura
+        {/* Grelha estrutural: min-w-0 impede overflow do texto; a cena 3D
             centra-se por baixo no mobile e sobe ao lado no desktop. */}
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-6">
           <motion.div
@@ -153,9 +163,10 @@ export default function PersonalizedHero() {
             )}
           </motion.div>
 
-          {/* ── Figura (ref. «Hello Josh») — o boneco aparece SEMPRE:
-              visitante sem óculos; autenticado com óculos estilo cool,
-              piscar de olhos e gesto de ajustar os óculos ── */}
+          {/* ── Cena 3D (Missão 1 + 2): boneco WebGL SEMPRE visível —
+              visitante a acenar com comércio à volta; autenticado com
+              óculos + dados flutuantes. Altura ~60% do hero no mobile e
+              ~40% no desktop (dvh, com teto para nunca sair do ecrã). ── */}
           <motion.div
             key={`fig-${variant}`}
             className="flex min-w-0 justify-center lg:justify-end"
@@ -163,14 +174,41 @@ export default function PersonalizedHero() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.15, ease: [0.21, 0.47, 0.32, 0.98] }}
           >
-            <HeroAvatar
-              withGlasses={variant !== 'visitante'}
-              chipLabel={
-                variant === 'visitante' || !firstName
-                  ? 'Olá!'
-                  : `${firstName}!`
-              }
-            />
+            <div className="relative h-[min(58dvh,430px)] w-full max-w-[460px] sm:h-[min(52dvh,420px)] lg:h-[min(42dvh,420px)]">
+              <Avatar3DLoader
+                withGlasses={variant !== 'visitante'}
+                variant={variant === 'visitante' ? 'visitante' : 'logado'}
+                fallbackChip={greetingChip}
+              />
+
+              {/* Missão 2.2 — cartões flutuantes personalizados (HTML leve
+                  sobre o canvas; links REAIS, sem valores inventados) */}
+              {variant !== 'visitante' && (
+                <>
+                  <FloatChip
+                    href="/dashboard"
+                    icon={Wallet}
+                    label="Carteira"
+                    className="left-0 top-6 -rotate-3"
+                    delay={0}
+                  />
+                  <FloatChip
+                    href="/perfil"
+                    icon={Package}
+                    label="Encomendas"
+                    className="right-0 top-28 rotate-2"
+                    delay={1.1}
+                  />
+                  <FloatChip
+                    href="/produtos"
+                    icon={Star}
+                    label="Favoritos"
+                    className="bottom-8 left-2 -rotate-2"
+                    delay={2.2}
+                  />
+                </>
+              )}
+            </div>
           </motion.div>
         </div>
       </div>
@@ -178,22 +216,40 @@ export default function PersonalizedHero() {
   );
 }
 
-/* ─────────────── Saudação (eyebrow) ─────────────── */
+/* ─────────────── Chip flutuante (cartão 3D CSS sobre o canvas) ─────────────── */
 
-function GreetingEyebrow() {
-  const { greeting, mounted } = useGreeting();
+type FloatChipProps = {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  className?: string;
+  delay?: number;
+};
+
+function FloatChip({ href, icon: Icon, label, className = '', delay = 0 }: FloatChipProps) {
   return (
-    <p className="flex items-center gap-2 text-lg font-bold text-blue-300 sm:text-xl">
-      <span aria-hidden="true" className="animate-wave text-2xl [animation:none]">
-        {mounted ? GREETING_ICON[greeting] : '👋'}
-      </span>
-      {mounted ? greeting : 'Olá'}
-      <span aria-hidden="true">!</span>
-    </p>
+    <motion.div
+      className={`absolute z-10 ${className}`}
+      animate={{ y: [0, -8, 0] }}
+      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut', delay }}
+      initial={{ opacity: 0, scale: 0.8 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+    >
+      <Link
+        href={href}
+        className="flex items-center gap-2 rounded-2xl border border-white/25 bg-white/95 px-3.5 py-2 shadow-xl shadow-blue-950/30 backdrop-blur transition-transform hover:scale-105 active:scale-95 dark:bg-slate-900/90"
+      >
+        <Icon className="h-4 w-4 text-blue-600" />
+        <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+          {label}
+        </span>
+      </Link>
+    </motion.div>
   );
 }
 
-/* ─────────────── Variante visitante ─────────────── */
+/* ─────────────── Variante visitante (texto condensado — Missão 4.3) ─────────────── */
 
 function HeroVisitante() {
   return (
@@ -210,28 +266,28 @@ function HeroVisitante() {
         negócio precisa, num só lugar
       </h1>
 
-      <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-        Compra infoprodutos, produtos físicos e contrata serviços ao domicílio
-        ou remotos com preços claros em Kwanzas. Uma plataforma criada em
-        Angola, pensada para empreendedores, famílias e empresas que querem
-        resultados sem complicações.
+      {/* Missão 4.3 — UMA frase clara em vez do parágrafo longo */}
+      <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+        Compra e vende infoprodutos, produtos e serviços verificados — preços
+        claros em Kwanzas, entrega em Luanda.
       </p>
 
+      {/* CTAs sem duplicação: primário → registo; secundário → catálogo */}
       <div className="mt-8 flex max-w-full flex-col gap-3 sm:flex-row">
         <Link href="/perfil" className={PRIMARY_CTA}>
           Quero vender
           <ArrowRight className="ml-2 h-5 w-5" />
         </Link>
-        <Link href="/perfil" className={SECONDARY_CTA}>
-          Criar perfil
+        <Link href="/produtos" className={SECONDARY_CTA}>
+          Explorar produtos
         </Link>
       </div>
 
-      {/* Estatísticas */}
-      <dl className="mt-12 grid max-w-xl grid-cols-3 gap-6">
+      {/* Estatísticas compactas (prova de valor) */}
+      <dl className="mt-10 grid max-w-xl grid-cols-3 gap-6">
         {[
-          { value: '4', label: 'Categorias de produtos e serviços' },
-          { value: '3', label: 'Formas de vender no marketplace' },
+          { value: '4', label: 'Categorias' },
+          { value: '3', label: 'Formas de vender' },
           { value: '48h', label: 'Entrega em Luanda' },
         ].map(({ value, label }) => (
           <div key={label} className="min-w-0">
@@ -272,7 +328,7 @@ function HeroLogado({
 
   return (
     <>
-      {/* Saudação por horário com o nome real (substitui a bolha pequena) */}
+      {/* Saudação por horário com o nome real */}
       <p className="flex flex-wrap items-center gap-2 text-lg font-bold text-blue-300 sm:text-xl">
         <span aria-hidden="true" className="text-2xl">
           {mounted ? GREETING_ICON[greeting] : '👋'}
@@ -306,5 +362,20 @@ function HeroLogado({
         </Link>
       </div>
     </>
+  );
+}
+
+/* ─────────────── Saudação (eyebrow) ─────────────── */
+
+function GreetingEyebrow() {
+  const { greeting, mounted } = useGreeting();
+  return (
+    <p className="flex items-center gap-2 text-lg font-bold text-blue-300 sm:text-xl">
+      <span aria-hidden="true" className="text-2xl">
+        {mounted ? GREETING_ICON[greeting] : '👋'}
+      </span>
+      {mounted ? greeting : 'Olá'}
+      <span aria-hidden="true">!</span>
+    </p>
   );
 }

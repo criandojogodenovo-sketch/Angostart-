@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useId, useRef } from 'react';
-import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
+import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 type FadeInProps = {
@@ -126,5 +126,37 @@ export function AnimatedBar({ pct, className, barClassName, delay = 0.15 }: Anim
         transition={{ duration: 0.9, delay, ease: 'easeOut' }}
       />
     </div>
+  );
+}
+
+type ParallaxProps = {
+  children: ReactNode;
+  /** Deslocamento vertical máximo em px (positivo = desce → sobe). */
+  strength?: number;
+  className?: string;
+};
+
+/**
+ * Fase 22 — Parallax suave de scroll (Missão 4.2).
+ *
+ * O conteúdo desloca-se ±strength px enquanto atravessa o viewport
+ * (spring para fluidez). Só `transform` (GPU). Com secções a forças
+ * diferentes, os elementos «movem-se a velocidades diferentes».
+ * Desativado com prefers-reduced-motion.
+ */
+export function Parallax({ children, strength = 24, className }: ParallaxProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start'],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], [strength, -strength]);
+  const smooth = useSpring(y, { stiffness: 90, damping: 30 });
+
+  return (
+    <motion.div ref={ref} className={className} style={reduced ? undefined : { y: smooth }}>
+      {children}
+    </motion.div>
   );
 }

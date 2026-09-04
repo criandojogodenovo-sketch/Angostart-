@@ -157,6 +157,17 @@
     @apply rounded-2xl border border-white/50 bg-white/70 shadow-xl shadow-blue-500/5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl;
   }
 
+  /* Fase 22 — card de produto com PROFUNDIDADE 3D real (preserve-3d).
+     Sem backdrop-filter/overflow: essas propriedades «achatam» as camadas
+     translateZ (CSS grouping properties) e o blur é caro no mobile —
+     o visual premium mantém-se via opacidade + sombras em camadas. */
+  .card-product-3d {
+    @apply rounded-2xl border border-white/50 bg-white/90 shadow-xl shadow-blue-500/10 transition-shadow duration-300 hover:border-blue-200/80 hover:shadow-2xl hover:shadow-blue-600/20;
+  }
+  .dark .card-product-3d {
+    @apply border-white/10 bg-slate-800/85;
+  }
+
   /* Card premium (dashboards dark) — vidro fumado sobre #0B1120 */
   .card-dark {
     @apply rounded-2xl border border-white/10 bg-slate-800/60 shadow-2xl backdrop-blur-xl;

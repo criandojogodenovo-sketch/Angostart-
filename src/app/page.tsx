@@ -7,7 +7,7 @@ import HowItWorks from "@/components/home/HowItWorks";
 import HomeInfoSections from "@/components/home/HomeInfoSections";
 import { FinalCta } from "@/components/home/HomeCtas";
 import PatternWaves from "@/components/illustrations/PatternWaves";
-import { FadeIn } from "@/components/motion";
+import { FadeIn, Parallax } from "@/components/motion";
 
 /**
  * AngoStart — Home como HUB DE NAVEGAÇÃO (Fase 18).
@@ -33,11 +33,16 @@ export default function HomePage() {
       {/* ── 1. Hero personalizado por sessão (visitante / vendedor / cliente) ── */}
       <PersonalizedHero />
 
-      {/* ── 2. Categorias em Destaque — ação imediata de navegação ── */}
-      <CategoryTiles />
+      {/* ── 2. Categorias em Destaque — ação imediata de navegação
+          (parallax lento — Missão 4.2) ── */}
+      <Parallax strength={18}>
+        <CategoryTiles />
+      </Parallax>
 
-      {/* ── 4. Prova Social — números reais (API /api/home/stats) ── */}
-      <SocialProof />
+      {/* ── 4. Prova Social — números reais (parallax inverso, mais rápido) ── */}
+      <Parallax strength={-30}>
+        <SocialProof />
+      </Parallax>
 
       {/* ── 5. Produtos em Destaque — comprar sem sair da Home ── */}
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
@@ -53,8 +58,10 @@ export default function HomePage() {
         <FeaturedProducts />
       </section>
 
-      {/* ── 6. Como Funciona — 3 passos compactos ── */}
-      <HowItWorks />
+      {/* ── 6. Como Funciona — 3 passos compactos (parallax suave) ── */}
+      <Parallax strength={14}>
+        <HowItWorks />
+      </Parallax>
 
       {/* ── 7. Conteúdo secundário movido para o fundo ── */}
       <HomeInfoSections />

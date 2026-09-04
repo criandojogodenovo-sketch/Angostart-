@@ -11,7 +11,7 @@
 
 import { Star, ShoppingCart, Check, Flame, UserRound, Store, ZoomIn, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import type { Product } from '@/lib/products-data';
 import { getProductGradient, PRODUCT_TYPES } from '@/lib/products-data';
@@ -35,6 +35,28 @@ export default function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [zoom, setZoom] = useState(false);
 
+  /* ── Fase 22: inclinação 3D no hover (Missão 3) — springs suaves,
+     apenas transform (GPU); desativada com prefers-reduced-motion ── */
+  const reduceMotion = useReducedMotion();
+  const tiltX = useMotionValue(0);
+  const tiltY = useMotionValue(0);
+  const springTiltX = useSpring(tiltX, { stiffness: 220, damping: 20 });
+  const springTiltY = useSpring(tiltY, { stiffness: 220, damping: 20 });
+
+  function handleTilt(e: React.PointerEvent<HTMLElement>) {
+    if (reduceMotion) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    tiltY.set(px * 9); // graus — inclina para o lado do ponteiro
+    tiltX.set(-py * 9);
+  }
+
+  function resetTilt() {
+    tiltX.set(0);
+    tiltY.set(0);
+  }
+
   const typeInfo = PRODUCT_TYPES[product.type];
   // Fase 19: gradiente sempre na paleta azul/roxo/teal — nunca esmeralda da BD
   const safeGradient = getProductGradient(product);
@@ -54,7 +76,19 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <motion.article
-      className="card-premium group flex flex-col overflow-hidden hover:scale-[1.02] hover:border-blue-200/80"
+      className="card-product-3d group flex flex-col"
+      style={
+        reduceMotion
+          ? undefined
+          : {
+              rotateX: springTiltX,
+              rotateY: springTiltY,
+              transformPerspective: 900, // profundidade 3D no próprio card
+              transformStyle: 'preserve-3d',
+            }
+      }
+      onPointerMove={handleTilt}
+      onPointerLeave={resetTilt}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
@@ -68,17 +102,21 @@ export default function ProductCard({ product }: { product: Product }) {
           type="button"
           onClick={() => setZoom(true)}
           aria-label={`Ampliar imagem de ${product.name}`}
-          className={`relative flex h-56 w-full cursor-zoom-in items-center justify-center overflow-hidden bg-gradient-to-br sm:h-60 ${safeGradient}`}
+          className={`relative flex h-56 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br sm:h-60 ${safeGradient}`}
         >
           {/* Brilho radial suave atrás do ícone (ref. Nexora) */}
           <span
             aria-hidden="true"
             className="pointer-events-none absolute h-40 w-40 rounded-full bg-white/15 blur-2xl transition-all duration-500 group-hover:h-52 group-hover:w-52"
           />
-          <ProductIcon
-            name={product.icon}
-            className="relative h-24 w-24 text-white/90 drop-shadow-lg transition-transform duration-300 group-hover:scale-110"
-          />
+          {/* Missão 3: ícone a flutuar (wrapper anima; o scale fica no
+              ícone para não conflituarem as duas transforms) */}
+          <span className="animate-float-slow relative inline-flex [transform:translateZ(34px)]">
+            <ProductIcon
+              name={product.icon}
+              className="h-24 w-24 text-white/90 drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
+            />
+          </span>
           <Badge
             className="absolute left-3 top-3 border-0 bg-white/20 text-white backdrop-blur-sm"
             variant="secondary"
@@ -105,12 +143,13 @@ export default function ProductCard({ product }: { product: Product }) {
         <ShareButton
           productUrl={`/produtos/${product.id}`}
           compact
-          className="absolute bottom-3 left-3 z-10 h-9 w-9 border-0 bg-white/90 text-blue-600 shadow-md hover:bg-white"
+          className="absolute bottom-3 left-3 z-10 h-9 w-9 rounded-full border-0 bg-white/90 text-blue-600 shadow-md hover:bg-white"
         />
       </div>
 
-      {/* Conteúdo */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      {/* Conteúdo — camada «elevada» (translateZ) para profundidade 3D;
+          cantos inferiores arredondados porque o article já não corta */}
+      <div className="flex flex-1 flex-col gap-2 p-4 [transform:translateZ(22px)]">
         {/* Fase 11: sem avaliações reais → "Sem avaliações" (nunca um 4.5 falso) */}
         {product.rating != null ? (
           <div className="flex items-center gap-1 text-amber-500">
