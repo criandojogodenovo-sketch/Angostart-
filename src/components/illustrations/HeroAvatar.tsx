@@ -3,32 +3,49 @@
 /**
  * AngoStart — HeroAvatar (redesign real, ref. «Hello Josh»).
  *
- * Ilustração SVG de uma PESSOA GRANDE que acena — substitui a bolha pequena
- * de saudação. Requisitos do briefing:
- *  - Ocupa ≥40% da altura do hero no desktop e ≥60% no mobile;
- *  - Centrada no mobile e SEM sair do ecrã (max-w-full, sem larguras fixas);
- *  - Gradiente de fundo, sombras suaves e animação de aceno (braço SVG
- *    com transform-origin no ombro, CSS puro — sem dependências);
- *  - Chips flutuantes («Olá!», sacola, brilhos) ao estilo das referências.
+ * Ilustração SVG de uma pessoa que acena — visível na home para TODOS os
+ * estados de sessão (o boneco NUNCA desaparece após o login):
+ *  - Visitante   → boneco SEM óculos (aceno contínuo);
+ *  - Autenticado → o MESMO boneco COM óculos (estilo cool/moderno),
+ *    com animações extra: piscar de olhos + ajustar os óculos.
  *
- * Server-friendly: a animação é CSS; o aceno contínuo respeita
- * prefers-reduced-motion (ver .animate-wave-arm no globals.css).
+ * Tamanho MÉDIO equilibrado — não domina o conteúdo nem fica pequeno
+ * demais: ≤270px no mobile (centrado, sem sair do ecrã) e ≤320px no
+ * desktop (~1/3 da altura visual do hero, ao lado do texto).
+ *
+ * Animações 100% CSS (server-friendly) que respeitam
+ * prefers-reduced-motion (ver globals.css):
+ *  - .animate-wave-arm       → aceno do braço (todos os estados);
+ *  - .animate-blink          → piscar de olhos (autenticado);
+ *  - .animate-glasses-adjust → empurrar os óculos (autenticado).
  */
 
 import { Sparkles } from 'lucide-react';
 
-export default function HeroAvatar() {
+type HeroAvatarProps = {
+  /** Autenticado → desenha óculos + animações extra (blink/ajuste). */
+  withGlasses?: boolean;
+  /** Texto do chip flutuante (ex.: primeiro nome do utilizador). */
+  chipLabel?: string;
+};
+
+export default function HeroAvatar({
+  withGlasses = false,
+  chipLabel = 'Olá!',
+}: HeroAvatarProps) {
   return (
     <div
       aria-hidden="true"
-      className="relative mx-auto w-full max-w-[300px] select-none sm:max-w-[380px] lg:max-w-[460px]"
+      className="relative mx-auto w-full max-w-[270px] select-none sm:max-w-[310px] lg:max-w-[320px]"
     >
       {/* Halo de gradiente atrás da pessoa + sombra suave no chão */}
       <div className="absolute inset-x-4 top-6 bottom-10 rounded-full bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-purple-500/30 blur-3xl" />
 
       {/* Chips flutuantes à volta da figura (ref. «Good Morning Josh») */}
       <div className="animate-float absolute -left-1 top-6 z-10 flex items-center gap-1.5 rounded-2xl border border-white/20 bg-white/95 px-3 py-1.5 shadow-lg backdrop-blur dark:bg-slate-900/90">
-        <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Olá!</span>
+        <span className="max-w-[9rem] truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+          {chipLabel}
+        </span>
         <span className="text-base">👋</span>
       </div>
       <div className="animate-float-delay absolute right-0 top-24 z-10 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-600/40">
@@ -64,6 +81,10 @@ export default function HeroAvatar() {
             <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.5" />
             <stop offset="100%" stopColor="#93c5fd" stopOpacity="0" />
           </radialGradient>
+          <linearGradient id="ha-lens" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#818cf8" stopOpacity="0.15" />
+          </linearGradient>
         </defs>
 
         {/* Círculo de fundo (anel pontilhado + halo) */}
@@ -147,14 +168,79 @@ export default function HeroAvatar() {
         {/* sobrancelhas + olhos + sorriso */}
         <path d="M136 88 q8 -6 16 0" fill="none" stroke="#312e4f" strokeWidth="3.5" strokeLinecap="round" />
         <path d="M168 88 q8 -6 16 0" fill="none" stroke="#312e4f" strokeWidth="3.5" strokeLinecap="round" />
-        <circle cx="144" cy="98" r="4.5" fill="#312e4f" />
-        <circle cx="176" cy="98" r="4.5" fill="#312e4f" />
-        <circle cx="145.5" cy="96.5" r="1.4" fill="#ffffff" />
-        <circle cx="177.5" cy="96.5" r="1.4" fill="#ffffff" />
+        <g className={withGlasses ? 'animate-blink' : undefined}>
+          <circle cx="144" cy="98" r="4.5" fill="#312e4f" />
+          <circle cx="176" cy="98" r="4.5" fill="#312e4f" />
+          <circle cx="145.5" cy="96.5" r="1.4" fill="#ffffff" />
+          <circle cx="177.5" cy="96.5" r="1.4" fill="#ffffff" />
+        </g>
         <path d="M146 112 q14 12 28 0" fill="none" stroke="#b4562e" strokeWidth="4" strokeLinecap="round" />
         {/* bochechas */}
         <circle cx="132" cy="108" r="6" fill="#f1996b" opacity="0.55" />
         <circle cx="188" cy="108" r="6" fill="#f1996b" opacity="0.55" />
+
+        {/* ── Óculos (estilo cool/moderno) — apenas com sessão iniciada.
+            Lentes em gradiente azul, ponte arqueada, hastes até às orelhas
+            e gloss diagonal; o grupo anima o gesto de «empurrar os óculos». ── */}
+        {withGlasses && (
+          <g className="animate-glasses-adjust">
+            <path
+              d="M133 93 Q124 90 118 96"
+              fill="none"
+              stroke="#312e4f"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <path
+              d="M187 93 Q196 90 202 96"
+              fill="none"
+              stroke="#312e4f"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <rect
+              x="131"
+              y="85"
+              width="26"
+              height="26"
+              rx="9"
+              fill="url(#ha-lens)"
+              stroke="#312e4f"
+              strokeWidth="3"
+            />
+            <rect
+              x="163"
+              y="85"
+              width="26"
+              height="26"
+              rx="9"
+              fill="url(#ha-lens)"
+              stroke="#312e4f"
+              strokeWidth="3"
+            />
+            <path
+              d="M157 93.5 Q160 90 163 93.5"
+              fill="none"
+              stroke="#312e4f"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <path
+              d="M136 91 l6 -3.5"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+            <path
+              d="M168 91 l6 -3.5"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+          </g>
+        )}
       </svg>
     </div>
   );

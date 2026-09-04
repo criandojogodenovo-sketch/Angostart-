@@ -303,6 +303,8 @@
   .animate-pop,
   .animate-pulse-glow,
   .animate-wave-arm,
+  .animate-blink,
+  .animate-glasses-adjust,
   .text-gradient-animated {
     animation: none;
   }
@@ -425,6 +427,49 @@
 }
 .animate-wave-arm {
   animation: angostart-wave-arm 1.8s ease-in-out infinite;
+}
+
+/* Piscar de olhos do HeroAvatar (apenas com sessão iniciada) —
+   colapsa os olhos verticalmente por um instante, a cada ~4,8s. */
+@keyframes angostart-blink {
+  0%,
+  91%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.08);
+  }
+  97% {
+    transform: scaleY(1);
+  }
+}
+.animate-blink {
+  animation: angostart-blink 4.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+/* Ajuste dos óculos (HeroAvatar autenticado) — o boneco «empurra»
+   os óculos de volta ao lugar a cada ~6s (gesto cool/moderno). */
+@keyframes angostart-glasses-adjust {
+  0%,
+  44%,
+  60%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(1.8px) rotate(-1.4deg);
+  }
+  55% {
+    transform: translateY(-0.6px) rotate(0.5deg);
+  }
+}
+.animate-glasses-adjust {
+  animation: angostart-glasses-adjust 6s ease-in-out 2.2s infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
 }
 
 /* ── Guarda estrutural anti-overflow horizontal ──

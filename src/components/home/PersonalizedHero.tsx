@@ -4,14 +4,15 @@
  * AngoStart — Hero personalizado por sessão (Fase 19 · redesign real).
  *
  * Estrutura «Hello Josh»: grelha de 2 colunas — texto à esquerda,
- * FIGURA GRANDE à direita (HeroAvatar no visitante; ilustrações de
- * painel/carrinho nas variantes logadas). No mobile a figura fica
- * CENTRADA por baixo do texto, sem sair do ecrã (max-w-full + grid).
+ * FIGURA à direita: o HeroAvatar (boneco) aparece SEMPRE — visitante
+ * SEM óculos; autenticado COM óculos + blink + gesto de ajustar os
+ * óculos. No mobile a figura fica CENTRADA por baixo do texto, sem
+ * sair do ecrã (max-w-full + grid).
  *
- * Lê o AuthContext e renderiza o hero em 3 variantes:
- * - Visitante (não logado): HeroAvatar a acenar + CTAs de registo.
- * - Vendedor logado: saudação por horário + ilustração de vendas + CTAs.
- * - Cliente logado: saudação por horário + ilustração de carrinho + CTAs.
+ * Lê o AuthContext e renderiza o hero em 3 variantes (texto/CTAs):
+ * - Visitante (não logado): saudação neutra + CTAs de registo.
+ * - Vendedor logado: saudação por horário com nome + CTAs de painel.
+ * - Cliente logado: saudação por horário com nome + CTAs de compra.
  *
  * Enquanto a sessão é restaurada (`loading`), mostra a variante de visitante —
  * igual ao HTML server-renderizado, sem flash nem salto de layout.
@@ -33,8 +34,6 @@ import { useAuth } from '@/context/AuthContext';
 import { ROLE_LABELS } from '@/lib/roles';
 import type { Role } from '@/lib/roles';
 import HeroAvatar from '@/components/illustrations/HeroAvatar';
-import SalesChartIllustration from '@/components/illustrations/SalesChartIllustration';
-import CartIllustration from '@/components/illustrations/CartIllustration';
 import PatternWaves from '@/components/illustrations/PatternWaves';
 
 type HeroVariant = 'visitante' | 'vendedor' | 'cliente';
@@ -87,6 +86,7 @@ export default function PersonalizedHero() {
       : 'visitante';
 
   const roleLabel = user ? ROLE_LABELS[user.role as Role] ?? 'Cliente' : null;
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
@@ -153,8 +153,9 @@ export default function PersonalizedHero() {
             )}
           </motion.div>
 
-          {/* ── Figura grande (ref. «Hello Josh») — desktop: ~40% da altura
-              do hero; mobile: centrada, 100% dentro do ecrã ── */}
+          {/* ── Figura (ref. «Hello Josh») — o boneco aparece SEMPRE:
+              visitante sem óculos; autenticado com óculos estilo cool,
+              piscar de olhos e gesto de ajustar os óculos ── */}
           <motion.div
             key={`fig-${variant}`}
             className="flex min-w-0 justify-center lg:justify-end"
@@ -162,9 +163,14 @@ export default function PersonalizedHero() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.15, ease: [0.21, 0.47, 0.32, 0.98] }}
           >
-            {variant === 'visitante' && <HeroAvatar />}
-            {variant === 'vendedor' && <SalesChartIllustration />}
-            {variant === 'cliente' && <CartIllustration />}
+            <HeroAvatar
+              withGlasses={variant !== 'visitante'}
+              chipLabel={
+                variant === 'visitante' || !firstName
+                  ? 'Olá!'
+                  : `${firstName}!`
+              }
+            />
           </motion.div>
         </div>
       </div>
