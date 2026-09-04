@@ -6,6 +6,7 @@ import { pushNotification } from '@/lib/notifications';
 import {
   isUndefinedTableError,
   markVideosUnavailable,
+  maybeAutoVerifyStaleVideos,
   sweepTimedOutUploads,
   verifyPendingAtMux,
   type VerifiedTransition,
@@ -72,13 +73,25 @@ export async function GET(request: NextRequest) {
       }
       const includeStale = searchParams.get('include') === 'stale';
 
-      /* 1. Timeout automático: 'uploading' > 15 min → 'errored'. */
-      const swept = await sweepTimedOutUploads(user.id, 15);
+      /* 0. AUTO-VERIFICAÇÃO 60 s (correcção do «A finalizar envio…»):
+            qualquer pedido autenticado à lista dispara uma varredura
+            GLOBAL de vídeos presos (> 5 min) direto no Mux — no máximo
+            1× por minuto por instância, melhor-esforço. Custo ~50 ms
+            quando não há vídeos presos (SELECT vazio); até ~2 s no pior
+            caso (≤ 5 vídeos presos), o cenário exato que estamos a
+            corrigir. Nunca quebra a resposta. */
+      await maybeAutoVerifyStaleVideos();
 
-      /* 2. Self-healing: verifica pendentes no Mux (webhook perdido?). */
+      /* 1. Self-healing PRIMEIRO: verifica pendentes no Mux (webhook
+            perdido?) e aplica o estado REAL — assim um vídeo que o Mux
+            JÁ tem pronto nunca é sacrificado pelo timeout do passo 2. */
       const transitions: VerifiedTransition[] = includeStale
         ? await verifyPendingAtMux(user.id)
         : [];
+
+      /* 2. Timeout automático: o que CONTINUA 'uploading' (o Mux não
+            tem o ficheiro) > 15 min → 'errored'. */
+      const swept = await sweepTimedOutUploads(user.id, 15);
 
       /* 3. Notifica falhas detetadas (sino + web push). */
       const failures: { userId: number; title: string; to: string }[] = [

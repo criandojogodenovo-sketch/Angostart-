@@ -487,7 +487,7 @@ export default function PedidosPage() {
               <PlusCircle className="h-4 w-4" /> Publicar pedido
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Publicar um pedido no ar</DialogTitle>
               <DialogDescription>

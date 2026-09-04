@@ -129,45 +129,11 @@ export interface VerifiedTransition {
 
 const PENDING_DEAD_UPLOAD = new Set(['errored', 'cancelled', 'timed_out']);
 
-/**
- * SELF-HEALING: verifica no Mux os vídeos pendentes do utilizador
- * quando o webhook pode não ter chegado (rede, retries perdidos).
- *
- * - Grace de 2 min (o webhook costuma chegar em segundos) — evita
- *   chamadas ao Mux por vídeos acabados de criar.
- * - Máx. 5 vídeos por chamada (protege o rate limit da API do Mux).
- * - ready → guarda playback_id; errored → guarda mensagem;
- *   upload morto no Mux (errored/cancelled/timed_out) → 'errored'.
- * - Melhor-esforço: 1 linha problemática nunca quebra a listagem.
- */
-export async function verifyPendingAtMux(
-  userId: number,
-  opts: { graceMinutes?: number; max?: number; videoId?: string } = {}
+/* ─── Core partilhado: verifica UMA linha contra o Mux ─── */
+
+async function verifyRowsAtMux(
+  pending: VideoRow[]
 ): Promise<VerifiedTransition[]> {
-  if (!isMuxConfigured()) return [];
-  const { graceMinutes = 2, max = 5, videoId } = opts;
-
-  let pending: VideoRow[];
-  try {
-    pending = (await sql`
-      SELECT id, user_id, title, status::text AS status, mux_upload_id,
-             mux_asset_id, playback_id, error_message, created_at
-      FROM videos
-      WHERE user_id = ${userId}
-        AND status IN ('uploading', 'processing')
-        AND created_at < now() - (${graceMinutes} * interval '1 minute')
-        AND (${videoId ?? null}::text IS NULL OR id = ${videoId ?? null}::text)
-      ORDER BY created_at ASC
-      LIMIT ${max}
-    `) as unknown as VideoRow[];
-  } catch (error) {
-    if (isUndefinedTableError(error)) {
-      markVideosUnavailable();
-      return [];
-    }
-    throw error;
-  }
-
   const transitions: VerifiedTransition[] = [];
 
   for (const v of pending) {
@@ -258,10 +224,135 @@ export async function verifyPendingAtMux(
       }
       /* asset 'creating'/outros — nada a fazer ainda */
     } catch (error) {
-      console.warn(`[videos-db] verifyPendingAtMux: falha ao verificar ${v.id}:`, error);
+      console.warn(`[videos-db] verifyRowsAtMux: falha ao verificar ${v.id}:`, error);
       continue;
     }
   }
 
   return transitions;
+}
+
+/**
+ * SELF-HEALING: verifica no Mux os vídeos pendentes do utilizador
+ * quando o webhook pode não ter chegado (rede, retries perdidos).
+ *
+ * - Grace de 2 min (o webhook costuma chegar em segundos) — evita
+ *   chamadas ao Mux por vídeos acabados de criar.
+ * - Máx. 5 vídeos por chamada (protege o rate limit da API do Mux).
+ * - ready → guarda playback_id; errored → guarda mensagem;
+ *   upload morto no Mux (errored/cancelled/timed_out) → 'errored'.
+ * - Melhor-esforço: 1 linha problemática nunca quebra a listagem.
+ */
+export async function verifyPendingAtMux(
+  userId: number,
+  opts: { graceMinutes?: number; max?: number; videoId?: string } = {}
+): Promise<VerifiedTransition[]> {
+  if (!isMuxConfigured()) return [];
+  const { graceMinutes = 2, max = 5, videoId } = opts;
+
+  let pending: VideoRow[];
+  try {
+    pending = (await sql`
+      SELECT id, user_id, title, status::text AS status, mux_upload_id,
+             mux_asset_id, playback_id, error_message, created_at
+      FROM videos
+      WHERE user_id = ${userId}
+        AND status IN ('uploading', 'processing')
+        AND created_at < now() - (${graceMinutes} * interval '1 minute')
+        AND (${videoId ?? null}::text IS NULL OR id = ${videoId ?? null}::text)
+      ORDER BY created_at ASC
+      LIMIT ${max}
+    `) as unknown as VideoRow[];
+  } catch (error) {
+    if (isUndefinedTableError(error)) {
+      markVideosUnavailable();
+      return [];
+    }
+    throw error;
+  }
+
+  return verifyRowsAtMux(pending);
+}
+
+/* ─────── Varredura GLOBAL (cron 60 s — correcção do Busbt preso) ─────── */
+
+/**
+ * Varredura GLOBAL de vídeos presos, consultando o Mux diretamente
+ * (não depende do webhook). É a espinha dorsal da correção do
+ * «A finalizar envio…» eterno:
+ *
+ *  - Seleciona vídeos 'uploading' (PUT nunca confirmado) e
+ *    'processing' (webhook ready perdido) com mais de `staleMinutes`.
+ *  - Consulta o Mux vídeo a vídeo e aplica o estado REAL:
+ *    ready → playback_id; errored → mensagem; asset a processar →
+ *    mantém 'processing'; upload morto → 'errored'.
+ *  - `userId = null` → TODOS os utilizadores (uso do cron).
+ *  - Máx. `max` vídeos por corrida (protege o rate limit do Mux).
+ */
+export async function verifyAllStaleAtMux(
+  staleMinutes = 5,
+  max = 20,
+  userId: number | null = null
+): Promise<VerifiedTransition[]> {
+  if (!isMuxConfigured()) return [];
+
+  let pending: VideoRow[];
+  try {
+    pending = (await sql`
+      SELECT id, user_id, title, status::text AS status, mux_upload_id,
+             mux_asset_id, playback_id, error_message, created_at
+      FROM videos
+      WHERE status IN ('uploading', 'processing')
+        AND created_at < now() - (${staleMinutes} * interval '1 minute')
+        AND (${userId}::int IS NULL OR user_id = ${userId}::int)
+      ORDER BY created_at ASC
+      LIMIT ${max}
+    `) as unknown as VideoRow[];
+  } catch (error) {
+    if (isUndefinedTableError(error)) {
+      markVideosUnavailable();
+      return [];
+    }
+    throw error;
+  }
+
+  return verifyRowsAtMux(pending);
+}
+
+/* ── Auto-verificação oportunista (≤ 1× / 60 s por instância) ── */
+
+const globalForVideosSweep = globalThis as unknown as {
+  angostartLastAutoSweep: number | undefined;
+};
+
+/**
+ * AUTO-VERIFICAÇÃO A CADA 60 SEGUNDOS (sem depender do cron):
+ * qualquer pedido autenticado à lista «Os Meus Vídeos» dispara esta
+ * varredura global — no máximo UMA vez por minuto por instância
+ * serverless (throttle em memória). Consulta o Mux diretamente para
+ * vídeos 'uploading'/'processing' com mais de 5 minutos e aplica o
+ * estado real. Totalmente melhor-esforço: NUNCA quebra a resposta.
+ */
+export async function maybeAutoVerifyStaleVideos(): Promise<void> {
+  const now = Date.now();
+  const last = globalForVideosSweep.angostartLastAutoSweep ?? 0;
+  if (now - last < 60_000) return; /* já varreu há menos de 60 s */
+  globalForVideosSweep.angostartLastAutoSweep = now;
+  try {
+    /* Máx. 5 vídeos (≤ 10 chamadas ao Mux, ~2 s no pior caso) e SÓ
+       quando existem vídeos presos — caso contrário o SELECT devolve
+       0 linhas e o custo é ~50 ms. O cron de 60 s é o mecanismo
+       primário; esta varredura é a rede de segurança sem cron. */
+    const transitions = await verifyAllStaleAtMux(5, 5);
+    if (transitions.length > 0) {
+      console.info(
+        `[videos-db] auto-verificação 60 s: ${transitions.length} vídeo(s) ` +
+          `atualizado(s) diretamente no Mux (${transitions
+            .map((t) => `${t.videoId}→${t.to}`)
+            .join(', ')})`
+      );
+    }
+  } catch {
+    /* melhor-esforço — silencioso por design */
+  }
 }

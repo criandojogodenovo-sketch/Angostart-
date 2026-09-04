@@ -966,7 +966,7 @@ export default function BusbtClient() {
           }
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-3xl sm:max-w-lg">
+        <DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto rounded-3xl sm:max-w-lg">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <UploadCloud className="h-5 w-5 text-blue-600" /> Publicar vídeo na Busbt
           </DialogTitle>
@@ -1004,7 +1004,7 @@ export default function BusbtClient() {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ex.: Pão caseiro fresco todos os dias"
                 disabled={isPublishing}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-300 bg-transparent px-4 py-2.5 text-sm text-foreground outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-white/10 dark:focus:ring-blue-500/25"
               />
             </div>
 
@@ -1020,7 +1020,7 @@ export default function BusbtClient() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Conta o que o vídeo mostra e como encomendar…"
                 disabled={isPublishing}
-                className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full resize-none rounded-xl border border-slate-300 bg-transparent px-4 py-2.5 text-sm text-foreground outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-white/10 dark:focus:ring-blue-500/25"
               />
             </div>
 
@@ -1106,7 +1106,7 @@ export default function BusbtClient() {
 
       {/* Diálogo: reproduzir vídeo público */}
       <Dialog open={!!playing} onOpenChange={(open) => { if (!open) setPlaying(null); }}>
-        <DialogContent className="max-h-[95dvh] overflow-y-auto rounded-3xl bg-slate-950 p-3 sm:max-w-md [&>button]:text-white">
+        <DialogContent aria-describedby={undefined} className="max-h-[95dvh] overflow-y-auto rounded-3xl bg-slate-950 p-3 sm:max-w-md [&>button]:text-white">
           <DialogTitle className="sr-only">{playing?.title ?? 'Vídeo'}</DialogTitle>
           {playing?.playback_id && (
             <div className="space-y-3">

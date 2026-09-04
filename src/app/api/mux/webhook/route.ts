@@ -6,6 +6,28 @@ import { isUndefinedTableError, markVideosUnavailable } from '@/lib/videos-db';
 export const dynamic = 'force-dynamic';
 
 /**
+ * GET /api/mux/webhook — DIAGNÓSTICO (sem segredos).
+ *
+ * O Mux só envia POST; este GET existe para confirmar em produção se a
+ * configuração está completa — a causa nº 1 do «vídeo preso em
+ * uploading» é MUX_WEBHOOK_SECRET ausente/diferente na Vercel, e sem
+ * isto não há forma de distinguir «webhook não configurado» de
+ * «assinatura inválida». Devolve APENAS booleans, nunca valores.
+ */
+export async function GET() {
+  return NextResponse.json({
+    endpoint: '/api/mux/webhook',
+    method: 'POST (Mux)',
+    muxTokenConfigured: Boolean(process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET),
+    webhookSecretConfigured: Boolean(process.env.MUX_WEBHOOK_SECRET),
+    hint: !process.env.MUX_WEBHOOK_SECRET
+      ? 'MUX_WEBHOOK_SECRET não definido na Vercel — TODOS os webhooks são rejeitados (401). Copia o valor do painel Mux (Settings → Webhooks) para a Vercel.'
+      : 'Segredo presente. Se os vídeos continuarem presos, confirma que o valor coincide EXACTAMENTE com o painel Mux e que o URL do webhook é https://<dominio>/api/mux/webhook.',
+    selfHealing: 'Ativo — cron /api/cron/verify-videos a cada 60 s + auto-verificação na listagem.',
+  });
+}
+
+/**
  * POST /api/mux/webhook — recebe eventos do Mux (configurado no painel
  * Mux → Settings → Webhooks → https://angostart.vercel.app/api/mux/webhook).
  *

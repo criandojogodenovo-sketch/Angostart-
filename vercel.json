@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/verify-videos",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/daily-codes",
       "schedule": "0 23 * * *"
     },

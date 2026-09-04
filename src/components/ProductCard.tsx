@@ -264,7 +264,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* ── Modal com ZOOM (Fase 20) — transição suave de escala ── */}
       <Dialog open={zoom} onOpenChange={setZoom}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-3xl p-0 sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto rounded-3xl p-0 sm:max-w-md">
           <DialogTitle className="sr-only">{product.name}</DialogTitle>
           <div
             className={`relative flex h-64 items-center justify-center overflow-hidden bg-gradient-to-br ${safeGradient}`}

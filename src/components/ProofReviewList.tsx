@@ -324,7 +324,7 @@ export default function ProofReviewList({
 
       {/* ── Diálogo: comprovativo + decisão ── */}
       <Dialog open={openOrderId !== null} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Encomenda #{openOrder?.id} — {openOrder?.customer_name}
