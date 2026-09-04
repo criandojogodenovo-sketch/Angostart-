@@ -30,7 +30,11 @@ export const maxDuration = 30;
  * colocar contactos no título/descrição (mesma regra do chat).
  */
 
-const VALID_CATEGORIES = new Set(AIR_ORDER_CATEGORIES.map((c) => c.value));
+/** Set de categorias válidas (Set<string>: `.has()` aceita qualquer input
+    do pedido sem erro de tipo, rejeitando o que não estiver na lista). */
+const VALID_CATEGORIES = new Set<string>(
+  AIR_ORDER_CATEGORIES.map((c) => c.value)
+);
 
 /* ─────────────────────────── GET — listar ─────────────────────────── */
 

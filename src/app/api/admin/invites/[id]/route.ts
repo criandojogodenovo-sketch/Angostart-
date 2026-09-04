@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clientKey, requireAdmin } from '@/lib/security';
+import { clientKey, rateLimit, requireAdmin } from '@/lib/security';
 import { deleteInvite, logAdminAudit } from '@/lib/admin-invites';
 
 export const dynamic = 'force-dynamic';

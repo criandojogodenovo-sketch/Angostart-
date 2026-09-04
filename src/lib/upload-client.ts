@@ -59,6 +59,8 @@ export interface SmartUploadOptions {
   maxBytes: number;
   /** MIME types permitidos (validado localmente). */
   allowedTypes: readonly string[];
+  /** Extensões permitidas (validado localmente; ex.: ['jpg','png','webp']). */
+  acceptExtensions?: readonly string[];
   /** Converte pathname+blobUrl no URL final a guardar na BD. */
   makeUrl: (pathname: string, blobUrl: string) => string;
   /** Timeout total do upload em ms (padrão 120 s). */
@@ -251,6 +253,7 @@ export async function uploadFileSmart(
     handleUploadUrl,
     maxBytes,
     allowedTypes,
+    acceptExtensions,
     makeUrl,
     timeoutMs = 120_000,
     maxAttempts = 3,
@@ -259,7 +262,7 @@ export async function uploadFileSmart(
   } = options;
 
   // 1. Validação local — sem gastar dados móveis se já vai falhar
-  const localError = validateFileLocally(file, maxBytes, allowedTypes);
+  const localError = validateFileLocally(file, maxBytes, allowedTypes, acceptExtensions);
   if (localError) return localError;
 
   // 2. Tentativas com retry para erros transitórios
@@ -285,7 +288,9 @@ export async function uploadFileSmart(
         access: 'private',
         handleUploadUrl,
         headers: authHeaders(), // Bearer JWT para a emissão do token
-        signal: controller.signal,
+        // ⚠️ O SDK @vercel/blob espera `abortSignal` (não `signal`) —
+        // sem o nome certo, o timeout NUNCA cancelava o upload em curso.
+        abortSignal: controller.signal,
         onUploadProgress: onProgress
           ? (event) => {
               if (event.percentage !== undefined) {
