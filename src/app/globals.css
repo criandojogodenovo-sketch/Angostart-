@@ -671,9 +671,9 @@ body {
 
 /* ══════════════════════════════════════════════════════════════════
    EXTENSÃO DO RETROFIT DARK (correcção exaustiva de cores)
-   Famílias que faltavam e quebravam o modo escuro em Perfil, Busbt,
-   Produtos, Carteira, Carrinho, Admin, etc.: tintas de alerta
-   (rose/amber/violet/green/red), textos coloridos 500/600/700
+   Famílias que faltavam e quebravam o modo escuro em Perfil,
+   Publicações, Produtos, Carteira, Carrinho, Admin, etc.: tintas de
+   alerta (rose/amber/violet/green/red), textos coloridos 500/600/700
    (ilegíveis sobre #0B1120), superfícies translúcidas, bordas claras
    e hover: brancos que «acendiam» no escuro.
    ══════════════════════════════════════════════════════════════════ */

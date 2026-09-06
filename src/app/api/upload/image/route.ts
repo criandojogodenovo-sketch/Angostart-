@@ -49,8 +49,8 @@ const IMAGE_MIME_TYPES = [
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 
-/** Namespaces permitidos: produtos/ (vendedor) e perfil/ (avatar). */
-const ALLOWED_PREFIXES = ['produtos/', 'perfil/'];
+/** Namespaces permitidos: produtos/ + publicacoes/ (vendedor) e perfil/ (avatar). */
+const ALLOWED_PREFIXES = ['produtos/', 'perfil/', 'publicacoes/'];
 
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request);

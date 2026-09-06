@@ -89,7 +89,7 @@ interface PendingAudio {
 const ABERTURA: Turn = {
   role: 'assistant',
   content:
-    'Olá! Sou o assistente virtual da AngoStart. Pergunta-me sobre compras, vendas, Busbt (vídeos), Pedidos no Ar, carteira, afiliados, verificação de identidade ou a tua conta. Também podes enviar uma imagem ou um áudio.',
+    'Olá! Sou o assistente virtual da AngoStart. Pergunta-me sobre compras, vendas, Publicações (feed), Pedidos no Ar, carteira, afiliados, verificação de identidade ou a tua conta. Também podes enviar uma imagem ou um áudio.',
 };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB

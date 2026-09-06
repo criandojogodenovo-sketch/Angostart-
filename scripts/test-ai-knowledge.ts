@@ -22,11 +22,11 @@ function check(name: string, cond: boolean): void {
 
 console.log('— Base de conhecimento da IA (system prompt) —');
 
-/* Aba Busbt */
-check('menciona a Busbt (/busbt)', P.includes('/busbt') && /BUSBT/i.test(P));
-check('explica os formatos e o limite de 100 MB', P.includes('MP4') && P.includes('100 MB'));
-check('explica as duas secções em separadores', P.includes('Os Meus Vídeos') && P.includes('Vídeos da Comunidade'));
-check('explica o streaming no Mux e o estado a processar', P.includes('Mux') && P.includes('A processar'));
+/* Publicações (feed social) */
+check('menciona as Publicações (/publicacoes)', P.includes('/publicacoes') && /PUBLICAÇÕES/i.test(P));
+check('explica gostos e comentários', P.includes('«Gostar»') && P.includes('comentários'));
+check('explica o código de contacto', P.includes('CONTATO-') && P.includes('/contato/'));
+check('explica a privacidade (sem telefone nos posts)', P.includes('sem números de telefone'));
 
 /* Pedidos no Ar + aceitação única */
 check('menciona os Pedidos no Ar (/pedidos)', P.includes('/pedidos'));

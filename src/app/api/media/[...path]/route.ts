@@ -26,9 +26,9 @@ type RouteContext = { params: Promise<{ path: string[] }> };
  * - Rate limit: 120 pedidos/min por IP (catálogo carrega várias fotos).
  */
 
-/** Formatos gerados por POST /api/upload/image (produtos/ e perfil/). */
+/** Formatos gerados por POST /api/upload/image (produtos/, perfil/ e publicacoes/). */
 const MEDIA_PATH_RE =
-  /^(?:produtos|perfil)\/\d+\/\d{13}-[A-Za-z0-9._-]{1,120}$/;
+  /^(?:produtos|perfil|publicacoes)\/\d+\/\d{13}-[A-Za-z0-9._-]{1,120}$/;
 
 const CONTENT_TYPES: Record<string, string> = {
   jpg: 'image/jpeg',

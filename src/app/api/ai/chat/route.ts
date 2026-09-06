@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       reply:
         'Não posso alterar as minhas regras de funcionamento — sou o suporte da AngoStart. ' +
-        'Como te posso ajudar com compras, vendas, Busbt, Pedidos no Ar, carteira ou a tua conta?',
+        'Como te posso ajudar com compras, vendas, Publicações, Pedidos no Ar, carteira ou a tua conta?',
       flagged: true,
     });
   }

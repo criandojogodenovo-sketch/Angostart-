@@ -21,8 +21,10 @@ import {
   ArrowLeft,
   Award,
   CheckCircle2,
+  Copy,
   Globe,
   Handshake,
+  Link2,
   Loader2,
   MapPin,
   Medal,
@@ -64,6 +66,7 @@ interface SellerData {
   portfolio_image: string | null;
   portfolio_url: string | null;
   profile_image?: string | null;
+  contact_code?: string | null;
   media_avaliacoes?: number | null;
   total_avaliacoes?: number | null;
   rating_estimado?: number | null;
@@ -214,6 +217,19 @@ export default function PortfolioPublicoPage() {
       setContactSending(false);
     }
   }
+
+  /* Código de contacto — copiar código / link para partilhar fora da plataforma. */
+  function copiarTexto(texto: string, titulo: string) {
+    navigator.clipboard
+      ?.writeText(texto)
+      .then(() => toast({ title: titulo, description: texto }))
+      .catch(() => toast({ title: 'Copia manualmente', description: texto }));
+  }
+
+  const contactLink =
+    seller.contact_code && typeof window !== 'undefined'
+      ? `${window.location.origin}/contato/${seller.contact_code}`
+      : null;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -376,6 +392,48 @@ export default function PortfolioPublicoPage() {
           </a>
         )}
       </section>
+
+      {/* Código de contacto — o identificador público do vendedor */}
+      {seller.contact_code && (
+        <section
+          aria-label="Código de contacto do vendedor"
+          className="mt-4 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm dark:border-blue-500/30 dark:from-blue-950/40 dark:to-purple-950/40"
+        >
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-white">
+            <Handshake className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            Código de contacto
+          </h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            Partilha este código (ou o link) nas tuas publicações, WhatsApp ou
+            Instagram — quem o abrir chega direto a este perfil. Sem expor
+            telefone.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <span className="select-all rounded-xl border border-blue-300/60 bg-white/80 px-4 py-2.5 font-mono text-base font-bold tracking-wide text-blue-700 dark:border-blue-500/40 dark:bg-slate-900/70 dark:text-blue-300">
+              {seller.contact_code}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => copiarTexto(seller.contact_code as string, 'Código copiado')}
+                size="sm"
+                className="h-10 rounded-xl bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700"
+              >
+                <Copy className="mr-1.5 h-4 w-4" /> Copiar Código
+              </Button>
+              {contactLink && (
+                <Button
+                  onClick={() => copiarTexto(contactLink, 'Link copiado')}
+                  size="sm"
+                  variant="outline"
+                  className="h-10 rounded-xl border-blue-300 px-4 font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                >
+                  <Link2 className="mr-1.5 h-4 w-4" /> Copiar Link
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Serviços (ref. «Aarav Singh — What I Do») — derivados de dados reais */}
       {(() => {

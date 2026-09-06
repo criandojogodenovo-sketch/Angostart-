@@ -33,7 +33,7 @@ BODY_IMG='{"messages":[{"role":"user","content":"vê esta imagem"}],"image":"dat
 BODY_IMG_BAD='{"messages":[{"role":"user","content":"x"}],"image":"data:image/gif;base64,R0lGOD=="}'
 BODY_IMG_BIG="\"$(python3 -c "print('data:image/png;base64,' + 'A'*7000000)")\""
 BODY_AUDIO_BAD='{"messages":[{"role":"user","content":"x"}],"audio":"data:audio/flac;base64,SkZJRg=="}'
-BODY_TXT='{"messages":[{"role":"user","content":"o que é a Busbt?"}]}'
+BODY_TXT='{"messages":[{"role":"user","content":"o que são as Publicações?"}]}'
 
 echo "— /api/ai/chat —"
 R=$(curl -s -X POST http://localhost:3000/api/ai/chat -H 'Content-Type: application/json' -d "$BODY_INJ")

@@ -23,7 +23,7 @@ const LINKS = [
   { href: '/estabelecimentos', label: 'Espaços' },
   { href: '/lojas', label: 'Lojas' },
   { href: '/prestadores', label: 'Portfólios' },
-  { href: '/busbt', label: 'Busbt' },
+  { href: '/publicacoes', label: 'Publicações' },
   { href: '/chat', label: 'Chat' },
   { href: '/perfil', label: 'Perfil' },
 ];

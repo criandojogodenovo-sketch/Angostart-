@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { ROLE_LABELS, type Role } from '@/lib/roles';
 import { clientKey, rateLimit } from '@/lib/security';
+import { ensurePublicacoesTables } from '@/lib/publicacoes-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,9 +32,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   try {
+    // Garante users.contact_code (idempotente) — evita 500 se a coluna
+    // ainda não existir (auto-migração do feed social de publicações).
+    await ensurePublicacoesTables();
+
     const rows = (await sql`
       SELECT id, name, role, username, cidade, especialidade, bio,
-             portfolio_bio, portfolio_image, portfolio_url, profile_image
+             portfolio_bio, portfolio_image, portfolio_url, profile_image,
+             contact_code
       FROM users
       WHERE username = ${username}
         AND role IN ('criador', 'prestador_domicilio', 'prestador_remoto')
@@ -51,6 +57,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       portfolio_image: string | null;
       portfolio_url: string | null;
       profile_image: string | null;
+      contact_code: string | null;
     }[];
 
     const seller = rows[0];
@@ -164,6 +171,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         portfolio_url: seller.portfolio_url,
         // Fase 16: foto de perfil (prioridade sobre portfolio_image)
         profile_image: seller.profile_image,
+        // Código de contacto público (CONTATO-XXXXXX) — feed social
+        contact_code: seller.contact_code ?? null,
         // Reputação
         media_avaliacoes: media,
         total_avaliacoes: total,
