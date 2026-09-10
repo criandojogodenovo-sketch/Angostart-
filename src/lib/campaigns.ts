@@ -335,8 +335,11 @@ export async function claimOpportunity(input: {
     return { ok: true, code: existing[0].code, expires_at: existing[0].expires_at, reused: true };
   }
 
-  // Limite de claims por consumidor (código ativo já consumido conta).
-  if (opportunity.max_claims_per_consumer > 1) {
+  // Limite TOTAL de claims por consumidor (códigos usados/expirados contam;
+  // a idempotência acima já devolveu o código ativo, se existir). Aplica-se
+  // a TODOS os limites >= 1 — incluindo o default 1: sem isto, um consumidor
+  // poderia obter códigos ilimitados no tempo (1 ativo de cada vez).
+  if (opportunity.max_claims_per_consumer >= 1) {
     const mine = (await sql`
       SELECT COUNT(*)::int AS n FROM redemption_codes
        WHERE opportunity_id = ${opportunityId} AND anon_id = ${anonId}

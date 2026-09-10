@@ -177,10 +177,11 @@ afiliados foi **preservado** — códigos existentes continuam válidos.)
 | Concorrência em claim/validação | Eliminado | índice único parcial + `UPDATE … WHERE status='emitido'` atómico |
 | Lint/typecheck regressões | Verificado | baseline idêntico (3 erros + 14 avisos pré-existentes); `tsc --noEmit` limpo; build de produção ✓ |
 
-**Decisões conscientes de rebranding incompleto (a concluir quando existir
-infraestrutura):** email `geral@angostart.ao` e fallback
-`https://angostart.vercel.app` mantidos — trocar antes de o domínio/email
-GOMBUONE existirem criaria contactos quebrados.
+**Decisões de rebranding completas (2.ª passagem, 11/Set/2026):** o contacto
+público passou a `criandojogodenovo@gmail.com` (Footer, menu mobile, IA,
+VAPID fallback) e os fallbacks de URL passaram a `https://gombuone.vercel.app`
+(ShareButton, SupportChatWidget, HTTP-Referer, placeholder do painel). Email e
+domínio públicos ficam 100% GOMBUONE.
 
 ## J) Plano de Testes
 
@@ -198,10 +199,11 @@ PersonalizedHero:65 — pré-existentes, não relacionados). **Após:** idêntic
    erros no log
 5. **Nenhum teste existente foi alterado ou apagado**
 
-**Teste E2E novo — `scripts/test-gombuone.js` (15 verificações):**
+**Teste E2E novo — `scripts/test-gombuone.js` (16 verificações):**
 registo+login de vendedor de teste → criar campanha → publicar → criar
 oportunidade → claim público (formato GMB-) → idempotência (mesmo código) →
-validação do dono → re-validação bloqueada (400) → código inexistente (404) →
+validação do dono → re-validação bloqueada (400) → re-claim pós-utilização
+bloqueado (409, limite por consumidor = TOTAL) → código inexistente (404) →
 401 em criação anónima → 404 em claim inexistente → XSS sanitizado →
 estatísticas → cleanup.
 
@@ -285,9 +287,49 @@ npm run test   # scripts/security-audit.js (contra build de produção)
 **Preservado por decisão explícita:** cookie `angostart_admin`, localStorage
 `angostart.ref.v1` e `angostart-theme`, evento `angostart:ai-open`,
 globalThis `angostartSql`/`angostartRateMap`, prefixo `AFG-`, todos os
-testes/migrations/tabelas/rotas existentes, email e domínio públicos
-(pending infra).
+testes/migrations/tabelas/rotas existentes (contacto público e fallbacks de
+URL concluídos na 2.ª passagem — ver secção N).
 
 **Métricas de validação:** 8 rotas novas · 3 páginas novas · 14 ficheiros
 novos · build de produção ✓ · typecheck 0 erros · lint = baseline · 11
 páginas verificadas no browser de dev · 0 alterações destrutivas.
+
+---
+
+## N) Adendo — 2.ª passagem de verificação (11 de Setembro de 2026)
+
+Auditoria independente do estado pós-push (clone fresco), que confirmou o
+trabalho anterior e encontrou/consertou 5 lacunas:
+
+1. **Contacto público completo** — `geral@angostart.ao` →
+   `criandojogodenovo@gmail.com` em 5 superfícies públicas: `Footer.tsx`
+   (mailto + label), `HamburgerMenu.tsx` (menu mobile), `ai/knowledge.ts`
+   (texto de suporte da IA), `push.ts` (fallback do VAPID_SUBJECT),
+   `api/ai/chat/route.ts` (mensagem de fallback 503). Env real continua a
+   vencer via `EMAIL_FROM`/`VAPID_SUBJECT` (envs intocadas).
+2. **URLs públicas de fallback** — `angostart.vercel.app`/`angostart.ao` →
+   `https://gombuone.vercel.app` em `ShareButton.tsx`, `SupportChatWidget.tsx`
+   (×2), `ai/providers.ts` (HTTP-Referer) e placeholder do painel do vendedor.
+3. **Templates/documentação** — `.env.example` (EMAIL_FROM, VAPID_SUBJECT,
+   NEXT_PUBLIC_APP_URL, ADMIN_EMAIL), `README.md` (×2) e `package-lock.json`
+   (name→gombuone) sincronizados com a marca.
+4. **Correção de defeito no motor** — `campaigns.ts`: a verificação de
+   `max_claims_per_consumer` saltava o caso `= 1` (o DEFAULT), permitindo a um
+   consumidor obter códigos ilimitados no tempo (um ativo de cada vez após cada
+   uso/expiração). O limite é agora TOTAL para todos os valores 1–10, como o
+   contrato da API declara («limite por consumidor entre 1 e 10»).
+5. **Cobertura E2E reforçada** — novo G10b no `test-gombuone.js`: re-claim do
+   mesmo consumidor anónimo após utilização do código → espera 409.
+
+**Revalidação pós-correções (todas ✓):** `tsc --noEmit` 0 erros · `eslint`
+idêntico ao baseline (3 erros + 14 avisos pré-existentes, zero novos) · build
+de produção ✓ (35s) · dev server: `/`, `/campanhas`, `/termos`, `/privacidade`,
+`/manifest.webmanifest` = 200; footer mostra `criandojogodenovo@gmail.com`
+(3 ocorrências, zero do antigo); `/admin` mantém gate 307; `/api/campanhas`
+degrada graciosamente sem BD (`{"campaigns":[]}`).
+
+**Preservado nesta passagem:** todos os identificadores internos (`angostart_admin`,
+`angostart.ref.v1`, `angostart-theme`, `angostart:ai-open`, globalThis, `AFG-`),
+scripts históricos `fase*` (intocados), telefone/WhatsApp público, `vercel.json`,
+rotas/APIs/tabelas/testes existentes. Nenhum ficheiro apagado; nenhuma
+funcionalidade removida.

@@ -21,7 +21,7 @@ export function pushEnabled(): boolean {
 }
 
 function vapidSubject(): string {
-  return process.env.VAPID_SUBJECT || 'mailto:geral@angostart.ao';
+  return process.env.VAPID_SUBJECT || 'mailto:criandojogodenovo@gmail.com';
 }
 
 /** Configura o web-push (uma vez por instância quente). */

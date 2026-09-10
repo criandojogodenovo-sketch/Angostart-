@@ -29,7 +29,7 @@ function toAbsoluteUrl(url: string): string {
   const origin =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://angostart.vercel.app';
+      : 'https://gombuone.vercel.app';
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 

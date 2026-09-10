@@ -1279,7 +1279,7 @@ export default function DashboardVendedorPage() {
                 value={batchInput}
                 onChange={(e) => setBatchInput(e.target.value)}
                 rows={3}
-                placeholder={'https://angostart.vercel.app/produtos/123\n124\nhttps://angostart.vercel.app/produtos/125'}
+                placeholder={'https://gombuone.vercel.app/produtos/123\n124\nhttps://gombuone.vercel.app/produtos/125'}
                 aria-label="Links ou IDs de produtos (um por linha)"
                 className="mt-3 w-full rounded-xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-3 font-mono text-xs text-slate-200 outline-none focus:border-amber-400"
               />

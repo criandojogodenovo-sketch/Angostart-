@@ -141,7 +141,7 @@ function micErrorMessage(error: unknown): string {
     case 'SecurityError':
       return (
         'A gravação de áudio só funciona em ligação segura (HTTPS). Abre o ' +
-        'site em https://angostart.vercel.app e tenta de novo.'
+        'site em https://gombuone.vercel.app e tenta de novo.'
       );
     case 'MicTimeoutError':
       return (
@@ -451,7 +451,7 @@ export default function SupportChatWidget() {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setErro(
         'Este navegador não suporta gravação de áudio (ou a ligação não é segura). ' +
-          'Abre o site em https://angostart.vercel.app com Chrome/Safari atualizado, ou escreve a tua dúvida.'
+          'Abre o site em https://gombuone.vercel.app com Chrome/Safari atualizado, ou escreve a tua dúvida.'
       );
       return;
     }

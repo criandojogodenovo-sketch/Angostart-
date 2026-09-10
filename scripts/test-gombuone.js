@@ -14,6 +14,7 @@
  *   G8  Re-claim (idempotência) → MESMO código (200, reused)
  *   G9  POST /api/oportunidades/validar (dono) → validado
  *   G10 Re-validar → 400 «já foi utilizado» (validação atómica)
+ *   G10b Re-claim do mesmo consumidor pós-utilização → 409 (limite=1)
  *   G11 Validar código inexistente → 404
  *   G12 Visitante tenta criar campanha → 401
  *   G13 Claim de oportunidade inexistente → 404
@@ -185,6 +186,18 @@ async function api(method, path, { body, token, cookie } = {}) {
     body: { code },
   });
   check('G10 re-validação bloqueada (400, atómica)', revalidate.status === 400, `(status ${revalidate.status})`);
+
+  /* G10b — Depois de USAR o código, o mesmo consumidor não pode obter outro
+     (max_claims_per_consumer=1 é um limite TOTAL, não «1 ativo de cada vez»). */
+  const reclaim = await api('POST', `/api/oportunidades/${oppId}/resgatar`, {
+    cookie: anonCookie,
+    body: {},
+  });
+  check(
+    'G10b re-claim pós-utilização bloqueado (409, limite por consumidor)',
+    reclaim.status === 409,
+    `(status ${reclaim.status}, code=${reclaim.data?.code ?? '-'})`
+  );
 
   /* G11 — Código inexistente → 404. */
   const notFound = await api('POST', '/api/oportunidades/validar', {

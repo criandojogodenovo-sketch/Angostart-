@@ -180,7 +180,7 @@ export const PROVIDERS: ProviderConfig[] = [
       // Headers de atribuição recomendados pela OpenRouter (identificam a
       // plataforma no dashboard e podem aumentar limites de app).
       'HTTP-Referer':
-        process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://angostart.ao',
+        process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://gombuone.vercel.app',
       'X-Title': 'GOMBUONE',
     }),
     // Hotfix: 8s era demasiado agressivo para o free tier em hora de pico

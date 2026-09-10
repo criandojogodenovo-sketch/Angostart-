@@ -244,7 +244,7 @@ export default function HamburgerMenu({
             <Phone className="h-4 w-4 text-blue-300" /> +244 958 176 915
           </p>
           <p className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-blue-300" /> geral@angostart.ao
+            <Mail className="h-4 w-4 text-blue-300" /> criandojogodenovo@gmail.com
           </p>
           <div className="flex gap-3 pt-2">
             <a

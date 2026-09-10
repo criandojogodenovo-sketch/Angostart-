@@ -457,7 +457,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 | Variável | Ativa |
 |---|---|
 | `BREVO_API_KEY` | envio real de emails (sem ela: modo log) |
-| `EMAIL_FROM` | remetente (`GOMBUONE <geral@angostart.ao>`) |
+| `EMAIL_FROM` | remetente (`GOMBUONE <criandojogodenovo@gmail.com>`) |
 | `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
 | `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
 | `BLOB_READ_WRITE_TOKEN` | **Fase 5** — upload de PDFs de infoprodutos (Vercel Blob Store); sem ela o upload responde com instrução clara |
@@ -486,7 +486,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 
 ```bash
 bash scripts/security-tests.sh            # contra localhost:3000
-bash scripts/security-tests.sh https://angostart.vercel.app
+bash scripts/security-tests.sh https://gombuone.vercel.app
 ```
 
 **Última execução: 20/20 testes PASSARAM** (detalhes em [SECURITY.md](SECURITY.md)):

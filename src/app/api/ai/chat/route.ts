@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'O assistente de IA está temporariamente indisponível. Fala connosco em geral@angostart.ao ou no WhatsApp +244 958 176 915.',
+          'O assistente de IA está temporariamente indisponível. Fala connosco em criandojogodenovo@gmail.com ou no WhatsApp +244 958 176 915.',
         code: 'AI_UNAVAILABLE',
       },
       { status: 503 }
