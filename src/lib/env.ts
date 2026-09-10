@@ -2,7 +2,7 @@ import 'server-only';
 import { z } from 'zod';
 
 /**
- * AngoStart — Validação de variáveis de ambiente (apenas servidor).
+ * GOMBUONE — Validação de variáveis de ambiente (apenas servidor).
  *
  * - `import 'server-only'` garante que este módulo NUNCA entra no bundle
  *   de um Client Component: se o fizer, o build falha imediatamente.
@@ -25,7 +25,7 @@ const serverEnvSchema = z.object({
 
   /* ── Email (Brevo) — opcionais: app funciona sem, email fica em modo dev ── */
   BREVO_API_KEY: z.string().min(10).optional(),
-  /** «AngoStart <conta@dominio>» ou «conta@dominio». O remetente tem de estar verificado no painel Brevo. */
+  /** «GOMBUONE <conta@dominio>» ou «conta@dominio». O remetente tem de estar verificado no painel Brevo. */
   EMAIL_FROM: z.string().optional(),
 
   /** Email do administrador — recebe alertas de validações de pagamento. */

@@ -3,7 +3,7 @@ import { sql } from '@/lib/db';
 import { getBusinessConfig, commissionPercentForRole } from '@/lib/config';
 
 /**
- * AngoStart — Comissões flexíveis (Fase 7) — server-only.
+ * GOMBUONE — Comissões flexíveis (Fase 7) — server-only.
  *
  * Precedência da taxa aplicada a uma venda:
  *   1. `seller_commission_overrides` — taxa individual do vendedor (admin)

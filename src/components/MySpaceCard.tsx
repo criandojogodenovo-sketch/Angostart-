@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão «O meu Espaço» (perfil do vendedor/prestador).
+ * GOMBUONE — Cartão «O meu Espaço» (perfil do vendedor/prestador).
  *
  * Um único ponto de gestão do espaço público a partir de /perfil:
  *  - Prestadores de serviços (domicílio/remoto) → ESTABELECIMENTO
@@ -272,7 +272,7 @@ export default function MySpaceCard({ user }: { user: AuthUser }) {
           <h2 className="text-base font-bold text-slate-900">{title}</h2>
           <p className="mt-0.5 text-xs text-slate-500">
             {primaryIsEspaco
-              ? 'O teu espaço público na AngoStart — loja, escritório ou ponto de atendimento.'
+              ? 'O teu espaço público na GOMBUONE — loja, escritório ou ponto de atendimento.'
               : 'A tua loja virtual com página pública em /loja.'}
           </p>
         </div>

@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14: verificação de comprovativos de pagamento por IA
+ * GOMBUONE — Fase 14: verificação de comprovativos de pagamento por IA
  * de visão (VLM multi-provider com fallback).
  *
  * Fluxo: cliente anexa comprovativo à encomenda → o VLM extrai
@@ -70,7 +70,7 @@ export function valorCoincide(extracted: number | null, esperado: number): boole
 /**
  * A referência visível menciona o n.º da encomenda?
  * Compara numericamente cada grupo de dígitos — apanha «#123», «AS-123»,
- * «AngoStart-ORD-00123» (zero-padded) e «encomenda 123», sem falsos
+ * «GOMBUONE-ORD-00123» (zero-padded) e «encomenda 123», sem falsos
  * positivos tipo «1234» ≠ «123».
  */
 export function referenciaCoincide(referencia: string | null, orderId: number): boolean {

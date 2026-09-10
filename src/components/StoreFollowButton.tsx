@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Botão «Seguir» de loja (Fase 9, corrigido na Fase 19b).
+ * GOMBUONE — Botão «Seguir» de loja (Fase 9, corrigido na Fase 19b).
  *
  * Correções Fase 19b (bug «botão não responde»):
  * - Sincroniza o estado real no cliente via GET /api/stores/follow?store_id=X

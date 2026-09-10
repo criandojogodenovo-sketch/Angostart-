@@ -1,5 +1,5 @@
 /**
- * AngoStart — Coordenadas das principais cidades angolanas (client-safe).
+ * GOMBUONE — Coordenadas das principais cidades angolanas (client-safe).
  * Usado pelo mapa escuro de serviços ao domicílio (Leaflet/CARTO).
  */
 

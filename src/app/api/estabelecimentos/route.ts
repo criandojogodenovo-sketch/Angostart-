@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     : null;
   if (logoUrl && !isInternalMediaUrl(logoUrl)) {
     return NextResponse.json(
-      { error: 'O logo deve ser enviado pelo upload da AngoStart.' },
+      { error: 'O logo deve ser enviado pelo upload da GOMBUONE.' },
       { status: 400 }
     );
   }

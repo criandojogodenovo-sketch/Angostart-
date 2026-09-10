@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Mapa de RASTREAMENTO em tempo real (serviços ao domicílio).
+ * GOMBUONE — Mapa de RASTREAMENTO em tempo real (serviços ao domicílio).
  *
  * Ponto 4B do prompt + Fase 16:
  *  - 🛵 marcador AZUL: posição atual do prestador (GPS a cada 3 s);

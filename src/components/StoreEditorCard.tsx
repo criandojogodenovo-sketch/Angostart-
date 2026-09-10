@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Editor da loja virtual no dashboard do vendedor (Fase 9).
+ * GOMBUONE — Editor da loja virtual no dashboard do vendedor (Fase 9).
  * Nome, descrição, logo e banner (upload → Vercel Blob via /api/upload/image).
  */
 

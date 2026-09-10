@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão «Foto de Perfil» (Fase 16).
+ * GOMBUONE — Cartão «Foto de Perfil» (Fase 16).
  *
  * Upload CLIENT-SIDE (Vercel Blob via /api/upload/image, namespace
  * `perfil/<userId>/…`) + gravação em users.profile_image via

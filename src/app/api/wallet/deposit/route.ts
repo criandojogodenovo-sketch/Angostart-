@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
  * POST /api/wallet/deposit — pede um depósito na carteira.
  *
  * Fluxo MANUAL (sem gateway): o utilizador indica o valor, recebe uma
- * referência (ex.: AngoStart-DEP-00042) e transfere via Afrimoney /
- * UNITEL Money para o número KWiK da AngoStart. Um admin valida e o
+ * referência (ex.: GOMBUONE-DEP-00042) e transfere via Afrimoney /
+ * UNITEL Money para o número KWiK da GOMBUONE. Um admin valida e o
  * saldo entra na carteira. Nada entra no saldo antes da aprovação.
  *
  * Fase 5: limites por operação + limite DIÁRIO (compliance anti-lavagem)

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartões de segurança do perfil (Fase 9).
+ * GOMBUONE — Cartões de segurança do perfil (Fase 9).
  *
  * MustChangePassword — utilizadores antigos (flag da migração) têm de
  * trocar a senha para uma forte antes de continuar a comprar/vender.
@@ -60,7 +60,7 @@ export function MustChangePasswordCard() {
         <ShieldAlert className="h-5 w-5" /> Atualiza a tua palavra-passe
       </h2>
       <p className="mt-1 text-sm text-amber-800">
-        Por segurança, todos os utilizadores AngoStart devem usar uma palavra-passe
+        Por segurança, todos os utilizadores GOMBUONE devem usar uma palavra-passe
         forte (mínimo 8 caracteres com maiúscula, minúscula, número e símbolo).
       </p>
       <form onSubmit={submit} className="mt-4 space-y-3">

@@ -191,7 +191,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         rating: Number(r.rating),
         comment: (r.comment as string) ?? '',
         created_at: String(r.created_at),
-        user_name: (r.user_name as string) ?? 'Cliente AngoStart',
+        user_name: (r.user_name as string) ?? 'Cliente GOMBUONE',
         user_username: (r.user_username as string) ?? null,
         product_name: (r.product_name as string) ?? null,
       })),

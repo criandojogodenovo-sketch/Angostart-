@@ -8,7 +8,7 @@ import {
 } from '@/lib/payments-manual';
 
 /**
- * AngoStart — Notificações por email (Brevo, ex-Sendinblue).
+ * GOMBUONE — Notificações por email (Brevo, ex-Sendinblue).
  *
  * ⚠️ SERVER-ONLY: a BREVO_API_KEY vive exclusivamente no servidor
  * (`.env` em dev / Environment Variables da Vercel) e NUNCA entra
@@ -26,10 +26,10 @@ import {
 /**
  * Remetente por omissão: o email da conta Brevo (criandojogodenovo@gmail.com),
  * que tem de estar VERIFICADO no painel Brevo → Senders & IP.
- * Pode ser overridden com EMAIL_FROM («AngoStart <conta@dominio.ao>» ou só o email).
+ * Pode ser overridden com EMAIL_FROM («GOMBUONE <conta@dominio.ao>» ou só o email).
  */
 const FROM_EMAIL_DEFAULT = 'criandojogodenovo@gmail.com';
-const FROM_NAME_DEFAULT = 'AngoStart';
+const FROM_NAME_DEFAULT = 'GOMBUONE';
 
 function resolveSender(emailFrom?: string): { email: string; name: string } {
   const raw = (emailFrom ?? '').trim();
@@ -113,7 +113,7 @@ function layout(title: string, bodyHtml: string): string {
         ${bodyHtml}
       </div>
       <div style="padding:16px 24px;background:#f8fafc;color:#64748b;font-size:12px">
-        © ${new Date().getFullYear()} AngoStart — Marketplace angolano · ${getAppUrl()}
+        © ${new Date().getFullYear()} GOMBUONE — Marketplace angolano · ${getAppUrl()}
       </div>
     </div>
   </div>`;
@@ -141,7 +141,7 @@ interface OrderEmailPayload {
   items: { name: string; quantity: number; price_kz: number }[];
   /** 'kwik' | 'paypay' | 'multicaixa_express' | 'whatsapp' | 'carteira'… */
   paymentMethod?: string;
-  /** Referência do pedido (ex.: AngoStart-ORD-00042). */
+  /** Referência do pedido (ex.: GOMBUONE-ORD-00042). */
   reference?: string;
   /** true se o cliente já anexou o comprovativo. */
   proofAttached?: boolean;
@@ -159,7 +159,7 @@ export async function sendOrderNotifications(
   const methodLabel = manualMethod
     ? PAYMENT_METHOD_LABELS[manualMethod]
     : null;
-  const referencia = order.reference ?? `AngoStart-ORD-${String(order.orderId).padStart(5, '0')}`;
+  const referencia = order.reference ?? `GOMBUONE-ORD-${String(order.orderId).padStart(5, '0')}`;
 
   const instrucoesKwik = manualMethod && methodLabel
     ? `<div style="margin:12px 0;padding:14px;border:1px solid #14b8a6;border-radius:12px;background:#f0fdfa">
@@ -182,7 +182,7 @@ export async function sendOrderNotifications(
   if (order.customerEmail) {
     await sendMail({
       to: order.customerEmail,
-      subject: `Encomenda n.º ${order.orderId} registada — AngoStart`,
+      subject: `Encomenda n.º ${order.orderId} registada — GOMBUONE`,
       html: layout(
         'Obrigado pela tua encomenda!',
         `<p>Olá ${order.customerName},</p>
@@ -258,7 +258,7 @@ export async function sendOrderValidatedEmail(
             <p style="margin:0 0 8px;font-weight:700;color:#115e59">📚 Os teus downloads estão prontos:</p>
             <ul style="margin:0;padding-left:20px">${links}</ul>
             <p style="margin:10px 0 0;font-size:13px;color:#0f766e">
-              O link abre a tua conta AngoStart para descarregar com segurança.
+              O link abre a tua conta GOMBUONE para descarregar com segurança.
             </p>
           </div>`;
       }
@@ -270,8 +270,8 @@ export async function sendOrderValidatedEmail(
   await sendMail({
     to: customerEmail,
     subject: approved
-      ? `Encomenda n.º ${orderId} aprovada — AngoStart`
-      : `Encomenda n.º ${orderId} rejeitada — AngoStart`,
+      ? `Encomenda n.º ${orderId} aprovada — GOMBUONE`
+      : `Encomenda n.º ${orderId} rejeitada — GOMBUONE`,
     html: layout(
       approved ? 'O teu comprovativo foi aprovado!' : 'O teu comprovativo foi rejeitado',
       approved
@@ -307,7 +307,7 @@ export async function sendWalletRequestAlert(
   const label = tipo === 'deposito' ? 'Depósito' : 'Saque';
   return sendMail({
     to,
-    subject: `${label} ${referencia} pendente — AngoStart`,
+    subject: `${label} ${referencia} pendente — GOMBUONE`,
     html: layout(
       `Novo pedido de ${label.toLowerCase()} na carteira`,
       `<p><strong>${userName ?? userEmail ?? 'Utilizador'}</strong> pediu um
@@ -329,8 +329,8 @@ export async function sendWalletDecisionEmail(
 ): Promise<boolean> {
   const label = tipo === 'deposito' ? 'Depósito' : 'Saque';
   const title = approved
-    ? `${label} aprovado — AngoStart`
-    : `${label} recusado — AngoStart`;
+    ? `${label} aprovado — GOMBUONE`
+    : `${label} recusado — GOMBUONE`;
   const body = approved
     ? tipo === 'deposito'
       ? `<p>O teu depósito <strong>${referencia}</strong> de
@@ -362,7 +362,7 @@ export async function sendAdminAlertEmail(
     return false;
   }
   if (!to) return false;
-  return sendMail({ to, subject: `${subject} — AngoStart`, html: layout(subject, htmlBody) });
+  return sendMail({ to, subject: `${subject} — GOMBUONE`, html: layout(subject, htmlBody) });
 }
 
 /* ───────────────────────────── Disputas (Fase 6) ────────────────────────── */
@@ -380,10 +380,10 @@ export async function sendDisputeDecisionEmail(
 
   const body = favorCliente
     ? `<p>A tua disputa sobre a encomenda <strong>#${orderId}</strong> foi
-       analisada pela equipa AngoStart e <strong>resolvida a teu favor</strong>:
+       analisada pela equipa GOMBUONE e <strong>resolvida a teu favor</strong>:
        o valor da encomenda foi devolvido ao saldo da tua carteira.</p>`
     : `<p>A disputa sobre a encomenda <strong>#${orderId}</strong> foi analisada
-       pela equipa AngoStart e <strong>resolvida a favor do vendedor</strong>.
+       pela equipa GOMBUONE e <strong>resolvida a favor do vendedor</strong>.
        Os valores retidos em escrow foram libertados para o vendedor.</p>`;
 
   const note = resolutionNote
@@ -394,7 +394,7 @@ export async function sendDisputeDecisionEmail(
 
   return sendMail({
     to,
-    subject: `${title} — AngoStart`,
+    subject: `${title} — GOMBUONE`,
     html: layout('Resultado da disputa', `${body}${note}`),
   });
 }
@@ -410,16 +410,16 @@ export async function sendChatNotificationEmail(
 ): Promise<boolean> {
   return sendMail({
     to,
-    subject: `${senderName} enviou-te uma mensagem — AngoStart`,
+    subject: `${senderName} enviou-te uma mensagem — GOMBUONE`,
     html: layout(
       'Tens uma nova mensagem',
-      `<p><strong>${senderName}</strong> escreveu-te no chat da AngoStart:</p>
+      `<p><strong>${senderName}</strong> escreveu-te no chat da GOMBUONE:</p>
        <div style="margin:12px 0;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#115e59">
          ${preview.slice(0, 300)}
        </div>
        <p><a href="${link}" style="color:#0d9488;font-weight:bold">Responde no chat →</a></p>
        <p style="font-size:13px;color:#64748b">Mantém toda a negociação dentro da plataforma
-       — é o que garante a tua proteção na AngoStart.</p>`
+       — é o que garante a tua proteção na GOMBUONE.</p>`
     ),
   });
 }
@@ -433,7 +433,7 @@ export async function sendPasswordResetEmail(
 ): Promise<boolean> {
   return sendMail({
     to,
-    subject: 'Recuperação de senha — AngoStart',
+    subject: 'Recuperação de senha — GOMBUONE',
     html: layout(
       'Recupera a tua senha',
       `<p>Recebemos um pedido para redefinir a senha da tua conta.</p>
@@ -465,11 +465,11 @@ export async function sendAdminInviteEmail(
   );
   return sendMail({
     to,
-    subject: 'Convite para Administração Limitada — AngoStart',
+    subject: 'Convite para Administração Limitada — GOMBUONE',
     html: layout(
       'Foste convidado para a equipa de validação',
       `<p>Olá ${name || ''},</p>
-       <p>Foste convidado(a) para <strong>Administrador Limitado</strong> da AngoStart
+       <p>Foste convidado(a) para <strong>Administrador Limitado</strong> da GOMBUONE
        — vais validar comprovativos de pagamento KWiK no painel de validação.</p>
        <div style="margin:14px 0;padding:16px;border:2px dashed #14b8a6;border-radius:12px;background:#f0fdfa;text-align:center">
          <p style="margin:0 0 6px;font-size:12px;color:#115e59;font-weight:bold">CÓDIGO DE CONVITE (expira em ${horas} h)</p>
@@ -502,7 +502,7 @@ export async function sendDailyCodeEmail(
   );
   return sendMail({
     to,
-    subject: 'Código diário de acesso — AngoStart',
+    subject: 'Código diário de acesso — GOMBUONE',
     html: layout(
       'O teu código de acesso de hoje',
       `<p>Olá,</p>
@@ -534,7 +534,7 @@ export async function sendNewProposalEmail(
 ): Promise<boolean> {
   return sendMail({
     to,
-    subject: `Nova proposta de ${clientName} (${kz(priceKz)}) — AngoStart`,
+    subject: `Nova proposta de ${clientName} (${kz(priceKz)}) — GOMBUONE`,
     html: layout(
       'Recebeste uma nova proposta',
       `<p>O cliente <strong>${clientName}</strong> enviou-te uma proposta
@@ -562,7 +562,7 @@ export async function sendProposalAcceptedEmail(
 ): Promise<boolean> {
   return sendMail({
     to,
-    subject: `Proposta aceite — pedido #${orderId} criado — AngoStart`,
+    subject: `Proposta aceite — pedido #${orderId} criado — GOMBUONE`,
     html: layout(
       'Proposta aceite — negócio fechado!',
       `<p>Os termos acordados para <strong>${serviceName}</strong> foram aceites

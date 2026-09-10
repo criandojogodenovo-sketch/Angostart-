@@ -3,7 +3,7 @@ import { sql } from '@/lib/db';
 import { getBusinessConfig } from '@/lib/config';
 
 /**
- * AngoStart — Afiliados (Fase A + Fase 5 + Fase 9 + Fase 10) — server-side.
+ * GOMBUONE — Afiliados (Fase A + Fase 5 + Fase 9 + Fase 10) — server-side.
  *
  * Código único por utilizador (ex.: AFG-3K9PQX), comissão automática
  * creditada na carteira quando a encomenda indicada é paga. O percentual

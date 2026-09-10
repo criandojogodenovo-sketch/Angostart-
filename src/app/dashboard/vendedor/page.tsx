@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Painel de vendas do vendedor (/dashboard/vendedor).
+ * GOMBUONE — Painel de vendas do vendedor (/dashboard/vendedor).
  *
  * 🔒 Acesso: apenas vendedores autenticados (criador, prestador_domicilio,
  * prestador_remoto). Clientes/visitantes são bloqueados; a API também
@@ -542,7 +542,7 @@ export default function DashboardVendedorPage() {
         </span>
         <h1 className="mt-5 text-2xl font-bold text-slate-100">Acesso restrito</h1>
         <p className="mt-2 text-sm text-slate-400">
-          O painel de vendas é exclusivo para vendedores AngoStart (criadores,
+          O painel de vendas é exclusivo para vendedores GOMBUONE (criadores,
           prestadores ao domicílio e freelancers remotos).
         </p>
         <div className="mt-8 flex justify-center gap-3">
@@ -593,7 +593,7 @@ export default function DashboardVendedorPage() {
               Painel de vendas
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              Aqui está o resumo do teu negócio na AngoStart.
+              Aqui está o resumo do teu negócio na GOMBUONE.
             </p>
           </div>
         </div>
@@ -607,6 +607,11 @@ export default function DashboardVendedorPage() {
           )}
           <Button asChild variant="outline" className="h-10 border-blue-500/60 text-blue-400 hover:bg-blue-500/10">
             <Link href="/dashboard/vendedor/portfolio">Editar portfólio</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-10 border-purple-500/60 text-purple-400 hover:bg-purple-500/10">
+            <Link href="/dashboard/vendedor/campanhas">
+              <Megaphone className="mr-2 h-4 w-4" /> Campanhas
+            </Link>
           </Button>
           <Button asChild className="h-10 bg-blue-600 font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700">
             <Link href="/adicionar-produto">Publicar produto</Link>
@@ -786,7 +791,7 @@ export default function DashboardVendedorPage() {
             money: true,
             hint:
               cards && cards.commissionRetained > 0
-                ? `comissão AngoStart ${cards.commissionPercent}%: ${formatKz(cards.commissionRetained)}`
+                ? `comissão GOMBUONE ${cards.commissionPercent}%: ${formatKz(cards.commissionRetained)}`
                 : 'sem comissões retidas',
             tone: 'bg-teal-500/15 text-teal-400',
           },
@@ -937,7 +942,7 @@ export default function DashboardVendedorPage() {
         {/* Carteira */}
         <section aria-label="Carteira" className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-600 to-teal-500 p-5 text-white shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Wallet className="h-5 w-5" /> Carteira AngoStart
+            <Wallet className="h-5 w-5" /> Carteira GOMBUONE
           </h2>
           <p className="mt-3 text-xs text-blue-100">Saldo disponível</p>
           <p className="text-2xl font-bold">{formatKz(wallet?.saldo ?? 0)}</p>
@@ -1635,11 +1640,11 @@ function CommissionRateCard() {
         <Receipt className="h-5 w-5 text-blue-300" />
         <div>
           <p className="text-sm font-semibold text-slate-100">
-            Comissão AngoStart: {percent}%
+            Comissão GOMBUONE: {percent}%
           </p>
           <p className="text-xs text-slate-400">
             {source === 'override'
-              ? 'Taxa personalizada definida pela equipa AngoStart.'
+              ? 'Taxa personalizada definida pela equipa GOMBUONE.'
               : source === 'tabela'
                 ? 'Taxa standard para a tua categoria.'
                 : 'Taxa por defeito da plataforma.'}

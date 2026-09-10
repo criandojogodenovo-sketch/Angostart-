@@ -1,5 +1,5 @@
 /**
- * AngoStart — Fase 14b: segurança de prompts (anti-injeção).
+ * GOMBUONE — Fase 14b: segurança de prompts (anti-injeção).
  *
  * Movido do antigo lib/groq.ts — é independente de provider e aplica-se a
  * TODO o texto de utilizador que entra no modelo (chat de suporte, bios de

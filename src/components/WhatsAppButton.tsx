@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Botão flutuante do WhatsApp (canto inferior direito).
+ * GOMBUONE — Botão flutuante do WhatsApp (canto inferior direito).
  * Link direto para https://wa.me/244958176915
  */
 
@@ -9,7 +9,7 @@ import { MessageCircle } from 'lucide-react';
 
 const WHATSAPP_URL =
   'https://wa.me/244958176915?text=' +
-  encodeURIComponent('Olá! Vim do site AngoStart e gostaria de mais informações.');
+  encodeURIComponent('Olá! Vim do site GOMBUONE e gostaria de mais informações.');
 
 export default function WhatsAppButton() {
   return (
@@ -17,7 +17,7 @@ export default function WhatsAppButton() {
       href={WHATSAPP_URL}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Falar com a AngoStart no WhatsApp"
+      aria-label="Falar com a GOMBUONE no WhatsApp"
       className="group fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-slate-900/30 transition-transform duration-300 hover:scale-110 hover:bg-[#1fb857] active:scale-95 md:bottom-5 md:right-5"
       style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >

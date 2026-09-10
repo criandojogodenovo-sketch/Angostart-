@@ -1,5 +1,5 @@
 /**
- * AngoStart — Service Worker (Fase 6, ponto 10 — PWA).
+ * GOMBUONE (evolução da AngoStart) — Service Worker (Fase 6, ponto 10 — PWA).
  *
  * Estratégia conservadora (não quebra nada):
  *  - Cache-first APENAS para estáticos imutáveis (/_next/static/, ícones).
@@ -9,7 +9,9 @@
  *    URLs externos (Vercel Blob, mapas, etc.).
  */
 
-const CACHE_NAME = 'angostart-v1';
+/* Cache renomeado no rebranding: o activate limpa o cache antigo e o
+   cliente re-carrega os recursos uma única vez. */
+const CACHE_NAME = 'gombuone-v1';
 const OFFLINE_URLS = ['/', '/produtos'];
 
 self.addEventListener('install', (event) => {
@@ -84,10 +86,10 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'AngoStart', body: event.data ? event.data.text() : '' };
+    data = { title: 'GOMBUONE', body: event.data ? event.data.text() : '' };
   }
 
-  const title = String(data.title || 'AngoStart').slice(0, 120);
+  const title = String(data.title || 'GOMBUONE').slice(0, 120);
   const options = {
     body: String(data.body || '').slice(0, 300),
     icon: '/icons/icon-192.png',

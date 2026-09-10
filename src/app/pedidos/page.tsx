@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — «Pedidos no Ar» (Fase 16, /pedidos).
+ * GOMBUONE — «Pedidos no Ar» (Fase 16, /pedidos).
  *
  * Marketplace de pedidos com ACEITAÇÃO ÚNICA (estilo Uber/DiDi):
  * - Qualquer utilizador publica um pedido (categoria, título, descrição,

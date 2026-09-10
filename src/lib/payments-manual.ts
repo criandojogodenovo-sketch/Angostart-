@@ -1,8 +1,8 @@
 /**
- * AngoStart — Métodos de pagamento MANUAIS por transferência.
+ * GOMBUONE — Métodos de pagamento MANUAIS por transferência.
  *
  * KWiK (principal, RECOMENDADO), PayPay e Multicaixa Express — os três
- * chegam ao MESMO número da AngoStart (+244 958 176 915); o que muda é a
+ * chegam ao MESMO número da GOMBUONE (+244 958 176 915); o que muda é a
  * app que o cliente usa para enviar o dinheiro. O fluxo de validação é
  * idêntico: cliente anexa comprovativo → admin aprova (`pago`).
  *

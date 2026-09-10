@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
       amountKz: order.total_kz,
       customerPhone: user.telefone ?? '',
-      description: `AngoStart — encomenda #${order.id}`,
+      description: `GOMBUONE — encomenda #${order.id}`,
     });
 
     if (!result.ok) {

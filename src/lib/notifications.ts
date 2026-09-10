@@ -2,7 +2,7 @@ import 'server-only';
 import { sql } from '@/lib/db';
 
 /**
- * AngoStart — Notificações no site (sino) — server-side.
+ * GOMBUONE — Notificações no site (sino) — server-side.
  *
  * Cria notificações internas exibidas no sino da Navbar. Melhor-esforço:
  * nunca deve quebrar o fluxo principal (encomenda, chat, carteira).

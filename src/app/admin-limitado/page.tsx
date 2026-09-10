@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Painel Admin Limitado (/admin-limitado) — ROTA OCULTA.
+ * GOMBUONE — Painel Admin Limitado (/admin-limitado) — ROTA OCULTA.
  *
  * 🔒 Acesso: apenas role='admin_limitado' (middleware + APIs). Sem
  * palavra-passe fixa: o primeiro acesso usa o código de CONVITE enviado

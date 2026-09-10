@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Prova Social da Home (Fase 18).
+ * GOMBUONE — Prova Social da Home (Fase 18).
  *
  * Mostra números REAIS da plataforma (GET /api/home/stats):
  * vendedores ativos, produtos publicados, estabelecimentos e vendas
@@ -86,7 +86,7 @@ export default function SocialProof() {
 
   /* Estado vazio / falha de rede — faixa de confiança sem números inventados */
   return (
-    <section aria-label="Confiança AngoStart" className="border-y border-blue-100 bg-blue-50/60">
+    <section aria-label="Confiança GOMBUONE" className="border-y border-blue-100 bg-blue-50/60">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
           {FALLBACK_TRUST.map((item) => (

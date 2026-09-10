@@ -1,5 +1,5 @@
 /**
- * AngoStart — CONFIGURAÇÃO CENTRAL DE PARÂMETROS DE NEGÓCIO (Fase 5)
+ * GOMBUONE — CONFIGURAÇÃO CENTRAL DE PARÂMETROS DE NEGÓCIO (Fase 5)
  *
  * Único ponto de verdade para comissões e limites da carteira. Todos os
  * valores podem ser ajustados em produção via Environment Variables da
@@ -30,7 +30,7 @@ export const DEFAULT_MIN_WITHDRAW_AMOUNT = 5_000;
 export const DEFAULT_MAX_DAILY_DEPOSIT = 500_000;
 export const DEFAULT_MAX_DAILY_WITHDRAW = 300_000;
 
-/** Comissões da AngoStart por venda (descontadas ao vendedor/prestador). */
+/** Comissões da GOMBUONE por venda (descontadas ao vendedor/prestador). */
 export const DEFAULT_COMMISSION_PRODUCT = 5; // % — produtos físicos e infoprodutos (criadores)
 export const DEFAULT_COMMISSION_SERVICE_DOMICILIO = 10; // % — prestadores ao domicílio
 export const DEFAULT_COMMISSION_FREELANCER = 6.5; // % — freelancers / serviços remotos
@@ -110,7 +110,7 @@ export const BUSINESS_DEFAULTS: BusinessConfig = {
 /* ─────────────────────────── Comissões por perfil ───────────────────── */
 
 /**
- * Percentual de comissão da AngoStart consoante o perfil do vendedor:
+ * Percentual de comissão da GOMBUONE consoante o perfil do vendedor:
  *  - criador (infoprodutos / produtos físicos) → COMMISSION_PRODUCT
  *  - prestador_domicilio                       → COMMISSION_SERVICE_DOMICILIO
  *  - prestador_remoto (freelancer)             → COMMISSION_FREELANCER

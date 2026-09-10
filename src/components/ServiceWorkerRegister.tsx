@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Registo do Service Worker (Fase 6, ponto 10 — PWA).
+ * GOMBUONE — Registo do Service Worker (Fase 6, ponto 10 — PWA).
  * Regista /sw.js uma única vez no cliente; falha silenciosa (a app
  * continua a funcionar mesmo sem SW, ex.: browsers antigos).
  */

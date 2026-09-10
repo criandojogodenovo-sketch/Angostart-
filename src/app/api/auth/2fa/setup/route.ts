@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const otpauthUrl = generateURI({
       secret,
       label: auth.user.email,
-      issuer: 'AngoStart',
+      issuer: 'GOMBUONE',
     });
     const qrDataUrl = await QRCode.toDataURL(otpauthUrl, { width: 220, margin: 1 });
 

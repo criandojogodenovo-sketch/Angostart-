@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Página de detalhe do produto/serviço (/produtos/[id]).
+ * GOMBUONE — Página de detalhe do produto/serviço (/produtos/[id]).
  *
  * - Informação completa + vendedor (link para o portfólio público).
  * - 🗺️ servico_domicilio → mapa escuro: marcador do prestador + o cliente
@@ -401,7 +401,7 @@ export default function ProdutoDetalhePage() {
                   ) : (
                     <MessageCircle className="mr-2 h-5 w-5" />
                   )}
-                  Falar no chat da AngoStart
+                  Falar no chat da GOMBUONE
                 </Button>
                 {/* Partilha pública — URL limpo sem ?ref=, disponível para todos */}
                 <ShareButton
@@ -528,7 +528,7 @@ export default function ProdutoDetalhePage() {
                 <UserRound className="h-4 w-4" /> Vendedor
               </h2>
               <p className="mt-3 flex items-center gap-2 text-lg font-bold text-slate-900">
-                {product.seller_name ?? 'AngoStart'}
+                {product.seller_name ?? 'GOMBUONE'}
                 {product.seller_verified && <VerifiedBadge />}
               </p>
               {product.store_name && product.store_slug && (

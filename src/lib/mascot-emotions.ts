@@ -1,5 +1,5 @@
 /**
- * AngoStart — Sistema de reações da mascote do chat (Fase 23).
+ * GOMBUONE — Sistema de reações da mascote do chat (Fase 23).
  *
  * `detectEmotion(texto)` analisa UMA string (resposta da IA ou mensagem do
  * utilizador) e devolve a emoção que a mascote 3D deve exprimir:

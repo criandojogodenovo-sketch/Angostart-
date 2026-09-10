@@ -1,5 +1,5 @@
 /**
- * AngoStart — Lib partilhado dos Estabelecimentos (Fase 16).
+ * GOMBUONE — Lib partilhado dos Estabelecimentos (Fase 16).
  * Client-safe — usado pelas rotas API e pelas páginas públicas.
  */
 

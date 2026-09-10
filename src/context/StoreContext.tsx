@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Estado global (React Context)
+ * GOMBUONE — Estado global (React Context)
  *
  * - CartContext: carrinho de compras persistido em localStorage
  * - SearchContext: pesquisa global partilhada entre Navbar e Catálogo

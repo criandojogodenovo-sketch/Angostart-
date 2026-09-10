@@ -1,5 +1,5 @@
 /**
- * AngoStart — Gamificação (Fase 7) — lógica pura PARTILHADA cliente/servidor.
+ * GOMBUONE — Gamificação (Fase 7) — lógica pura PARTILHADA cliente/servidor.
  *
  * Níveis de vendedor por pontos:
  *   bronze 0–499 · prata 500–1999 · ouro 2000–4999 · platina 5000+
@@ -42,7 +42,7 @@ export function nextLevel(points: number): {
 export const BADGE_META: Record<string, { name: string; description: string; icon: string }> = {
   primeira_venda: {
     name: 'Primeira Venda',
-    description: 'Concluíste a tua primeira venda na AngoStart.',
+    description: 'Concluíste a tua primeira venda na GOMBUONE.',
     icon: 'trophy',
   },
   top_vendedor_mes: {

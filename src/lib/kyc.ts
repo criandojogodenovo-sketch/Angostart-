@@ -1,5 +1,5 @@
 /**
- * AngoStart — KYC flexível orientado a fotos (Fase 12) + carência de 30 dias
+ * GOMBUONE — KYC flexível orientado a fotos (Fase 12) + carência de 30 dias
  * (Fase 13, modelo Fiverr/Upwork/Amazon/Alibaba).
  *
  * ⚡ Client-safe: sem `import 'server-only'` — usado no cliente (cartão de

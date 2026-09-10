@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Rodapé com contactos em Luanda, redes sociais e links rápidos.
+ * GOMBUONE — Rodapé com contactos em Luanda, redes sociais e links rápidos.
  */
 
 import Link from 'next/link';
@@ -51,7 +51,7 @@ export default function Footer() {
                 href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Facebook da AngoStart"
+                aria-label="Facebook da GOMBUONE"
                 className="rounded-full bg-white/10 p-2.5 transition-colors hover:bg-blue-600 hover:text-white"
               >
                 <Facebook className="h-4 w-4" />
@@ -60,7 +60,7 @@ export default function Footer() {
                 href="https://instagram.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Instagram da AngoStart"
+                aria-label="Instagram da GOMBUONE"
                 className="rounded-full bg-white/10 p-2.5 transition-colors hover:bg-blue-600 hover:text-white"
               >
                 <Instagram className="h-4 w-4" />
@@ -69,7 +69,7 @@ export default function Footer() {
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="LinkedIn da AngoStart"
+                aria-label="LinkedIn da GOMBUONE"
                 className="rounded-full bg-white/10 p-2.5 transition-colors hover:bg-blue-600 hover:text-white"
               >
                 <Linkedin className="h-4 w-4" />
@@ -131,7 +131,7 @@ export default function Footer() {
             <div className="mt-6 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
               <p className="text-xs leading-relaxed text-blue-300">
                 Pagamento por KWiK (transferência instantânea), carteira
-                AngoStart com escrow, transferência bancária (BAI, BFA) e
+                GOMBUONE com escrow, transferência bancária (BAI, BFA) e
                 dinheiro na entrega.
               </p>
             </div>
@@ -139,7 +139,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400 sm:flex-row">
-          <p>© {new Date().getFullYear()} AngoStart. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} GOMBUONE. Todos os direitos reservados.</p>
           <div className="flex items-center gap-4">
             <Link href="/termos" className="transition-colors hover:text-blue-400">
               Termos de Uso

@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14b: visão (VLM) com cadeia de fallback.
+ * GOMBUONE — Fase 14b: visão (VLM) com cadeia de fallback.
  *
  * Cadeia de VISÃO (só providers multimodais e com chave):
  *   B.AI (deepseek-v4-flash-vision-exp) →

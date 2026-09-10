@@ -1,5 +1,5 @@
 /**
- * AngoStart — Ilustração "Compras" (Fase 19, hero do cliente logado).
+ * GOMBUONE — Ilustração "Compras" (Fase 19, hero do cliente logado).
  *
  * Mini-carrinho em glassmorphism com artigos, total e botão de checkout,
  * cercado por chips flutuantes (produto, desconto, entrega em 48h) e anel

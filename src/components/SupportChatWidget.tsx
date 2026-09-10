@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Fase 14/16/21: widget de chat com o assistente de suporte IA
+ * GOMBUONE — Fase 14/16/21: widget de chat com o assistente de suporte IA
  * (roteamento multi-modelo server-side via /api/ai/chat).
  *
  * Fase 21 (multimodal):
@@ -89,7 +89,7 @@ interface PendingAudio {
 const ABERTURA: Turn = {
   role: 'assistant',
   content:
-    'Olá! Sou o assistente virtual da AngoStart. Pergunta-me sobre compras, vendas, Publicações (feed), Pedidos no Ar, carteira, afiliados, verificação de identidade ou a tua conta. Também podes enviar uma imagem ou um áudio.',
+    'Olá! Sou o assistente virtual da GOMBUONE. Pergunta-me sobre compras, vendas, Publicações (feed), Pedidos no Ar, carteira, afiliados, verificação de identidade ou a tua conta. Também podes enviar uma imagem ou um áudio.',
 };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -706,7 +706,7 @@ export default function SupportChatWidget() {
           className="fixed inset-0 z-[90] flex h-[100dvh] w-full flex-col overflow-hidden rounded-none bg-white shadow-2xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-6 md:inset-auto md:bottom-5 md:left-5 md:h-[560px] md:w-[400px] md:rounded-2xl md:border md:border-white/50 md:bg-white/80 md:backdrop-blur-xl"
           role="dialog"
           aria-modal="true"
-          aria-label="Assistente de suporte da AngoStart"
+          aria-label="Assistente de suporte da GOMBUONE"
         >
           {/* Cabeçalho (safe-area no mobile para ecrãs com notch) */}
           <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white">
@@ -715,7 +715,7 @@ export default function SupportChatWidget() {
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-sm font-bold leading-tight">Ajuda IA — AngoStart</p>
+                <p className="text-sm font-bold leading-tight">Ajuda IA — GOMBUONE</p>
                 <p className="text-[11px] leading-tight text-blue-100">
                   Respostas automáticas · suporte humano quando precisares
                 </p>

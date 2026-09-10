@@ -125,7 +125,7 @@ export async function PATCH(request: NextRequest) {
   const bannerUrl = media(body.banner_url);
   if (logoUrl === undefined || bannerUrl === undefined) {
     return NextResponse.json(
-      { error: 'As imagens devem ser enviadas pelo upload da AngoStart (usa o botão de upload).' },
+      { error: 'As imagens devem ser enviadas pelo upload da GOMBUONE (usa o botão de upload).' },
       { status: 400 }
     );
   }

@@ -91,7 +91,7 @@ async function runDeadlineCheck() {
       notificados += 1;
       const enviado = await sendMail({
         to: seller.email,
-        subject: 'Prazo de verificação expirado — envia o teu documento — AngoStart',
+        subject: 'Prazo de verificação expirado — envia o teu documento — GOMBUONE',
         html: `
           <div style="font-family:Segoe UI,Arial,sans-serif;background:#f1f5f9;padding:24px">
             <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:24px;border:1px solid #e2e8f0">
@@ -112,7 +112,7 @@ async function runDeadlineCheck() {
                 Enviar documento agora →
               </a></p>
               <p style="font-size:13px;color:#64748b">
-                Se acreditas que isto é um erro, responde a este email — a equipa AngoStart
+                Se acreditas que isto é um erro, responde a este email — a equipa GOMBUONE
                 pode aceitar a tua justificação e reabrir o prazo.
               </p>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Página pública do Estabelecimento (/estabelecimentos/[id]).
+ * GOMBUONE — Página pública do Estabelecimento (/estabelecimentos/[id]).
  *
  * Mini-loja estilo Google Business/Booking:
  *  - cabeçalho com logo/fotos, categoria, horário e descrição;

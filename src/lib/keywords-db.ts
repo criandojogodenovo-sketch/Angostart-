@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 15: guard de migração das keywords (server-only).
+ * GOMBUONE — Fase 15: guard de migração das keywords (server-only).
  *
  * A migração Fase 15 (`scripts/migrate-fase15.js`) adiciona
  * `products.keywords TEXT[]` / `products.keywords_updated_at` e

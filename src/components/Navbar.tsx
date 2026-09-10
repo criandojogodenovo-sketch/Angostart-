@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Navbar fixa com menu hambúrguer no mobile,
+ * GOMBUONE — Navbar fixa com menu hambúrguer no mobile,
  * links no desktop, barra de pesquisa e carrinho.
  */
 
@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 const LINKS = [
   { href: '/', label: 'Início' },
   { href: '/produtos', label: 'Produtos' },
+  { href: '/campanhas', label: 'Campanhas' },
   { href: '/pedidos', label: 'Pedidos' },
   { href: '/estabelecimentos', label: 'Espaços' },
   { href: '/lojas', label: 'Lojas' },
@@ -39,12 +40,12 @@ export default function Navbar() {
       <header className="glass-navbar sticky top-0 z-50 w-full text-slate-900">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="AngoStart — Página inicial">
+        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="GOMBUONE — Página inicial">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-md">
             <Rocket className="h-5 w-5 text-white" />
           </span>
           <span className="text-xl font-bold tracking-tight text-slate-900">
-            Ango<span className="text-blue-600">Start</span>
+            GOMBU<span className="text-blue-600">ONE</span>
           </span>
         </Link>
 

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     // Resposta idêntica com ou sem conta (anti-enumeração)
     return NextResponse.json({
       ok: true,
-      message: 'Se este email existir na AngoStart, receberás um link de recuperação dentro de minutos. Verifica também a caixa de spam.',
+      message: 'Se este email existir na GOMBUONE, receberás um link de recuperação dentro de minutos. Verifica também a caixa de spam.',
     });
   } catch (error) {
     console.error('[API forgot-password] Erro:', error);

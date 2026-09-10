@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão «Contactos» (Fase 16, fluxo Airbnb).
+ * GOMBUONE — Cartão «Contactos» (Fase 16, fluxo Airbnb).
  *
  * mode="recebidos" (prestador): pedidos de clientes com Aceitar / Rejeitar.
  * mode="enviados"  (cliente): estado dos pedidos enviados — após aceite,

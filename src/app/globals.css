@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Cores da marca AngoStart (Fase 16 — redesign premium) */
+  /* Cores da marca GOMBUONE (Fase 16 — redesign premium) */
   --color-brand-dark: #0F172A;
   --color-brand-blue: #3B82F6;
   --color-brand-teal: #14B8A6;
@@ -148,7 +148,7 @@
 }
 
 /* ————————————————————————————————————————————————————————————————
-   AngoStart — Fase 16: classes utilitárias do redesign
+   GOMBUONE — Fase 16: classes utilitárias do redesign
    (Light Clean nas páginas públicas · Dark Premium nos dashboards)
    ———————————————————————————————————————————————————————————————— */
 @layer components {

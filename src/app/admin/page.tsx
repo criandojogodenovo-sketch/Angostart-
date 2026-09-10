@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Painel de Administração Total (/admin) — ROTA OCULTA.
+ * GOMBUONE — Painel de Administração Total (/admin) — ROTA OCULTA.
  *
  * 🔒 Proteção: middleware exige cookie 2FA (role='admin'); a API valida
  * Bearer + role em cada pedido. Esta rota NÃO está linkada em menus,
@@ -2307,7 +2307,7 @@ function AdminPanel() {
                 </FadeIn>
                 <FadeIn delay={0.06}>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 backdrop-blur-xl p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase text-slate-400">Comissões AngoStart</p>
+                  <p className="text-xs font-semibold uppercase text-slate-400">Comissões GOMBUONE</p>
                   <p className="mt-1 text-2xl font-bold text-slate-100">
                     <AnimatedStat value={report.totals.commission} format={formatKz} />
                   </p>

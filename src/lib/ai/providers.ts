@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14b/21: IA multi-provider com fallback chain e
+ * GOMBUONE — Fase 14b/21: IA multi-provider com fallback chain e
  * ROTEAMENTO DE TAREFAS por modelo/chave (Fase 21).
  *
  * MISSÃO: a IA da plataforma NUNCA fica offline por rate limit ou modelo
@@ -181,7 +181,7 @@ export const PROVIDERS: ProviderConfig[] = [
       // plataforma no dashboard e podem aumentar limites de app).
       'HTTP-Referer':
         process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://angostart.ao',
-      'X-Title': 'AngoStart',
+      'X-Title': 'GOMBUONE',
     }),
     // Hotfix: 8s era demasiado agressivo para o free tier em hora de pico
     // (fila do modelo) — 30s dá margem; overridável AI_TIMEOUT_OPENROUTER_MS.

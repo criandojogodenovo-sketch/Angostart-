@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       titulo = 'Identidade verificada ✓';
       corpo =
         'O teu documento foi aprovado — já tens o selo azul de vendedor verificado no perfil, loja e produtos. Boas vendas!';
-      emailAssunto = `${titulo} — AngoStart`;
+      emailAssunto = `${titulo} — GOMBUONE`;
       emailCorpo = corpo;
     } else if (action === 'rejeitar') {
       await sql`
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
       `;
       titulo = 'Verificação de identidade recusada';
       corpo = `O teu documento de identidade não foi validado. Motivo: ${note} A publicação de novos produtos fica bloqueada até enviares um novo documento no Painel de vendas → Verificação de Identidade.`;
-      emailAssunto = `${titulo} — AngoStart`;
+      emailAssunto = `${titulo} — GOMBUONE`;
       emailCorpo = corpo;
     } else if (action === 'avisar') {
       /* Fase 13: reenvio do aviso de prazo expirado (vendedor continua overdue). */
@@ -225,8 +225,8 @@ export async function POST(request: NextRequest) {
       `;
       titulo = 'Lembrete: envia o teu documento de identidade';
       corpo =
-        'A equipa AngoStart reenvia este lembrete: o prazo para verificar a tua identidade terminou e a publicação de novos produtos continua bloqueada. Envia a foto do teu documento no Painel de vendas para desbloqueares.';
-      emailAssunto = `${titulo} — AngoStart`;
+        'A equipa GOMBUONE reenvia este lembrete: o prazo para verificar a tua identidade terminou e a publicação de novos produtos continua bloqueada. Envia a foto do teu documento no Painel de vendas para desbloqueares.';
+      emailAssunto = `${titulo} — GOMBUONE`;
       emailCorpo = corpo;
     } else if (action === 'aceitar_justificacao') {
       /* Fase 13: anula a supervisão — volta a 'not_submitted' com nova
@@ -245,8 +245,8 @@ export async function POST(request: NextRequest) {
         WHERE id = ${userId}
       `;
       titulo = 'Justificação aceite — prazo reaberto';
-      corpo = `A tua justificação foi aceite pela equipa AngoStart: a supervisão foi anulada e já podes voltar a publicar produtos. Tens ${KYC_GRACE_DAYS} dias novos para enviar a foto do teu documento de identidade.`;
-      emailAssunto = `${titulo} — AngoStart`;
+      corpo = `A tua justificação foi aceite pela equipa GOMBUONE: a supervisão foi anulada e já podes voltar a publicar produtos. Tens ${KYC_GRACE_DAYS} dias novos para enviar a foto do teu documento de identidade.`;
+      emailAssunto = `${titulo} — GOMBUONE`;
       emailCorpo = corpo;
     } else {
       /* action === 'bloquear' — Fase 13: impede login e vendas
@@ -254,11 +254,11 @@ export async function POST(request: NextRequest) {
       await sql`
         UPDATE users SET blocked = TRUE WHERE id = ${userId}
       `;
-      titulo = 'Conta bloqueada pela equipa AngoStart';
+      titulo = 'Conta bloqueada pela equipa GOMBUONE';
       corpo = note
-        ? `A tua conta foi bloqueada pela equipa AngoStart. Motivo: ${note} Responde a este email para esclarecer a situação.`
-        : 'A tua conta foi bloqueada pela equipa AngoStart por incumprimento das regras de verificação. Responde a este email para esclarecer a situação.';
-      emailAssunto = `${titulo} — AngoStart`;
+        ? `A tua conta foi bloqueada pela equipa GOMBUONE. Motivo: ${note} Responde a este email para esclarecer a situação.`
+        : 'A tua conta foi bloqueada pela equipa GOMBUONE por incumprimento das regras de verificação. Responde a este email para esclarecer a situação.';
+      emailAssunto = `${titulo} — GOMBUONE`;
       emailCorpo = corpo;
     }
 

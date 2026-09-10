@@ -1,5 +1,5 @@
 /**
- * AngoStart — Fase 15: palavras-chave (keywords) de produtos com anti-spam.
+ * GOMBUONE — Fase 15: palavras-chave (keywords) de produtos com anti-spam.
  *
  * O vendedor pode adicionar até MAX_KEYWORDS palavras-chave ao produto para
  * aparecer na busca (ex.: "design, ebook, marketing"). Regras:

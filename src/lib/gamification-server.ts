@@ -3,7 +3,7 @@ import { sql } from '@/lib/db';
 import { BADGE_META, POINTS_RULES } from '@/lib/gamification';
 
 /**
- * AngoStart — Gamificação no SERVIDOR (Fase 7).
+ * GOMBUONE — Gamificação no SERVIDOR (Fase 7).
  *
  * 🔒 server-only: pontos e selos são atribuídos automaticamente pelo
  * servidor (nunca pelo cliente). Todas as escritas são idempotentes.

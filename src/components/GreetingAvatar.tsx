@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Avatar/boneco interativo de boas-vindas (Fase 20).
+ * GOMBUONE — Avatar/boneco interativo de boas-vindas (Fase 20).
  *
  * Saudação pelo horário local do utilizador:
  *   - «Bom dia»  06:00–11:59

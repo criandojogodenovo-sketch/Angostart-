@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Redefinir senha (Fase 5).
+ * GOMBUONE — Redefinir senha (Fase 5).
  * Consome o token do email (1 h, uso único) e define a nova senha.
  */
 

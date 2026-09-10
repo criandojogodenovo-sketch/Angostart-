@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Mascot2p5D (mascote 2.5D premium · ilustração + CSS).
+ * GOMBUONE — Mascot2p5D (mascote 2.5D premium · ilustração + CSS).
  *
  * Substitui por completo o antigo boneco WebGL (primitivas R3F): o MESMO
  * personagem das referências (rapaz de barba, sorriso com dentes, óculos)
@@ -124,9 +124,9 @@ export default function Mascot2p5D({
   const alt =
     context === 'home'
       ? isLoggedIn
-        ? 'Mascote da AngoStart — vendedor sorridente de barba com óculos e crachá'
-        : 'Mascote da AngoStart — vendedor sorridente de barba a acenar'
-      : 'Mascote da AngoStart — assistente de barba com óculos';
+        ? 'Mascote da GOMBUONE — vendedor sorridente de barba com óculos e crachá'
+        : 'Mascote da GOMBUONE — vendedor sorridente de barba a acenar'
+      : 'Mascote da GOMBUONE — assistente de barba com óculos';
 
   return (
     <div

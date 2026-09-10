@@ -1,5 +1,5 @@
 /**
- * AngoStart — Definições de perfis (partilhadas entre servidor e cliente).
+ * GOMBUONE — Definições de perfis (partilhadas entre servidor e cliente).
  *
  * ⚠️ Este ficheiro NÃO pode aceder a process.env nem importar módulos de
  * servidor — é importado por Client Components (AuthContext, páginas).

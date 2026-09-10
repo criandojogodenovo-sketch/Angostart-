@@ -2,7 +2,7 @@ import 'server-only';
 import { sql } from '@/lib/db';
 
 /**
- * AngoStart — Lojas virtuais (Fase 9) — server-side.
+ * GOMBUONE — Lojas virtuais (Fase 9) — server-side.
  *
  * Cada vendedor/prestador tem automaticamente uma loja (criada no registo
  * ou por backfill). A loja agrupa os produtos do vendedor em /loja/[slug],

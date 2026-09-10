@@ -1,5 +1,5 @@
 /**
- * AngoStart — Ilustração decorativa do Hero (Fase 18).
+ * GOMBUONE — Ilustração decorativa do Hero (Fase 18).
  *
  * Composição de ícones flutuantes (carrinho, loja, carteira, chat) em chips de
  * vidro à volta de um mini-card de produto em glassmorphism, sobre um anel SVG

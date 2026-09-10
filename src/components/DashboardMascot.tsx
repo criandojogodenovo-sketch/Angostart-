@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — DashboardMascot (painel de vendas · mascote 2.5D).
+ * GOMBUONE — DashboardMascot (painel de vendas · mascote 2.5D).
  *
  * Versão PEQUENA da mascote 2.5D (ilustração premium + CSS), fixa no
  * canto inferior direito do painel do vendedor (/dashboard/vendedor),

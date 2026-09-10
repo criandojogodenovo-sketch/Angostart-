@@ -125,7 +125,7 @@ export default async function LojasPage({
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">Lojas virtuais</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Cada vendedor AngoStart tem a sua própria loja — explora, segue e compra com confiança.
+            Cada vendedor GOMBUONE tem a sua própria loja — explora, segue e compra com confiança.
           </p>
         </div>
       </div>

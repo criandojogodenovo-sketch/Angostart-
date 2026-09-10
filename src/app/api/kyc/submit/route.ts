@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   }
   if (!isKycDocumentUrl(docUrlRaw, auth.user.id)) {
     return NextResponse.json(
-      { error: 'O documento deve ser enviado pelo upload da AngoStart (foto tua, do teu login).' },
+      { error: 'O documento deve ser enviado pelo upload da GOMBUONE (foto tua, do teu login).' },
       { status: 400 }
     );
   }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
     if (idade < 15) {
       return NextResponse.json(
-        { error: 'Idade mínima para vender na AngoStart é 15 anos.' },
+        { error: 'Idade mínima para vender na GOMBUONE é 15 anos.' },
         { status: 400 }
       );
     }
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message:
-        'Documento submetido! A equipa AngoStart vai analisá-lo — avisamos-te por email e aqui na plataforma.',
+        'Documento submetido! A equipa GOMBUONE vai analisá-lo — avisamos-te por email e aqui na plataforma.',
       kyc_status: updated[0].kyc_status,
     });
   } catch (error) {

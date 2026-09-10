@@ -1,5 +1,5 @@
 /**
- * AngoStart — Padrão SVG decorativo de ondas/círculos (Fase 18).
+ * GOMBUONE — Padrão SVG decorativo de ondas/círculos (Fase 18).
  *
  * Overlay subtil para banners e cabeçalhos (lojas, portfólio, perfil, CTA).
  * Herda a largura do pai; decoração pura — escondido de leitores de ecrã.

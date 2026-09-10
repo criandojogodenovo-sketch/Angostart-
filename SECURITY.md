@@ -1,4 +1,4 @@
-# 🛡️ SECURITY — AngoStart
+# 🛡️ SECURITY — GOMBUONE (evolução da GOMBUONE)
 
 Documentação de segurança: arquitetura, auditoria automática, testes de
 intrusão simulados e triagem dos achados. Última atualização: **Auditoria

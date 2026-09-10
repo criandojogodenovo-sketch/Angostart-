@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Botão «Voltar ao topo» (Fase 16, otimização de navegação).
+ * GOMBUONE — Botão «Voltar ao topo» (Fase 16, otimização de navegação).
  *
  * Flutuante, canto inferior direito, aparece após 400 px de scroll.
  * Suave (behavior: smooth) e acessível (aria-label, teclado).

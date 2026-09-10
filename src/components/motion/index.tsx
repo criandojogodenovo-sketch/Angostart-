@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Kit de animações premium (Fase 18).
+ * GOMBUONE — Kit de animações premium (Fase 18).
  *
  * - FadeIn: entrada suave (opacity + translateY) quando o elemento entra no viewport.
  * - AnimatedStat: contagem animada (0 → valor) com spring, dispara ao entrar no viewport.

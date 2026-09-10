@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       biDocUrl = raw;
     } else if (raw) {
       return NextResponse.json(
-        { error: 'A foto do BI deve ser enviada pelo upload da AngoStart.' },
+        { error: 'A foto do BI deve ser enviada pelo upload da GOMBUONE.' },
         { status: 400 }
       );
     } else {

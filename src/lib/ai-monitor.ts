@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 21: monitorização diária por IA (lote 1×/dia).
+ * GOMBUONE — Fase 21: monitorização diária por IA (lote 1×/dia).
  *
  * Tarefa 'monitor' → chave B_AI_API_KEY_MONITOR → Qwen3.8-Flash.
  *
@@ -50,7 +50,7 @@ export interface MonitorRunResult {
 
 const MAX_ITEMS = 40;
 
-const SYSTEM = `És o moderador automático da AngoStart (marketplace angolano). Analisas um lote de conteúdo em português e detetas:
+const SYSTEM = `És o moderador automático da GOMBUONE (marketplace angolano). Analisas um lote de conteúdo em português e detetas:
 
 1. "duplicados" — pares de produtos com título/descrição essencialmente IGUAIS publicados por utilizadores diferentes (revenda de anúncios copiados). O mesmo vendedor republicar o próprio produto NÃO é duplicado.
 2. "ofensivos" — comentários ou mensagens com insultos, discurso de ódio, assédio, discriminação ou linguagem vulgar dirigida a alguém.

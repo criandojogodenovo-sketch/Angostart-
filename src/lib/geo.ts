@@ -1,5 +1,5 @@
 /**
- * AngoStart — Utilitários de geolocalização (serviços ao domicílio).
+ * GOMBUONE — Utilitários de geolocalização (serviços ao domicílio).
  *
  * Partilhado entre rotas do servidor: validação de coordenadas (Angola),
  * distância de Haversine, tempo estimado de chegada (ETA) e — crítico

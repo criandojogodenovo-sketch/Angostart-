@@ -84,7 +84,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            'Mensagem bloqueada: não partilhes telefone, WhatsApp ou email. Toda a negociação, localização e pagamentos ficam aqui dentro para a tua proteção — negociar fora remove a cobertura da AngoStart.',
+            'Mensagem bloqueada: não partilhes telefone, WhatsApp ou email. Toda a negociação, localização e pagamentos ficam aqui dentro para a tua proteção — negociar fora remove a cobertura da GOMBUONE.',
           blocked: 'contact_sharing',
         },
         { status: 400 }

@@ -1,5 +1,5 @@
 /**
- * AngoStart — Validação de senhas fortes (Fase 9).
+ * GOMBUONE — Validação de senhas fortes (Fase 9).
  *
  * ⚡ Client-safe: sem `import 'server-only'` — é usado tanto no servidor
  * (POST /api/auth/register/*, /api/auth/change-password) como no cliente

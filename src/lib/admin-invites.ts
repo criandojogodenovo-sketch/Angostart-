@@ -4,7 +4,7 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { sql } from '@/lib/db';
 
 /**
- * AngoStart — Administração dinâmica (server-side).
+ * GOMBUONE — Administração dinâmica (server-side).
  *
  * Substitui as contas de admin_limitado com senha fixa por:
  *  1. CONVITE — o admin total convida um email; o sistema gera um código

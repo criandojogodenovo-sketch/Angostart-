@@ -21,25 +21,27 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "AngoStart — Infoprodutos, Produtos e Serviços em Angola",
+  title: "GOMBUONE — Infoprodutos, Produtos, Serviços e Campanhas em Angola",
   description:
-    "A tua plataforma angolana de confiança: infoprodutos, produtos físicos, serviços ao domicílio e serviços remotos. Preços em Kwanzas, entrega em Luanda e atendimento pelo WhatsApp.",
+    "A tua plataforma angolana de confiança: marketplace de infoprodutos, produtos físicos e serviços, agora com motor de campanhas e oportunidades. Preços em Kwanzas, entrega em Luanda e atendimento pelo WhatsApp.",
   keywords: [
-    "AngoStart",
+    "GOMBUONE",
     "Angola",
     "Luanda",
     "infoprodutos",
     "produtos físicos",
     "serviços ao domicílio",
     "serviços remotos",
+    "campanhas",
+    "oportunidades",
     "Kwanza",
   ],
-  authors: [{ name: "AngoStart" }],
+  authors: [{ name: "GOMBUONE" }],
   openGraph: {
-    title: "AngoStart — Tudo o que o teu negócio precisa",
+    title: "GOMBUONE — Tudo o que o teu negócio precisa",
     description:
-      "Infoprodutos, produtos físicos e serviços em Angola. Preços em Kwanzas e atendimento pelo WhatsApp.",
-    siteName: "AngoStart",
+      "Marketplace, campanhas e oportunidades em Angola. Preços em Kwanzas e atendimento pelo WhatsApp.",
+    siteName: "GOMBUONE",
     type: "website",
     locale: "pt_AO",
   },

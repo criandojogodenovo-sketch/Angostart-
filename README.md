@@ -1,8 +1,15 @@
-# 🚀 AngoStart — Marketplace Empresarial Angolano
+# 🚀 GOMBUONE (evolução da GOMBUONE) — Marketplace + Motor de Campanhas
 
 **Infoprodutos, produtos físicos e serviços (ao domicílio e remotos) — com segurança de nível bancário, pagamento KWiK (transferência manual) + carteira com escrow, comissões configuráveis, programa de afiliados, chat interno, anúncios, sistema anti-burla, configuração central de negócio e duplo painel de administração com 2FA.**
 
 > Stack: **Next.js 16** (App Router, TypeScript) · **Tailwind CSS 4** · **Neon PostgreSQL** (driver `@neondatabase/serverless`, HTTPS:443) · **JWT + bcrypt** · **Leaflet** · **Recharts** · **Brevo** (email) · **Vercel Blob** · **KWiK manual** · **Carteira escrow** · **otplib (TOTP 2FA)**
+
+> **📌 Nota de evolução (GOMBUONE):** esta aplicação é a evolução preservadora
+> da **AngoStart** — todo o marketplace, segurança, autenticação, carteira e
+> infraestrutura foram mantidos. Foi adicionado o **motor de campanhas e
+> oportunidades** (campanhas → oportunidades → distribuição → redemption →
+> métricas) e a identidade pública evoluiu para **GOMBUONE**. Migração:
+> `node scripts/migrate-gombuone.js` (idempotente, não destrutiva).
 
 ---
 
@@ -51,8 +58,8 @@
 | 🔥 Hot badge | Campo `is_hot` em `products`; vendedor marca «em alta» no painel; badge de chama no cartão; filtro `?hot=1` na API e botão «Em alta» no catálogo |
 | 🔎 Prestadores | Página `/prestadores` com pesquisa **ILIKE** (nome/especialidade/bio/cidade), filtro domicílio/remoto, ordenação por reputação; cartões ligam ao portfólio + WhatsApp |
 | ⭐ Reputação | Média ponderada do vendedor no portfólio público e média por prestador na pesquisa |
-| 💰 Carteira | `/carteira` — saldo disponível + **escrow** (`saldo_bloqueado`); depósito manual **Afrimoney / UNITEL Money** com referência única (`AngoStart-DEP-…`); saque com reserva; aprovação no painel admin (separador «Carteira») |
-| 🛒 Checkout com saldo | Opção «Carteira AngoStart» no carrinho (só utilizadores autenticados, validação server-side de saldo) — pago = `pago` imediato com valor retido em escrow até `entregue`; recusa = reembolso automático |
+| 💰 Carteira | `/carteira` — saldo disponível + **escrow** (`saldo_bloqueado`); depósito manual **Afrimoney / UNITEL Money** com referência única (`GOMBUONE-DEP-…`); saque com reserva; aprovação no painel admin (separador «Carteira») |
+| 🛒 Checkout com saldo | Opção «Carteira GOMBUONE» no carrinho (só utilizadores autenticados, validação server-side de saldo) — pago = `pago` imediato com valor retido em escrow até `entregue`; recusa = reembolso automático |
 | 🤝 Afiliados | Código único `AFG-XXXXXX` por utilizador; campo de código no checkout; **comissão automática** creditada na carteira quando a venda é paga; dashboard do vendedor mostra código + total ganho |
 | 🧹 Catálogo real | `DELETE FROM products` — zero produtos de exemplo; sem BD o site mostra estado vazio honesto (nunca produtos fictícios) |
 
@@ -60,7 +67,7 @@
 | Módulo | Descrição |
 |---|---|
 | ⚙️ Configuração central | `src/lib/config.ts` — comissões e limites da carteira carregados de variáveis de ambiente com defaults seguros; validação partilhada cliente/servidor (`validateAmount`) |
-| 💸 Comissões AngoStart | **5% criadores · 10% prestadores ao domicílio · 6,5% freelancers** — descontadas automaticamente no escrow quando a venda é paga; registadas em `wallet_transactions.commission_kz` e `orders.platform_commission_kz`; dashboard mostra receita bruta, líquida e comissão retida |
+| 💸 Comissões GOMBUONE | **5% criadores · 10% prestadores ao domicílio · 6,5% freelancers** — descontadas automaticamente no escrow quando a venda é paga; registadas em `wallet_transactions.commission_kz` e `orders.platform_commission_kz`; dashboard mostra receita bruta, líquida e comissão retida |
 | 💰 Limites da carteira | Mín/Máx por operação **+ limites DIÁRIOS** (soma das transações do dia validada no servidor) — anti-lavagem; limites exibidos no formulário |
 | 📄 PDF de infoprodutos | Upload para **Vercel Blob** (`/api/products/upload`, MIME + magic bytes `%PDF-` + 20 MB); download protegido `/api/products/[id]/download` (só comprador com pedido pago, vendedor ou admin); secção «Histórico» no perfil com botão «Descarregar» |
 | 📢 Anúncios | Tabela `announcements` (promo / destaque / novidade / **exclusivo** só para admin total); visibilidade por perfil (`target_role`); banner na página inicial (dispensável); secção completa no painel admin |
@@ -239,7 +246,7 @@ Admins **limitados** não são criados por script — são sempre **convidados**
 
 O **KWiK (Kwanza Instantâneo)** é uma transferência instantânea manual:
 sem gateway externo, sem chaves de API e sem webhooks — o cliente transfere
-para o número KWiK da AngoStart e a equipa valida o comprovativo no painel.
+para o número KWiK da GOMBUONE e a equipa valida o comprovativo no painel.
 
 ```
 Cliente (carrinho)                 Servidor                        Admin
@@ -252,7 +259,7 @@ POST /api/orders ────────────────► encomenda c
 Instruções no ecrã de confirmação:
   • Número KWiK: +244 958 176 915   (copiar)
   • Valor exato: formatKz(total)    (copiar)
-  • Referência:  AngoStart-ORD-00042 (copiar — indicar na transferência)
+  • Referência:  GOMBUONE-ORD-00042 (copiar — indicar na transferência)
 
 POST /api/orders/[id]/proof ─────► valida (MIME + 2MB + magic bytes)
                                    status = 'aguardando_validacao'
@@ -394,7 +401,7 @@ wallets※F4   user_id PK→users, saldo, saldo_bloqueado (escrow), updated_at
 wallet_transactions※F4  id, user_id→users,
           tipo(deposito|saque|pagamento|recebimento|comissao|liberacao|reembolso),
           valor>0, status(pendente|concluido|rejeitado|bloqueado),
-          referencia(AngoStart-DEP-/WD-…), order_id, descricao,
+          referencia(GOMBUONE-DEP-/WD-…), order_id, descricao,
           processed_by→users, processed_at, created_at
           · UNIQUE parcial (order_id, tipo, user_id) = movimentos idempotentes
 affiliates※F4  id, user_id UNIQUE→users, codigo_afiliado UNIQUE (AFG-XXXXXX),
@@ -423,7 +430,7 @@ Depósito:  pedido → pendente → admin aprova → saldo disponível
            (limites por operação + DIÁRIO da lib/config.ts)
 Compra:    checkout «Carteira» → débito atómico (BD recusa negativos)
            → encomenda «pago» → vendedor recebe LÍQUIDO em saldo_bloqueado
-             (comissão AngoStart: 5% criador · 10% domicílio · 6,5% remoto)
+             (comissão GOMBUONE: 5% criador · 10% domicílio · 6,5% remoto)
            → afiliado (se código) recebe AFFILIATE_COMMISSION_PERCENT no saldo
 Entrega:   admin marca «entregue» → saldo_bloqueado → saldo do vendedor
 Recusa:    admin marca «rejeitado/falhou» → reembolso automático ao comprador
@@ -450,7 +457,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 | Variável | Ativa |
 |---|---|
 | `BREVO_API_KEY` | envio real de emails (sem ela: modo log) |
-| `EMAIL_FROM` | remetente (`AngoStart <geral@angostart.ao>`) |
+| `EMAIL_FROM` | remetente (`GOMBUONE <geral@angostart.ao>`) |
 | `ADMIN_EMAIL` | email do admin total (referência; credenciais reais vivem só na BD com bcrypt) |
 | `CRON_SECRET` | protege o cron `/api/cron/daily-codes` (Bearer; obrigatória em produção) |
 | `BLOB_READ_WRITE_TOKEN` | **Fase 5** — upload de PDFs de infoprodutos (Vercel Blob Store); sem ela o upload responde com instrução clara |
@@ -465,7 +472,7 @@ Opcionais (funcionalidades premium degradam graciosamente sem elas):
 | `MIN_DEPOSIT_AMOUNT` / `MAX_DEPOSIT_AMOUNT` | `1000` / `200000` | limites por operação de depósito (Kz) |
 | `MIN_WITHDRAW_AMOUNT` / `MAX_WITHDRAW_AMOUNT` | `5000` / `100000` | limites por operação de saque (Kz) |
 | `MAX_DAILY_DEPOSIT` / `MAX_DAILY_WITHDRAW` | `500000` / `300000` | limites diários por utilizador (Kz) |
-| `COMMISSION_PRODUCT` | `5` | comissão AngoStart para criadores (%) |
+| `COMMISSION_PRODUCT` | `5` | comissão GOMBUONE para criadores (%) |
 | `COMMISSION_SERVICE_DOMICILIO` | `10` | comissão para prestadores ao domicílio (%) |
 | `COMMISSION_FREELANCER` | `6.5` | comissão para freelancers remotos (%) |
 
@@ -497,7 +504,7 @@ bash scripts/security-tests.sh https://angostart.vercel.app
 | 9 | `image_url: javascript:` | ✔ 400 |
 | 10 | Re-upload de comprovativo de convidado com telefone errado | ✔ 403 |
 
-Testes E2E KWiK (`bash scripts/test-kwik.sh`, servidor standalone): pedido com comprovativo → `aguardando_validacao`; referência `AngoStart-ORD-XXXXX` gerada; guards 401/403/400; sanitização XSS; limpeza automática dos dados de teste.
+Testes E2E KWiK (`bash scripts/test-kwik.sh`, servidor standalone): pedido com comprovativo → `aguardando_validacao`; referência `GOMBUONE-ORD-XXXXX` gerada; guards 401/403/400; sanitização XSS; limpeza automática dos dados de teste.
 
 Auditoria estática: `npx next-secure-check scan .` + `npx next-secret-guard scan` + `npm audit --omit=dev` — metodologia e triagem em [SECURITY.md](SECURITY.md).
 

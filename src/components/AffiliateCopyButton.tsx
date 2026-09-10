@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Botão "Copiar link de afiliado" (Fase 11, refinado na Fase 17).
+ * GOMBUONE — Botão "Copiar link de afiliado" (Fase 11, refinado na Fase 17).
  *
  * Componente reutilizável: gera `<origem><path>?ref=AFG-XXXXXX` com o
  * código do afiliado autenticado e copia para a área de transferência.

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Editor de Estabelecimento (Fase 16) no dashboard.
+ * GOMBUONE — Editor de Estabelecimento (Fase 16) no dashboard.
  *
  * Permite ao vendedor publicar o seu espaço (loja, hotel, empresa…) com:
  *  - nome, categoria, descrição, morada e horário;

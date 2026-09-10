@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Barra de navegação inferior para MOBILE (Fase 6, ponto 4).
+ * GOMBUONE — Barra de navegação inferior para MOBILE (Fase 6, ponto 4).
  *
  * Fase 16 (redesign): pílula flutuante com fundo escuro premium, cantos
  * arredondados e margem lateral — o conteúdo passa por baixo (body com

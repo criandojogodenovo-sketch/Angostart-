@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Pesquisa de prestadores de serviços (/prestadores).
+ * GOMBUONE — Pesquisa de prestadores de serviços (/prestadores).
  *
  * Pesquisa por nome, especialidade e cidade (ILIKE no PostgreSQL), com
  * filtros por tipo de serviço (domicílio/remoto) e ordenação por

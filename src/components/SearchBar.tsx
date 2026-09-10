@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Barra de pesquisa global.
+ * GOMBUONE — Barra de pesquisa global.
  * Escrever filtra o catálogo em tempo real (contexto global);
  * se o utilizador não estiver em /produtos, é redirecionado para lá.
  */

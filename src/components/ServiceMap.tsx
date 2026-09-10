@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Wrapper do mapa de serviços.
+ * GOMBUONE — Wrapper do mapa de serviços.
  * O Leaflet acede a `window` — carregamos o mapa com dynamic(ssr:false)
  * para evitar erros de SSR/hidratação.
  */

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Banner de anúncios/promoções (Fase 5).
+ * GOMBUONE — Banner de anúncios/promoções (Fase 5).
  * Mostra no topo do site os anúncios ativos visíveis ao utilizador
  * (promo, destaque, novidade — e exclusivo apenas para o admin total).
  */

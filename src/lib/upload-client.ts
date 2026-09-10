@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Helper de upload via CLIENTE (@vercel/blob/client).
+ * GOMBUONE — Helper de upload via CLIENTE (@vercel/blob/client).
  *
  * ═══════════════════════════════════════════════════════════════════
  * Fluxo em 2 passos que contorna o limite de 4.5 MB de corpo das
@@ -91,7 +91,7 @@ export function safeFileName(name: string, fallback: string): string {
  *
  * Sem este prefixo o upload até succeeds, mas o URL é REJEITADO ao
  * guardar (ex.: foto de perfil → 400 «deve ser enviada pelo upload da
- * AngoStart») ou devolve 404 ao ser servida.
+ * GOMBUONE») ou devolve 404 ao ser servida.
  */
 export function withTimestampPrefix(pathname: string): string {
   const idx = pathname.lastIndexOf('/');

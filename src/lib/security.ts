@@ -6,7 +6,7 @@ import { verifyAdminSession, ADMIN_COOKIE } from '@/lib/admin-session';
 import { isAdminRole, type Role } from '@/lib/roles';
 
 /**
- * AngoStart — Utilitários de segurança (server-side).
+ * GOMBUONE — Utilitários de segurança (server-side).
  *
  * - Sanitização de inputs (defesa em profundidade contra XSS armazenado —
  *   o React já escapa na renderização, mas nunca guardamos HTML ativo).

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Chat interno (Fase 5) — página protegida.
+ * GOMBUONE — Chat interno (Fase 5) — página protegida.
  *
  * Lista de conversas (cliente ↔ vendedor/prestador) + janela de mensagens.
  * - A conversa parte de um produto/serviço ("Falar com o vendedor").
@@ -62,7 +62,7 @@ export default function ChatPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center sm:px-6">
         <MessageCircle className="mx-auto h-12 w-12 text-blue-600" />
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Chat da AngoStart</h1>
+        <h1 className="mt-4 text-2xl font-bold text-slate-900">Chat da GOMBUONE</h1>
         <p className="mt-2 text-sm text-slate-500">
           Entra na tua conta para falar com vendedores e clientes — tudo protegido pela
           plataforma.
@@ -171,7 +171,7 @@ function ChatClient({ userId }: { userId: number }) {
       <h1 className="text-2xl font-bold text-slate-900">Chat</h1>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
         <ShieldAlert className="h-4 w-4 text-amber-500" />
-        Negocia sempre dentro da AngoStart — partilhar contactos é monitorizado e remove a tua proteção.
+        Negocia sempre dentro da GOMBUONE — partilhar contactos é monitorizado e remove a tua proteção.
       </p>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -289,7 +289,7 @@ function ChatClient({ userId }: { userId: number }) {
                   <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" />
                   {active.product_id && active.product_type === 'servico_domicilio'
                     ? '🔒 Antes do pagamento, a tua localização é partilhada apenas como zona aproximada (~500 m). Após o pagamento, o prestador vê a posição exata. Telefones e emails são bloqueados automaticamente.'
-                    : '🔒 Nunca partilhes telefones ou emails — toda a comunicação e pagamento são protegidos pela AngoStart.'}
+                    : '🔒 Nunca partilhes telefones ou emails — toda a comunicação e pagamento são protegidos pela GOMBUONE.'}
                 </p>
               </header>
 

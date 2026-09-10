@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Modal «Criar Publicação» (feed social).
+ * GOMBUONE — Modal «Criar Publicação» (feed social).
  *
  * Vendedor escreve título + conteúdo, anexa UMA imagem opcional
  * (upload directo ao Vercel Blob, namespace publicacoes/<id>/) e

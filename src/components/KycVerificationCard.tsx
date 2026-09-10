@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão «Verificação de Identidade» (Fase 12 + Fase 13).
+ * GOMBUONE — Cartão «Verificação de Identidade» (Fase 12 + Fase 13).
  *
  * KYC flexível orientado a FOTOS com carência de 30 dias:
  *  - not_submitted → CTA de upload + countdown «Faltam X dias»; pode vender.
@@ -289,7 +289,7 @@ export default function KycVerificationCard({
                 ? KYC_DOCUMENT_TYPE_LABELS[kyc.kyc_document_type as KycDocumentType] ?? 'Documento'
                 : 'Documento'}
             </p>
-            <p>Submetido para revisão da equipa AngoStart.</p>
+            <p>Submetido para revisão da equipa GOMBUONE.</p>
           </div>
         </div>
       )}
@@ -395,7 +395,7 @@ export default function KycVerificationCard({
           <p className="flex items-start gap-1.5 text-xs text-slate-400">
             <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             A foto é guardada em armazenamento privado e só é vista pela equipa de verificação
-            AngoStart — nunca fica pública.
+            GOMBUONE — nunca fica pública.
           </p>
         </div>
       )}

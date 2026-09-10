@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Card de produto (Fase 20 — redesign premium).
+ * GOMBUONE — Card de produto (Fase 20 — redesign premium).
  *
  * Referências (Nexora/Stufffus/Aeroflow): visual grande com zoom no
  * hover, badge de categoria, preço em destaque e clique na imagem abre

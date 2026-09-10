@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Secção "Comprovativos de pagamentos" (partilhada pelos
+ * GOMBUONE — Secção "Comprovativos de pagamentos" (partilhada pelos
  * painéis /admin e /admin-limitado).
  *
  * Lista as encomendas à espera de validação (KWiK, PayPay, Multicaixa

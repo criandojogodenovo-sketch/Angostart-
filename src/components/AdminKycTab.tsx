@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Aba «Verificação de Identidade» do admin (Fase 12 + Fase 13).
+ * GOMBUONE — Aba «Verificação de Identidade» do admin (Fase 12 + Fase 13).
  * KYC orientado a FOTOS: lista vendedores com documento submetido
  * (BI / Passaporte / Cartão de Eleitor), mostra a foto em miniatura
  * (ampliável) e permite Aprovar (selo azul) ou Rejeitar (com motivo

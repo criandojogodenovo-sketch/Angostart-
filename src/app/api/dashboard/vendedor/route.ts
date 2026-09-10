@@ -33,7 +33,7 @@ interface SellerOrderRow {
  * GET /api/dashboard/vendedor — painel PROFISSIONAL de vendas (Fase 5).
  *
  * KPIs: total de vendas, receita BRUTA, receita LÍQUIDA (após comissão
- * AngoStart configurada em lib/config.ts), comissão retida, número de
+ * GOMBUONE configurada em lib/config.ts), comissão retida, número de
  * clientes distintos, avaliação média, atividade recente (pedidos, chat,
  * avaliações) e alertas (reclamações / atividades suspeitas).
  */
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       perProduct.set(item.id, acc);
     }
 
-    /* Comissão AngoStart: sobre a receita confirmada, pelo perfil do vendedor */
+    /* Comissão GOMBUONE: sobre a receita confirmada, pelo perfil do vendedor */
     const commissionRetained = Math.floor((revenueConfirmed * commissionPercent) / 100);
     const revenueNet = Math.max(revenueConfirmed - commissionRetained, 0);
 

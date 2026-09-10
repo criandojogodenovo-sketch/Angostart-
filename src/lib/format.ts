@@ -1,5 +1,5 @@
 /**
- * AngoStart — Utilitários de formatação (valores em Kwanza).
+ * GOMBUONE — Utilitários de formatação (valores em Kwanza).
  */
 
 /** Formata um inteiro como "12.500 Kz" (formato usado em Angola). */

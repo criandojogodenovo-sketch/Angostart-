@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Hero personalizado por sessão (mascote 2.5D premium).
+ * GOMBUONE — Hero personalizado por sessão (mascote 2.5D premium).
  *
  * Grelha de 2 colunas — texto à esquerda, MASCOTE 2.5D à direita:
  *  - Visitante → ilustração premium a ACENAR (sem óculos, camisa cinza)

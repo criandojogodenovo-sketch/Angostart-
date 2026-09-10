@@ -3,7 +3,7 @@ import webpush from 'web-push';
 import { sql } from '@/lib/db';
 
 /**
- * AngoStart — Web Push (Fase 7) — notificações no telemóvel/browser.
+ * GOMBUONE — Web Push (Fase 7) — notificações no telemóvel/browser.
  *
  * 🔒 SEGURANÇA:
  * - `server-only`: as chaves VAPID privadas nunca saem do servidor.

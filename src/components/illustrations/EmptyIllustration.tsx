@@ -1,5 +1,5 @@
 /**
- * AngoStart — Ilustração de estado vazio (Fase 18).
+ * GOMBUONE — Ilustração de estado vazio (Fase 18).
  *
  * Caixa aberta amigável com partículas azul/roxo a subir + confeti discreto.
  * Usada em catálogos sem resultados, listas vazias e página 404.

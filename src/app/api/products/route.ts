@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'A tua verificação de identidade foi recusada pela equipa AngoStart — envia um novo documento no Painel de vendas (Verificação de Identidade) para voltar a publicar.',
+          'A tua verificação de identidade foi recusada pela equipa GOMBUONE — envia um novo documento no Painel de vendas (Verificação de Identidade) para voltar a publicar.',
         code: 'KYC_REJECTED',
       },
       { status: 403 }

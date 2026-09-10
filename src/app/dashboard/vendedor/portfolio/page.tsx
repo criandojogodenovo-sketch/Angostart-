@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Editor do portfólio público (/dashboard/vendedor/portfolio).
+ * GOMBUONE — Editor do portfólio público (/dashboard/vendedor/portfolio).
  *
  * Edita bio do portfólio, foto (URL), especialidade, cidade, link externo
  * e gere a galeria de trabalhos (imagens por URL https).
@@ -175,7 +175,7 @@ export default function PortfolioEditorPage() {
         </span>
         <h1 className="mt-5 text-2xl font-bold text-slate-900">Acesso restrito</h1>
         <p className="mt-2 text-sm text-slate-500">
-          O editor de portfólio é exclusivo para vendedores AngoStart.
+          O editor de portfólio é exclusivo para vendedores GOMBUONE.
         </p>
         <Button asChild className="mt-8 h-11 bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700">
           <Link href="/perfil">Entrar como vendedor</Link>

@@ -2,7 +2,7 @@ import 'server-only';
 import { SignJWT, jwtVerify } from 'jose';
 
 /**
- * AngoStart — Sessão privilegiada dos painéis admin (cookie HttpOnly + 2FA).
+ * GOMBUONE — Sessão privilegiada dos painéis admin (cookie HttpOnly + 2FA).
  *
  * Fluxo:
  *  1. Admin entra por /api/auth/login (JWT Bearer normal).

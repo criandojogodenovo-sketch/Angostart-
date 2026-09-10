@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Botão "Copiar link" (partilha pública).
+ * GOMBUONE — Botão "Copiar link" (partilha pública).
  *
  * ⚠️ Diferença do link de afiliado (Fase 11/17): este botão copia o URL
  * público LIMPO do produto/serviço/espaço — sem `?ref=` e sem tracking

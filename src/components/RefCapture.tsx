@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Captura de link de afiliado (Fase 9 + Fase 10).
+ * GOMBUONE — Captura de link de afiliado (Fase 9 + Fase 10).
  *
  * Montado no layout: lê ?ref=AFG-XXXXXX (e ?sub=campanha — Fase 10) do
  * URL, guarda no localStorage durante 30 dias (janela configurável via

@@ -3,9 +3,9 @@ import { Loader2 } from "lucide-react";
 import PublicacoesClient from "@/components/PublicacoesClient";
 
 export const metadata = {
-  title: "Publicações — AngoStart",
+  title: "Publicações — GOMBUONE",
   description:
-    "Feed social da AngoStart: novidades de produtos e serviços publicadas pelos vendedores. Gosta, comenta e contacta o vendedor pelo código de contacto.",
+    "Feed social da GOMBUONE: novidades de produtos e serviços publicadas pelos vendedores. Gosta, comenta e contacta o vendedor pelo código de contacto.",
 };
 
 export default function PublicacoesPage() {

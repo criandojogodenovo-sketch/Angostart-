@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Mapeamento de nomes de ícones (guardados na BD) para
+ * GOMBUONE — Mapeamento de nomes de ícones (guardados na BD) para
  * componentes lucide-react, com fallback seguro.
  */
 

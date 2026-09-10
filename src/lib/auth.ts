@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 
 /**
- * AngoStart — Autenticação multi-perfil (server-side)
+ * GOMBUONE — Autenticação multi-perfil (server-side)
  *
  * ⚠️ SERVER-ONLY: lê JWT_SECRET e DATABASE_URL — protegido pelo pacote
  * `server-only`, nunca pode ser importado por um Client Component.

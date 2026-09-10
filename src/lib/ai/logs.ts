@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 21: registo de chamadas de IA (auditoria interna).
+ * GOMBUONE — Fase 21: registo de chamadas de IA (auditoria interna).
  *
  * Cada chamada que passa pela cadeia de fallback escreve uma linha em
  * `ai_logs` (tarefa, provider, modelo, resultado, latência, erro). A

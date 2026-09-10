@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14b: chamadas de TEXTO com cadeia de fallback.
+ * GOMBUONE — Fase 14b: chamadas de TEXTO com cadeia de fallback.
  *
  * Ordem tentada (providers com chave configurada):
  *   B.AI → OpenRouter → Gemini → Groq → Cerebras → SambaNova

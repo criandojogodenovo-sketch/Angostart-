@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Carrinho de compras.
+ * GOMBUONE — Carrinho de compras.
  * Adicionar/remover produtos, ajustar quantidades, total em Kz e
  * finalização do pedido com pagamento KWiK (transferência instantânea
  * manual) + upload de comprovativo, validado no painel admin.
@@ -1078,7 +1078,7 @@ export default function CarrinhoPage() {
                     />
                     <span className="text-sm">
                       <span className="font-semibold text-slate-900">
-                        Carteira AngoStart{' '}
+                        Carteira GOMBUONE{' '}
                         {walletSaldo !== null && (
                           <span
                             className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
@@ -1147,7 +1147,7 @@ export default function CarrinhoPage() {
                       </li>
                       <li>
                         A referência do pedido (ex.:{' '}
-                        <span className="font-mono">AngoStart-ORD-00042</span>)
+                        <span className="font-mono">GOMBUONE-ORD-00042</span>)
                         aparece logo após confirmar — indica-a na descrição da
                         transferência.
                       </li>
@@ -1215,7 +1215,7 @@ export default function CarrinhoPage() {
 
               <p className="text-center text-xs text-slate-400">
                 Pagamento por KWiK, PayPay ou Multicaixa Express (transferência)
-                ou carteira AngoStart — negociação e apoio sempre no chat da
+                ou carteira GOMBUONE — negociação e apoio sempre no chat da
                 plataforma.
               </p>
             </form>

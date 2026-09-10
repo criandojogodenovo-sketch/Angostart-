@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Gateway MoMenu (Fase 6, ponto 9) — PREPARAÇÃO.
+ * GOMBUONE — Gateway MoMenu (Fase 6, ponto 9) — PREPARAÇÃO.
  *
  * O MoMenu é um gateway angolano com suporte a Multicaixa Express e
  * Referências. A integração em si não tem custo de código; a MoMenu cobra

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Secção de comentários (Fase 11).
+ * GOMBUONE — Secção de comentários (Fase 11).
  *
  * Reutilizável para os 3 alvos do sistema:
  *   - target_type='product' → página de detalhe do produto
@@ -190,7 +190,7 @@ export default function CommentsSection({
             <li key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-900">
-                  {c.user_name ?? 'Utilizador AngoStart'}
+                  {c.user_name ?? 'Utilizador GOMBUONE'}
                   {c.user_username && (
                     <span className="ml-1 text-xs font-normal text-slate-400">@{c.user_username}</span>
                   )}

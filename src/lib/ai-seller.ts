@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 14: análise de perfil de vendedor por IA (multi-provider).
+ * GOMBUONE — Fase 14: análise de perfil de vendedor por IA (multi-provider).
  *
  * A nota 0-10 avalia a QUALIDADE DO PERFIL (clareza da bio, credibilidade,
  * especificidade) — NUNCA a pessoa. É um sinal de destaque para os
@@ -40,7 +40,7 @@ export interface SellerRatingResult {
   keywordIssues?: string;
 }
 
-const ANALYSIS_SYSTEM = `Analisas perfis de vendedores da AngoStart (marketplace angolano) e dás uma nota de 0 a 10 sobre a QUALIDADE DO PERFIL — nunca sobre a pessoa.
+const ANALYSIS_SYSTEM = `Analisas perfis de vendedores da GOMBUONE (marketplace angolano) e dás uma nota de 0 a 10 sobre a QUALIDADE DO PERFIL — nunca sobre a pessoa.
 
 Critérios:
 - Clareza: diz exatamente o que vende/faz e para quem (0-4)

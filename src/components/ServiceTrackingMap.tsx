@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Wrapper do mapa de rastreamento.
+ * GOMBUONE — Wrapper do mapa de rastreamento.
  * O Leaflet acede a `window` — carregamos com dynamic(ssr:false).
  */
 

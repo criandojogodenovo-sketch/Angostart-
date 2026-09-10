@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão «Criar a minha loja» (Fase 17).
+ * GOMBUONE — Cartão «Criar a minha loja» (Fase 17).
  *
  * Passo opcional mostrado logo APÓS o registo de vendedor (e reutilizável
  * no dashboard): a loja já foi criada automaticamente com o nome da conta

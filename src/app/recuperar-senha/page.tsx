@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Recuperar senha (Fase 5).
+ * GOMBUONE — Recuperar senha (Fase 5).
  * Envia um link de redefinição (1 h, uso único) para o email da conta.
  */
 
@@ -48,7 +48,7 @@ export default function RecuperarSenhaPage() {
             <MailCheck className="mx-auto h-12 w-12 text-teal-500" />
             <h1 className="mt-4 text-xl font-bold text-slate-900">Verifica o teu email</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Se <strong>{email}</strong> existir na AngoStart, enviámos um link para
+              Se <strong>{email}</strong> existir na GOMBUONE, enviámos um link para
               redefinires a senha. O link expira em 1 hora.
             </p>
             <p className="mt-2 text-xs text-slate-400">

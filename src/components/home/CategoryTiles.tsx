@@ -1,5 +1,5 @@
 /**
- * AngoStart — Tiles de Categoria da Home (Fase 18).
+ * GOMBUONE — Tiles de Categoria da Home (Fase 18).
  *
  * 4 categorias em destaque, logo abaixo da Barra de Valor: cada tile tem
  * ícone grande (gradiente azul/roxo), nome, descrição curta e botão

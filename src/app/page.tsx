@@ -10,7 +10,7 @@ import PatternWaves from "@/components/illustrations/PatternWaves";
 import { FadeIn, Parallax } from "@/components/motion";
 
 /**
- * AngoStart — Home como HUB DE NAVEGAÇÃO (Fase 18).
+ * GOMBUONE — Home como HUB DE NAVEGAÇÃO (Fase 18).
  *
  * Ordem orientada à AÇÃO do utilizador:
  *   1. Hero (saudação personalizada + CTAs contextuais)
@@ -52,7 +52,7 @@ export default function HomePage() {
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500 sm:text-base">
             Os favoritos dos nossos clientes esta semana, direto da base de
-            dados AngoStart.
+            dados GOMBUONE.
           </p>
         </div>
         <FeaturedProducts />
@@ -80,7 +80,7 @@ export default function HomePage() {
             </h2>
             <p className="relative mx-auto mt-3 max-w-xl text-sm text-slate-300 sm:text-base">
               Cria a tua encomenda em minutos e recebe a confirmação no WhatsApp.
-              A equipa AngoStart está disponível de segunda a sábado, das 08h às
+              A equipa GOMBUONE está disponível de segunda a sábado, das 08h às
               18h.
             </p>
             {/* CTA contextual — logados não vêem registo */}

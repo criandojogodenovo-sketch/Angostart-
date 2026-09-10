@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession, ADMIN_COOKIE } from '@/lib/admin-session';
 
 /**
- * AngoStart — Proxy de proteção dos painéis ocultos (ex-middleware, Next 16).
+ * GOMBUONE — Proxy de proteção dos painéis ocultos (ex-middleware, Next 16).
  *
  * /admin            → exige cookie de sessão 2FA com role='admin'
  * /admin-limitado   → exige role='admin_limitado'

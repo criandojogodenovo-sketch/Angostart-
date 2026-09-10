@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Sino de notificações (Fase 5).
+ * GOMBUONE — Sino de notificações (Fase 5).
  * Mostra o contador de não lidas e a lista das últimas notificações.
  * Notificações criadas por: chat, validações de encomenda, carteira,
  * bloqueios anti-burla e anúncios importantes.

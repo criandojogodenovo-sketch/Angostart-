@@ -20,7 +20,7 @@ export const maxDuration = 60;
 export const preferredRegion = 'iad1';
 
 /**
- * POST /api/ai/chat — Fase 14/21: chatbot de suporte AngoStart (multimodal).
+ * POST /api/ai/chat — Fase 14/21: chatbot de suporte GOMBUONE (multimodal).
  *
  * - Roteamento (Fase 21): tarefa 'chat' → B.AI Hy3 (Tencent, ID `hy3`;
  *   antes MiMo-V2.5), com fallback OpenRouter free. Chaves nunca expostas.
@@ -62,7 +62,7 @@ const AUDIO_FORMATS: Record<string, string> = {
 };
 
 const TRANSCRIBE_SYSTEM =
-  'És um transcritor de áudio para a plataforma AngoStart. Transcreve ' +
+  'És um transcritor de áudio para a plataforma GOMBUONE. Transcreve ' +
   'LITERALMENTE o áudio em português (pode ter sotaque angolano e ruído de ' +
   'fundo). Responde APENAS com o texto transcrito, sem comentários, sem ' +
   'markdown, sem aspas. Se o áudio estiver ininteligível, responde ' +
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({
       reply:
-        'Não posso alterar as minhas regras de funcionamento — sou o suporte da AngoStart. ' +
+        'Não posso alterar as minhas regras de funcionamento — sou o suporte da GOMBUONE. ' +
         'Como te posso ajudar com compras, vendas, Publicações, Pedidos no Ar, carteira ou a tua conta?',
       flagged: true,
     });

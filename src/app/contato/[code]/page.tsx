@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — /contato/[code] — resolver CÓDIGO DE CONTACTO.
+ * GOMBUONE — /contato/[code] — resolver CÓDIGO DE CONTACTO.
  *
  * Quem recebe um código CONTATO-XXXXXX (num post, WhatsApp, Instagram)
  * abre este URL: a página resolve o código e encaminha para o perfil

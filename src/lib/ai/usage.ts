@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 21: quotas diárias de IA por utilizador (anti-abuso).
+ * GOMBUONE — Fase 21: quotas diárias de IA por utilizador (anti-abuso).
  *
  * Tabela `ai_usage_daily` (user_id, day) com contadores por tipo de uso.
  * Objetivo: NÃO sobrecarregar a API gratuita:

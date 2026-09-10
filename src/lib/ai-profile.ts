@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * AngoStart — Fase 21: análise de perfil PEDIDA PELO PRÓPRIO vendedor
+ * GOMBUONE — Fase 21: análise de perfil PEDIDA PELO PRÓPRIO vendedor
  * (self-service) — «Analisar o meu perfil com IA».
  *
  * Diferenças para lib/ai-seller.ts (que é o batch ADMIN/cron):
@@ -32,7 +32,7 @@ export interface MyProfileAnalysis {
   pontos_a_melhorar: string[];
 }
 
-const SYSTEM = `Analisa o perfil de um vendedor da AngoStart (marketplace angolano) e responde AO PRÓPRIO vendedor com um parecer prático e construtivo, em português de Angola.
+const SYSTEM = `Analisa o perfil de um vendedor da GOMBUONE (marketplace angolano) e responde AO PRÓPRIO vendedor com um parecer prático e construtivo, em português de Angola.
 
 A nota 0-10 avalia a QUALIDADE DO PERFIL (clareza, credibilidade, completude, fotos/descrições e reputação) — nunca a pessoa.
 

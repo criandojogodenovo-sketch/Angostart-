@@ -4,7 +4,7 @@ import { getBusinessConfig } from '@/lib/config';
 import { getEffectiveCommissionPercent } from '@/lib/commissions';
 
 /**
- * AngoStart — Carteira (Fase W + Fase 5) — TODA a lógica no servidor.
+ * GOMBUONE — Carteira (Fase W + Fase 5) — TODA a lógica no servidor.
  *
  * 🔒 SEGURANÇA:
  * - `server-only` garante que saldos e movimentações NUNCA entram no
@@ -73,9 +73,9 @@ export interface WalletTx {
   created_at: string;
 }
 
-/** Referência legível para depósitos/saques (ex.: AngoStart-DEP-00042). */
+/** Referência legível para depósitos/saques (ex.: GOMBUONE-DEP-00042). */
 export function walletReference(prefix: 'DEP' | 'WD', id: number): string {
-  return `AngoStart-${prefix}-${String(id).padStart(5, '0')}`;
+  return `GOMBUONE-${prefix}-${String(id).padStart(5, '0')}`;
 }
 
 function toNumber(value: unknown): number {
@@ -326,7 +326,7 @@ export async function payWithWallet(
     INSERT INTO wallet_transactions
       (user_id, tipo, valor, status, referencia, order_id, descricao)
     VALUES (${userId}, 'pagamento', ${totalKz}, 'concluido',
-            ${'AngoStart-ORD-' + String(orderId).padStart(5, '0')}, ${orderId},
+            ${'GOMBUONE-ORD-' + String(orderId).padStart(5, '0')}, ${orderId},
             'Pagamento de encomenda com saldo da carteira')
   `;
 }
@@ -363,7 +363,7 @@ async function insertOrderTxOnce(input: {
       (user_id, tipo, valor, status, order_id, descricao, referencia, commission_kz)
     SELECT ${input.userId}, ${input.tipo}, ${input.valor}, ${input.status},
            ${input.orderId}, ${input.descricao},
-           ${'AngoStart-ORD-' + String(input.orderId).padStart(5, '0')},
+           ${'GOMBUONE-ORD-' + String(input.orderId).padStart(5, '0')},
            ${input.commissionKz ?? 0}
     WHERE NOT EXISTS (
       SELECT 1 FROM wallet_transactions

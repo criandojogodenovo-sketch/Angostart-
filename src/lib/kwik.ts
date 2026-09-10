@@ -1,13 +1,16 @@
 /**
- * AngoStart — KWiK (Kwanza Instantâneo): pagamento MANUAL por transferência.
+ * GOMBUONE (evolução da AngoStart) — KWiK (Kwanza Instantâneo): pagamento MANUAL por transferência.
  *
  * Fluxo:
  *  1. Cliente escolhe "KWiK (Transferência Instantânea)" no carrinho.
- *  2. Transfere o valor exato para o número KWiK da AngoStart, indicando a
- *     referência do pedido (ex.: AngoStart-ORD-00042) na descrição.
+ *  2. Transfere o valor exato para o número KWiK da GOMBUONE, indicando a
+ *     referência do pedido (ex.: GOMBUONE-ORD-00042) na descrição.
  *  3. Anexa o comprovativo (foto ou PDF) no campo de upload.
  *  4. O pedido fica com status `aguardando_validacao` até um admin
  *     (total ou limitado) aprovar (`pago`) ou rejeitar (`rejeitado`).
+ *
+ * Rebranding: novos pedidos usam GOMBUONE-ORD-… (a referência é gerada e
+ * comunicada no mesmo fluxo — instruções e email dizem o mesmo prefixo).
  *
  * ⚠️ Este módulo é partilhado (cliente + servidor): contém apenas
  * constantes públicas e funções puras — SEM segredos.
@@ -61,10 +64,10 @@ export const ORDER_STATUS_BADGES: Record<string, string> = {
 
 /**
  * Referência do pedido para identificar a transferência.
- * Ex.: orderId=42 → "AngoStart-ORD-00042"
+ * Ex.: orderId=42 → "GOMBUONE-ORD-00042"
  */
 export function buildKwikReference(orderId: number): string {
-  return `AngoStart-ORD-${String(orderId).padStart(5, '0')}`;
+  return `GOMBUONE-ORD-${String(orderId).padStart(5, '0')}`;
 }
 
 /** Mensagem de transferência pronta a copiar (descrição do pagamento). */

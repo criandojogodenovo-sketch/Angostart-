@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Transição de página (Fase 20).
+ * GOMBUONE — Transição de página (Fase 20).
  *
  * `template.tsx` remonta em cada navegação do App Router → entrada
  * fade + slide suave em todas as rotas. Apenas opacity/transform

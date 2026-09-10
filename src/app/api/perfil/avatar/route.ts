@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'A foto de perfil deve ser enviada pelo upload da AngoStart (escolhe um ficheiro).',
+          'A foto de perfil deve ser enviada pelo upload da GOMBUONE (escolhe um ficheiro).',
       },
       { status: 400 }
     );

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Publicações: feed social (substitui o extinto Busbt).
+ * GOMBUONE — Publicações: feed social (substitui o extinto Busbt).
  *
  * - Separadores «Comunidade» (feed público) e «As Minhas» (do vendedor).
  * - Cartões com autor, imagem, título, conteúdo, «gostar» (optimista),

@@ -1,5 +1,5 @@
 /**
- * AngoStart — «Como Funciona» compacto na Home (Fase 18).
+ * GOMBUONE — «Como Funciona» compacto na Home (Fase 18).
  *
  * 3 passos com ícones e texto curto — substitui as longas explicações.
  * Server component estático.

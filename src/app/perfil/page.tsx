@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Perfil multi-perfil (marketplace)
+ * GOMBUONE — Perfil multi-perfil (marketplace)
  *
  * - Sem sessão: escolha entre "Sou Cliente" e "Quero Vender" com
  *   formulários de login/registo dedicados (o vendedor escolhe o tipo:
@@ -175,7 +175,7 @@ function AuthGate() {
             <UserRound className="h-7 w-7" />
           </span>
           <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">
-            Bem-vindo(a) à AngoStart
+            Bem-vindo(a) à GOMBUONE
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
             Entra na tua conta ou cria um perfil novo. Escolhe a opção que
@@ -348,7 +348,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
         });
         toast({
           title: 'Conta criada!',
-          description: `Bem-vindo(a) à AngoStart, ${user.name.split(' ')[0]}.`,
+          description: `Bem-vindo(a) à GOMBUONE, ${user.name.split(' ')[0]}.`,
         });
       } else {
         const user = await registerVendedor({
@@ -854,7 +854,7 @@ function AuthForms({ kind, onBack }: { kind: AccountKind; onBack: () => void }) 
                   >
                     Política de Privacidade
                   </Link>{' '}
-                  da AngoStart.
+                  da GOMBUONE.
                 </span>
               </label>
             </div>
@@ -991,7 +991,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   function handleLogout() {
     onLogout();
-    toast({ title: 'Sessão terminada', description: 'Volta sempre à AngoStart!' });
+    toast({ title: 'Sessão terminada', description: 'Volta sempre à GOMBUONE!' });
   }
 
   /**
@@ -1067,7 +1067,7 @@ function ClientProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
       }
       toast({
         title: 'Disputa aberta ✓',
-        description: 'A equipa AngoStart vai analisar e responder por email.',
+        description: 'A equipa GOMBUONE vai analisar e responder por email.',
       });
       setDisputes((prev) => [
         { id: data.dispute!.id, order_id: orderId, status: 'aberta', resolution: null },
@@ -1366,7 +1366,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
 
   function handleLogout() {
     onLogout();
-    toast({ title: 'Sessão terminada', description: 'Volta sempre à AngoStart!' });
+    toast({ title: 'Sessão terminada', description: 'Volta sempre à GOMBUONE!' });
   }
 
   const sellerInfo: { icon: typeof Mail; label: string; value: string | null }[] = [];
@@ -1468,7 +1468,7 @@ function SellerProfile({ user, onLogout }: { user: AuthUser; onLogout: () => voi
                 <CircleDollarSign className="mx-auto h-8 w-8 text-slate-300" />
                 <p className="mt-2 text-sm text-slate-500">
                   Ainda não publicaste nada. Adiciona o teu primeiro produto ou
-                  serviço e aparece no catálogo da AngoStart.
+                  serviço e aparece no catálogo da GOMBUONE.
                 </p>
                 <Button
                   onClick={() => router.push('/adicionar-produto')}
@@ -1623,7 +1623,7 @@ function DomicilioServiceCard({
         title: 'Serviço concluído ✓',
         description:
           data.message ??
-          'Obrigado! O pagamento foi libertado ao prestador da AngoStart.',
+          'Obrigado! O pagamento foi libertado ao prestador da GOMBUONE.',
       });
       onConfirmed();
     } catch {

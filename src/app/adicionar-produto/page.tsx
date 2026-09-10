@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Publicar / editar produto ou serviço (apenas vendedores).
+ * GOMBUONE — Publicar / editar produto ou serviço (apenas vendedores).
  *
  * - Sem sessão → convite a entrar em /perfil
  * - Cliente → aviso de que apenas vendedores publicam
@@ -230,7 +230,7 @@ function AdicionarProdutoContent() {
           A tua conta é de cliente
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Para vender na AngoStart cria uma conta de vendedor — podes usar
+          Para vender na GOMBUONE cria uma conta de vendedor — podes usar
           outro email ou gerir isso mais tarde.
         </p>
         <Button

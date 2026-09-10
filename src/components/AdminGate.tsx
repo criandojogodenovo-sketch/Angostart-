@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Porta de entrada dos painéis de administração.
+ * GOMBUONE — Porta de entrada dos painéis de administração.
  *
  * Dois modos de autenticação:
  *  - 'password' (Admin Total /admin): email + palavra-passe → 2FA.
@@ -423,7 +423,7 @@ export default function AdminGate({ title, authMode = 'password', children }: Ad
           )}
         </div>
         <p className="mt-4 text-center text-xs text-slate-600">
-          AngoStart — painel oculto (não indexado). <Link href="/" className="underline hover:text-slate-400">Voltar ao site</Link>
+          GOMBUONE — painel oculto (não indexado). <Link href="/" className="underline hover:text-slate-400">Voltar ao site</Link>
         </p>
       </div>
     </div>

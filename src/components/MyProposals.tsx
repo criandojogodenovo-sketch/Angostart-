@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Minhas propostas enviadas (Fase 7).
+ * GOMBUONE — Minhas propostas enviadas (Fase 7).
  * O cliente acompanha a negociação, vê o histórico de contrapropostas e
  * aceita os termos acordados (gera pedido) ou responde com nova oferta.
  */

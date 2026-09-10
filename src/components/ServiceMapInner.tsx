@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Mapa de serviços ao domicílio (Leaflet + tema escuro).
+ * GOMBUONE — Mapa de serviços ao domicílio (Leaflet + tema escuro).
  *
  * Requisito premium: tiles CARTO Dark Matter (escuros) para combinar com
  * o design #0F172A. Solicita a localização do utilizador (Geolocation API),

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Imagem PRIVADA autenticada (Fase 12).
+ * GOMBUONE — Imagem PRIVADA autenticada (Fase 12).
  *
  * Documentos KYC são servidos por GET /api/kyc/document/[...path], que
  * exige Bearer JWT — mas tags <img src> não conseguem enviar headers.

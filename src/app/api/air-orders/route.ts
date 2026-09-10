@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Por privacidade e segurança, não inclucas telefones, emails ou WhatsApp no pedido. Toda a comunicação passa pelo chat da AngoStart.',
+            'Por privacidade e segurança, não inclucas telefones, emails ou WhatsApp no pedido. Toda a comunicação passa pelo chat da GOMBUONE.',
           blocked: 'contact_sharing',
         },
         { status: 400 }

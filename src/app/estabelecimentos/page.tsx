@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Diretório de Estabelecimentos (/estabelecimentos, Fase 16).
+ * GOMBUONE — Diretório de Estabelecimentos (/estabelecimentos, Fase 16).
  *
  * Lista de espaços comerciais publicados pelos vendedores (lojas, hotéis,
  * oficinas, salões…) com filtros por categoria e cidade. Cada cartão liga
@@ -77,7 +77,7 @@ export default function EstabelecimentosPage() {
           </h1>
         </div>
         <p className="max-w-2xl text-sm text-slate-600">
-          Espaços comerciais na AngoStart — lojas, hotéis, oficinas e salões com
+          Espaços comerciais na GOMBUONE — lojas, hotéis, oficinas e salões com
           localização fixa no mapa, horário e serviços à venda. Encontra perto de ti e
           compra com a segurança da plataforma.
         </p>

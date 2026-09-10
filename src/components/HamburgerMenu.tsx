@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Menu móvel (hambúrguer) com navegação, pesquisa e contactos.
+ * GOMBUONE — Menu móvel (hambúrguer) com navegação, pesquisa e contactos.
  */
 
 import Link from 'next/link';
@@ -22,6 +22,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Store,
+  Target,
   User,
   Wallet,
   Wrench,
@@ -35,6 +36,7 @@ import { useAuth } from '@/context/AuthContext';
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/produtos', label: 'Produtos', icon: ShoppingBag },
+  { href: '/campanhas', label: 'Campanhas', icon: Target },
   { href: '/pedidos', label: 'Pedidos', icon: Megaphone },
   { href: '/estabelecimentos', label: 'Espaços', icon: Building2 },
   { href: '/lojas', label: 'Lojas', icon: Store },
@@ -249,7 +251,7 @@ export default function HamburgerMenu({
               href="https://facebook.com"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Facebook da AngoStart"
+              aria-label="Facebook da GOMBUONE"
               className="rounded-full bg-white/10 p-2 hover:bg-blue-600 hover:text-white"
             >
               <Facebook className="h-4 w-4" />
@@ -258,7 +260,7 @@ export default function HamburgerMenu({
               href="https://instagram.com"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Instagram da AngoStart"
+              aria-label="Instagram da GOMBUONE"
               className="rounded-full bg-white/10 p-2 hover:bg-blue-600 hover:text-white"
             >
               <Instagram className="h-4 w-4" />

@@ -38,7 +38,7 @@ export const preferredRegion = 'iad1';
  * - A chave do provider vive só no servidor (lib/ai) — nunca no cliente.
  */
 
-const SUGGEST_SYSTEM = `Sugeres palavras-chave (keywords) de busca para produtos e serviços da AngoStart, um marketplace angolano.
+const SUGGEST_SYSTEM = `Sugeres palavras-chave (keywords) de busca para produtos e serviços da GOMBUONE, um marketplace angolano.
 
 Regras:
 - Máximo ${MAX_KEYWORDS} keywords, em português de Angola, minúsculas, sem acentos desnecessários.

@@ -1,5 +1,5 @@
 /**
- * AngoStart — Fase 21: roteamento de tarefas de IA por modelo/chave.
+ * GOMBUONE — Fase 21: roteamento de tarefas de IA por modelo/chave.
  *
  * Client-safe (sem 'server-only') para poder ser testado com bun e
  * reutilizado pela UI admin — NUNCA contém chaves, apenas os NOMES das

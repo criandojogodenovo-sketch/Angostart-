@@ -312,7 +312,7 @@ export async function PATCH(
       INSERT INTO orders (customer_name, customer_phone, customer_email, items, total_kz,
                           status, delivery_type, notes, user_id, payment_method)
       VALUES (
-        ${info.client_name || 'Cliente AngoStart'},
+        ${info.client_name || 'Cliente GOMBUONE'},
         ${info.client_phone || '—'},
         ${info.client_email},
         ${JSON.stringify(items)}::jsonb,

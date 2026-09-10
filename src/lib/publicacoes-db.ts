@@ -4,7 +4,7 @@ import { sql } from '@/lib/db';
 import { getAuthUser, type AuthUser } from '@/lib/auth';
 
 /**
- * AngoStart — Camada de dados das Publicações (feed social).
+ * GOMBUONE — Camada de dados das Publicações (feed social).
  *
  * Substitui o antigo Busbt (vídeo/Mux — removido por completo).
  *

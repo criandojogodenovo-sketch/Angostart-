@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Contexto de autenticação multi-perfil
+ * GOMBUONE — Contexto de autenticação multi-perfil
  *
  * - Guarda o JWT em localStorage e restaura a sessão ao carregar a app
  *   (token → GET /api/auth/me).

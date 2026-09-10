@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Fase 21: «Analisar o meu perfil com IA» (self-service).
+ * GOMBUONE — Fase 21: «Analisar o meu perfil com IA» (self-service).
  *
  * Cartão no /perfil do vendedor: um clique envia bio + produtos/keywords +
  * avaliações para /api/ai/profile-analysis (tarefa 'chat' → Hy3/Tencent no

@@ -1,5 +1,5 @@
 /**
- * AngoStart — Barra de Valor da Home (Fase 18).
+ * GOMBUONE — Barra de Valor da Home (Fase 18).
  *
  * Faixa fina horizontal logo abaixo do Hero com os 4 benefícios-chave.
  * Server component estático — zero JS, zero pedidos.
@@ -37,7 +37,7 @@ const VALUES: { icon: LucideIcon; label: string; hint: string; tone: string }[] 
 
 export default function ValueBar() {
   return (
-    <section aria-label="Benefícios da AngoStart" className="border-y border-blue-100/80 bg-white/70 backdrop-blur-sm">
+    <section aria-label="Benefícios da GOMBUONE" className="border-y border-blue-100/80 bg-white/70 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <ul className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 lg:grid-cols-4">
           {VALUES.map(({ icon: Icon, label, hint, tone }) => (

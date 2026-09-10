@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Portfólio público (/portfolio/[username]).
+ * GOMBUONE — Portfólio público (/portfolio/[username]).
  *
  * Mini-Loja (Fase 6, ponto 1): cabeçalho com estatísticas públicas
  * (avaliação média, produtos publicados, clientes servidos), produtos à
@@ -163,7 +163,7 @@ export default function PortfolioPublicoPage() {
         </span>
         <h1 className="mt-5 text-2xl font-bold text-slate-900">Portfólio não encontrado</h1>
         <p className="mt-2 text-sm text-slate-500">
-          O utilizador «{username}» não existe ou não é um vendedor AngoStart.
+          O utilizador «{username}» não existe ou não é um vendedor GOMBUONE.
         </p>
         <Button asChild className="mt-8 h-12 bg-blue-600 px-8 font-semibold text-white hover:bg-blue-700">
           <Link href="/produtos">
@@ -515,7 +515,7 @@ export default function PortfolioPublicoPage() {
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">Como trabalho</h2>
         <ol className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { n: 1, t: 'Pedido', d: 'Envias o pedido pelo chat AngoStart, sem contactos expostos.' },
+            { n: 1, t: 'Pedido', d: 'Envias o pedido pelo chat GOMBUONE, sem contactos expostos.' },
             { n: 2, t: 'Proposta', d: 'O prestador responde com âmbito, prazo e preço em Kwanzas.' },
             { n: 3, t: 'Execução', d: 'Trabalho acompanado — acompanhas cada atualização na plataforma.' },
             { n: 4, t: 'Entrega', d: 'Confirmas a entrega e só então o pagamento é libertado.' },

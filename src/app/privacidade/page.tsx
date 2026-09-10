@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Política de Privacidade — AngoStart',
+  title: 'Política de Privacidade — GOMBUONE',
   description:
-    'Como a AngoStart recolhe, usa e protege os dados pessoais dos utilizadores da plataforma.',
+    'Como a GOMBUONE recolhe, usa e protege os dados pessoais dos utilizadores da plataforma.',
 };
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
@@ -59,7 +59,7 @@ export default function PrivacidadePage() {
     <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <h1 className="text-3xl font-bold text-slate-900">Política de Privacidade</h1>
       <p className="mt-2 text-sm text-slate-500">
-        Última atualização: Agosto 2026 · A AngoStart — marketplace angolano
+        Última atualização: Agosto 2026 · A GOMBUONE — marketplace angolano
       </p>
 
       <div className="mt-8 space-y-8">

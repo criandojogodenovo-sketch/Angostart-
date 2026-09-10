@@ -1,5 +1,5 @@
 /**
- * AngoStart — Lib partilhado do sistema «Pedidos no Ar» (Fase 16).
+ * GOMBUONE — Lib partilhado do sistema «Pedidos no Ar» (Fase 16).
  *
  * Client-safe (sem 'server-only') — usado pelas rotas API e pela página
  * /pedidos. Categorias alinhadas com o diretório de prestadores

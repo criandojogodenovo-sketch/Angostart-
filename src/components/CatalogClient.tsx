@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Catálogo completo com filtro por tipo + pesquisa global.
+ * GOMBUONE — Catálogo completo com filtro por tipo + pesquisa global.
  * Grid responsivo (1 → 2 → 3 → 4 colunas).
  */
 
@@ -104,7 +104,7 @@ export default function CatalogClient() {
       {/* Cabeçalho + pesquisa ativa */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          Catálogo AngoStart
+          Catálogo GOMBUONE
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           Infoprodutos, produtos físicos e serviços — tudo em Kwanzas, com
@@ -176,14 +176,14 @@ export default function CatalogClient() {
             <>
               <p className="font-medium text-slate-700">Catálogo em atualização</p>
               <p className="max-w-sm text-sm text-slate-500">
-                Ainda não há produtos publicados — os vendedores AngoStart estão
+                Ainda não há produtos publicados — os vendedores GOMBUONE estão
                 a preparar novidades. Volta em breve!
               </p>
               <Button
                 asChild
                 className="mt-2 bg-blue-600 text-white hover:bg-blue-700"
               >
-                <Link href="/perfil">Quero vender na AngoStart</Link>
+                <Link href="/perfil">Quero vender na GOMBUONE</Link>
               </Button>
             </>
           ) : (

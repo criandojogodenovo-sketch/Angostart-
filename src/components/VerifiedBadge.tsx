@@ -1,5 +1,5 @@
 /**
- * AngoStart — Selo azul de verificação (Fase 9).
+ * GOMBUONE — Selo azul de verificação (Fase 9).
  * Exibido ao lado do nome de vendedores com BI aprovado pelo admin
  * (is_verified_bi = TRUE) — inspirado nos selos do Fiverr/Instagram.
  */
@@ -7,7 +7,7 @@
 export default function VerifiedBadge({ size = 16 }: { size?: number }) {
   return (
     <span
-      title="Vendedor verificado — identidade confirmada pela AngoStart"
+      title="Vendedor verificado — identidade confirmada pela GOMBUONE"
       className="inline-flex shrink-0 items-center justify-center rounded-full bg-sky-500 align-middle"
       style={{ width: size, height: size }}
     >

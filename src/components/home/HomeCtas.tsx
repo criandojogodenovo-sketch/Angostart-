@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — CTAs contextuais da Home por sessão (Fase 19b).
+ * GOMBUONE — CTAs contextuais da Home por sessão (Fase 19b).
  *
  * As secções de baixo da home («Quem pode vender» e CTA final) tinham CTAs
  * de registo fixos — mesmo para utilizadores com sessão. Agora:

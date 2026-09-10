@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Cartão do perfil (Fase 7):
+ * GOMBUONE — Cartão do perfil (Fase 7):
  *  - Nível, pontos e selos de gamificação;
  *  - Ativar/desativar notificações push (Web Push + VAPID).
  */

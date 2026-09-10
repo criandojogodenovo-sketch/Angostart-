@@ -1,5 +1,5 @@
 /**
- * AngoStart — Secções informativas da Home (Fase 20 — sem duplicação).
+ * GOMBUONE — Secções informativas da Home (Fase 20 — sem duplicação).
  *
  * «Porque escolher» + «Quem pode vender» vivem no fundo da página.
  * Fase 20: a grelha de 4 diferenciais REPETIA a ValueBar (pagamento em
@@ -43,20 +43,20 @@ const SELLER_TYPES: {
 
 export default function HomeInfoSections() {
   return (
-    <div aria-label="Sobre a AngoStart">
+    <div aria-label="Sobre a GOMBUONE">
       {/* ── Porque escolher (conteúdo secundário — fundo da página) ── */}
       <section className="bg-slate-50">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <div>
               <span className="text-sm font-semibold uppercase tracking-wider text-blue-600">
-                Porque escolher a AngoStart
+                Porque escolher a GOMBUONE
               </span>
               <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">
                 Uma startup angolana construída para resolver problemas reais
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
-                A AngoStart nasceu em Luanda com uma missão simples: ligar
+                A GOMBUONE nasceu em Luanda com uma missão simples: ligar
                 quem vende e quem presta serviços a quem precisa deles, num
                 único sítio, com confiança e sem burocracia. Sabemos que
                 encontrar produtos de qualidade ou um profissional de
@@ -68,7 +68,7 @@ export default function HomeInfoSections() {
                 Trabalhamos com pequenos produtores, criadores de conteúdo e
                 técnicos locais, garantindo que cada encomenda move a economia
                 angolana. Do ebook que ensina a vender online ao electricista
-                que resolve a tua instalação em casa, a AngoStart é o ponto de
+                que resolve a tua instalação em casa, a GOMBUONE é o ponto de
                 partida do teu próximo projeto.
               </p>
               {/* Prova de confiança — substitui os cards duplicados da ValueBar */}
@@ -133,7 +133,7 @@ export default function HomeInfoSections() {
               Marketplace multi-perfil
             </span>
             <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">
-              Quem pode vender na AngoStart?
+              Quem pode vender na GOMBUONE?
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-500 sm:text-base">
               Cria a tua conta de vendedor e começa a publicar em minutos.

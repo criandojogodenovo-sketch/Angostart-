@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic';
  *  - birth_date é OPCIONAL (se preenchida valida idade ≥ 15 anos —
  *    mesma regra da Fase 9; se faltar, o admin é alertado na revisão KYC).
  *  - kyc_document_url (foto do documento, BI/Passaporte/Cartão de Eleitor)
- *    é OPCIONAL e tem de vir do upload da AngoStart:
+ *    é OPCIONAL e tem de vir do upload da GOMBUONE:
  *      · enviado   → kyc_status = 'pending'  (admin revê a foto)
  *      · não enviado → kyc_status = 'not_submitted'
  *  Em ambos os casos o vendedor pode vender normalmente — o selo azul
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
   const kycDocUrlRaw = (body.kyc_document_url ?? '').trim();
   if (kycDocUrlRaw && !isKycDocumentUrl(kycDocUrlRaw)) {
     return NextResponse.json(
-      { error: 'A foto do documento deve ser enviada pelo upload da AngoStart (/api/kyc/upload).' },
+      { error: 'A foto do documento deve ser enviada pelo upload da GOMBUONE (/api/kyc/upload).' },
       { status: 400 }
     );
   }

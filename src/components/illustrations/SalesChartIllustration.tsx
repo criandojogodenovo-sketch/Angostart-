@@ -1,5 +1,5 @@
 /**
- * AngoStart — Ilustração "Painel de vendas" (Fase 19, hero do vendedor).
+ * GOMBUONE — Ilustração "Painel de vendas" (Fase 19, hero do vendedor).
  *
  * Mini-dashboard em glassmorphism com barras que crescem (gradiente azul→roxo),
  * linha de tendência teal e chips flutuantes (tendência, pagamento, nova venda).

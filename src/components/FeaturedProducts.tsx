@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Secção de produtos em destaque (página inicial).
+ * GOMBUONE — Secção de produtos em destaque (página inicial).
  */
 
 import { useEffect, useState } from 'react';

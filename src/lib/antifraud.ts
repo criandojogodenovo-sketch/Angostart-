@@ -4,7 +4,7 @@ import { pushNotification } from '@/lib/notifications';
 import { getEnv } from '@/lib/env';
 
 /**
- * AngoStart — Sistema ANTI-BURLA e monitorização (Fase 5) — server-side.
+ * GOMBUONE — Sistema ANTI-BURLA e monitorização (Fase 5) — server-side.
  *
  * Regras automáticas:
  *  1. tentativa_fora      — partilha de contactos (email/telefone/WhatsApp)

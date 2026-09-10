@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * AngoStart — Carteira do utilizador (/carteira).
+ * GOMBUONE — Carteira do utilizador (/carteira).
  *
  * - Saldo disponível + saldo bloqueado (escrow de vendas)
  * - Depósito manual: referência única + transferência via Afrimoney /
- *   UNITEL Money para o número KWiK da AngoStart (admin aprova)
+ *   UNITEL Money para o número KWiK da GOMBUONE (admin aprova)
  * - Saque: reserva o valor; a equipa envia via Afrimoney / UNITEL Money
  * - Diário de movimentações
  *
@@ -270,7 +270,7 @@ export default function CarteiraPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Carteira</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Carrega, paga e recebe — tudo em Kwanzas, direto na AngoStart.
+            Carrega, paga e recebe — tudo em Kwanzas, direto na GOMBUONE.
           </p>
         </div>
         <Button asChild variant="outline" className="h-10 border-blue-500 text-blue-600 hover:bg-blue-50">

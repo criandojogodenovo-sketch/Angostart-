@@ -1,5 +1,5 @@
 /**
- * AngoStart — Níveis de vendedor por volume de vendas (Fase 9).
+ * GOMBUONE — Níveis de vendedor por volume de vendas (Fase 9).
  *
  * ⚡ Client-safe: usado no servidor (APIs) e no cliente (badges de perfil).
  * Bronze → Prata → Ouro → Platina, pelo número de vendas concluídas

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — Alternador de tema claro/escuro (Fase 20).
+ * GOMBUONE — Alternador de tema claro/escuro (Fase 20).
  *
  * - O tema CLARO continua o padrão (nenhuma classe no <html>).
  * - Ao ativar, adiciona `.dark` ao <html> e persiste em

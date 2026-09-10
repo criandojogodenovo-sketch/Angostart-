@@ -3,9 +3,9 @@ import { Loader2 } from "lucide-react";
 import CatalogClient from "@/components/CatalogClient";
 
 export const metadata = {
-  title: "Produtos — AngoStart",
+  title: "Produtos — GOMBUONE",
   description:
-    "Catálogo completo AngoStart: infoprodutos, produtos físicos, serviços ao domicílio e serviços remotos. Preços em Kwanzas.",
+    "Catálogo completo GOMBUONE: infoprodutos, produtos físicos, serviços ao domicílio e serviços remotos. Preços em Kwanzas.",
 };
 
 export default function ProdutosPage() {

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AngoStart — HeroAvatar (redesign real, ref. «Hello Josh»).
+ * GOMBUONE — HeroAvatar (redesign real, ref. «Hello Josh»).
  *
  * Ilustração SVG de uma pessoa que acena — visível na home para TODOS os
  * estados de sessão (o boneco NUNCA desaparece após o login):
@@ -120,7 +120,7 @@ export default function HeroAvatar({
         />
         {/* Gola */}
         <path d="M138 168 Q160 186 182 168 L174 158 Q160 170 146 158 Z" fill="#ffffff" opacity="0.9" />
-        {/* Selo AngoStart no peito */}
+        {/* Selo GOMBUONE no peito */}
         <circle cx="160" cy="228" r="26" fill="rgba(255,255,255,0.16)" />
         <path
           d="M148 228 l8 8 16 -16"

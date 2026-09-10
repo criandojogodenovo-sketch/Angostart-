@@ -1,5 +1,5 @@
 /**
- * AngoStart — Tipos e categorias de produtos.
+ * GOMBUONE — Tipos e categorias de produtos.
  *
  * Fase 4: catálogo REAL — os produtos vivem exclusivamente no Neon;
  * já não existem dados de exemplo em memória.
